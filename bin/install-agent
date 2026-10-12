@@ -1,57 +1,65 @@
 #!/usr/bin/env bash
-# Install the Caddy front door (http://xbrief.localhost → ~/Data/xbrief-data/briefs) and the two LaunchAgents.
-#   bin/install-agent          both
-#   bin/install-agent --page   the front door only (before the first hand run is checked)
-# Idempotent. The Caddyfile is shared by every app: back it up, insert one block above the catch-all, VALIDATE
-# before reloading, restore the backup if validation fails (macro's script).
+# Install the app: its LaunchAgent (com.xbrief.app: the page on 127.0.0.1:8795 and the schedule) and its Caddy front
+# door (http://xbrief.localhost → the app). Idempotent. The Caddyfile is shared by every app: back it up, put this
+# app's block above the catch-all (replacing an older one), VALIDATE before reloading, restore the backup if
+# validation fails (macro's script). The schedule itself starts off; the operator turns it on on the page.
 set -euo pipefail
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$REPO/bin/_env"
 DATA="${XBRIEF_DATA_DIR:-$HOME/Data/xbrief-data}"
 AGENTS="$HOME/Library/LaunchAgents"
 CADDYFILE="/opt/homebrew/etc/Caddyfile"
-mkdir -p "$DATA/logs" "$DATA/briefs"
+LABEL="com.xbrief.app"
+mkdir -p "$DATA/logs"
 chmod 700 "$DATA"
 
-if grep -q "http://xbrief.localhost" "$CADDYFILE"; then
-  echo "caddy: xbrief.localhost already present — left as is"
-else
-  backup="$CADDYFILE.bak-$(date +%Y-%m-%d-%H%M%S)-xbrief"
-  cp "$CADDYFILE" "$backup"
-  "$PY" - "$CADDYFILE" "$REPO/ops/caddy/xbrief.caddy" "$DATA" <<'PYEOF'
-import sys, pathlib
+# ── the app ──
+sed -e "s#__REPO__#$REPO#g" -e "s#__DATA__#$DATA#g" "$REPO/ops/launchd/$LABEL.plist" > "$AGENTS/$LABEL.plist"
+plutil -lint "$AGENTS/$LABEL.plist" >/dev/null
+launchctl bootout "gui/$(id -u)/$LABEL" 2>/dev/null || true
+for _ in $(seq 1 50); do launchctl print "gui/$(id -u)/$LABEL" >/dev/null 2>&1 || break; sleep 0.1; done
+ok=""
+for _ in 1 2 3; do
+  if launchctl bootstrap "gui/$(id -u)" "$AGENTS/$LABEL.plist" 2>/dev/null; then ok=1; break; fi
+  sleep 1
+done
+[ -n "$ok" ] || { echo "agent: $LABEL FAILED to load" >&2; exit 1; }
+echo "agent: $LABEL loaded"
+for old in com.xbrief.am com.xbrief.pm; do  # the two run agents of the static-page build
+  launchctl bootout "gui/$(id -u)/$old" 2>/dev/null && echo "agent: $old unloaded" || true
+  [ -f "$AGENTS/$old.plist" ] && rm "$AGENTS/$old.plist" && echo "agent: $old removed" || true
+done
+
+# ── the front door ──
+block="$(sed "s#__DATA__#$DATA#g" "$REPO/ops/caddy/xbrief.caddy" | sed -n '/^http:\/\/xbrief.localhost {/,/^}/p')"
+current="$(sed -n '/^http:\/\/xbrief.localhost {/,/^}/p' "$CADDYFILE")"
+if [ "$block" = "$current" ]; then
+  echo "caddy: xbrief.localhost already current — left as is"
+  exit 0
+fi
+backup="$CADDYFILE.bak-$(date +%Y-%m-%d-%H%M%S)-xbrief"
+cp "$CADDYFILE" "$backup"
+"$PY" - "$CADDYFILE" "$REPO/ops/caddy/xbrief.caddy" "$DATA" <<'PYEOF'
+import re, sys, pathlib
 cf, block, data = pathlib.Path(sys.argv[1]), pathlib.Path(sys.argv[2]).read_text(), sys.argv[3]
+block = block.replace("__DATA__", data)
 s = cf.read_text()
+old = re.compile(r"(?:^#[^\n]*\n)*^http://xbrief\.localhost \{\n.*?^\}\n\n?", re.M | re.S)
+if old.search(s):
+    s = old.sub("", s, count=1)
 anchor = "# Catch-all."
 if anchor not in s:
     sys.exit("catch-all anchor not found; not editing the Caddyfile")
-new = s.replace(anchor, block.replace("__DATA__", data) + "\n" + anchor, 1)
+new = s.replace(anchor, block + "\n" + anchor, 1)
 tmp = cf.with_name(cf.name + ".part")
 tmp.write_text(new)
 tmp.replace(cf)
 PYEOF
-  if caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1; then
-    caddy reload --config "$CADDYFILE" --adapter caddyfile
-    echo "caddy: xbrief.localhost added (backup $backup)"
-  else
-    cp "$backup" "$CADDYFILE"
-    echo "caddy: validation FAILED — Caddyfile restored from $backup" >&2
-    exit 1
-  fi
+if caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1; then
+  caddy reload --config "$CADDYFILE" --adapter caddyfile
+  echo "caddy: xbrief.localhost → 127.0.0.1:8795 (backup $backup)"
+else
+  cp "$backup" "$CADDYFILE"
+  echo "caddy: validation FAILED — Caddyfile restored from $backup" >&2
+  exit 1
 fi
-
-[ "${1:-}" = "--page" ] && exit 0
-
-for label in com.xbrief.am com.xbrief.pm; do
-  sed -e "s#__REPO__#$REPO#g" -e "s#__DATA__#$DATA#g" "$REPO/ops/launchd/$label.plist" > "$AGENTS/$label.plist"
-  plutil -lint "$AGENTS/$label.plist" >/dev/null
-  launchctl bootout "gui/$(id -u)/$label" 2>/dev/null || true
-  for _ in $(seq 1 50); do launchctl print "gui/$(id -u)/$label" >/dev/null 2>&1 || break; sleep 0.1; done
-  ok=""
-  for _ in 1 2 3; do
-    if launchctl bootstrap "gui/$(id -u)" "$AGENTS/$label.plist" 2>/dev/null; then ok=1; break; fi
-    sleep 1
-  done
-  [ -n "$ok" ] || { echo "agent: $label FAILED to load" >&2; exit 1; }
-  echo "agent: $label loaded"
-done

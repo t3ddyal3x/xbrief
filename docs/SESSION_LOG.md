@@ -48,3 +48,19 @@ a topic (under 90 words asked, 110 enforced) with the topic's posts folded benea
 (memes, bare images, one-liners) listed at the end without words. The 24-hour hand run read 4 pages in 9 minutes.
 **24-hour brief**: 390 posts from 92 accounts, 33 topics, ~1,800 words, 124 wordless at the end; 9 min of reading,
 ~10 min of writing. Live as the front page. **Next**: the operator reads it; on their word, `bin/install-agent`.
+
+## 2026-10-12 (app)
+**Built**: xbrief is now an app (operator: "make it into a full blown app"; chose a local web app, Brief now plus
+history and search, X only). `server.py` on 8795 behind xbrief.localhost (agent `com.xbrief.app`, always on);
+`store.py` keeps every brief and post in `xbrief.db` with full-text search (words, `@account`, dates);
+`runner.py` holds the one-run lock, the progress the page shows, and the schedule, which moved out of launchd
+into the app and is set on the History page (starts **off**). The two never-loaded agents `com.xbrief.am`/`pm`
+are gone; the Caddy block now proxies to the app (backup beside the Caddyfile). Port 8795 added to the tree's
+CLAUDE.md and ARCHITECTURE §3.
+**Moved**: today's two briefs (08:46, 08:57) were written again from their raw reads into the store; the old
+static HTML folder `~/Data/xbrief-data/briefs/` (those two pages and index.html) went to the Trash: the store and
+the raw reads hold everything it did.
+**Checked**: offline tests pass, including the server through a fake socket (perimeter, pages, run button,
+settings) and the schedule's rules; Brief now run end to end on a throwaway data dir (no login: stopped at once,
+stored, shown); pages looked at 2000 px dark/light and phone width with a guard refusing every write.
+**Next**: the operator presses Brief now once, then turns the schedule on (History).

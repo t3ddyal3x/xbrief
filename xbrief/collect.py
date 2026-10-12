@@ -105,8 +105,10 @@ def wheel_delta(rng: random.Random) -> float:
 
 
 class Feed:
-    def __init__(self, browser):
+    def __init__(self, browser, progress=None):
         self.b = browser
+        self.progress = progress or (lambda phase, **kw: None)  # tells the page what the run is doing
+        self.posts = 0
         self.tracked: dict[str, str] = {}  # requestId → url
         self.pages: list[dict] = []
         self.urls: list[str] = []
@@ -165,6 +167,8 @@ class Feed:
                 return
             self.pages.append(page)
             self.urls.append(url)
+            self.posts += sum(len(e.posts) for e in parse.entries(page)[0] if not e.promoted)
+            self.progress("reading", pages=len(self.pages), posts=self.posts)
         elif m == "Network.loadingFailed" and p.get("requestId") in self.tracked:
             self.problem = f"the feed request failed ({p.get('errorText', 'no reason given')})"
         elif m == "Page.frameNavigated" and not (p.get("frame") or {}).get("parentId"):
@@ -218,8 +222,9 @@ def build_of(url: str) -> str:
 
 
 async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None = None, browser=None,
-              home_url: str | None = None, hours: float | None = None) -> Result:
-    """`hours`: read back that far from now instead of to where the last run stopped (an ad-hoc brief)."""
+              home_url: str | None = None, hours: float | None = None, progress=None) -> Result:
+    """`hours`: read back that far from now instead of to where the last run stopped (an ad-hoc brief).
+    `progress(phase, **counts)` is told what the run is doing (runner.write_progress)."""
     rng = rng or random.Random()
     sleep = sleep or asyncio.sleep
     now_ms = now_ms or int(time.time() * 1000)
@@ -239,12 +244,14 @@ async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None =
         from .browser import Browser
 
         browser = Browser(config.PROFILE)
-    feed = Feed(browser)
+    feed = Feed(browser, progress)
     try:
+        feed.progress("opening Brave")
         await browser.start()
         await browser.send("Page.enable")
         # the browser keeps response bodies for getResponseBody; a feed page is ~0.4 MB, a run at most MAX_PAGES
         await browser.send("Network.enable", {"maxTotalBufferSize": 60_000_000, "maxResourceBufferSize": 4_000_000})
+        feed.progress("opening x.com")
         await browser.send("Page.navigate", {"url": home_url})
         t0 = time.monotonic()
         while not feed.loaded and not feed.problem and time.monotonic() - t0 < LOAD_WAIT_S:

@@ -5,7 +5,7 @@ import re
 
 from builders import xw_item, xw_module, xw_page, xw_tweet
 
-from xbrief import brief, cli, config, page, parse
+from xbrief import brief, cli, config, page, parse, store
 
 
 def entries():
@@ -79,29 +79,35 @@ def test_writer_failure_still_lists_every_post():
 
 
 def render(meta=META, ask=None):
+    """A brief as the app shows it: written, stored, loaded back, drawn."""
     ents = entries()
     b, posts = brief.write(ents, ask=ask or (lambda t: answer_for(brief.unique_posts(ents))))
-    return page.render(b, posts, ents, meta, "X brief · morning", [("Sun 11 Oct · evening", "2025-10-11-1800-pm.html")])
+    store.save_run("2025-10-11-1800-pm", "pm", {**META, "started_ms": META["started_ms"] - 86_400_000}, brief.Brief(), {}, [])
+    store.save_run("2025-10-12-0500-am", "am", meta, b, posts, cli.threads_of(ents, posts))
+    return page.brief_page(store.load_run("2025-10-12-0500-am"), store.runs(), {"text": "Schedule off."})
 
 
-def test_page_escapes_and_runs_no_script():
+def test_page_escapes_and_runs_only_its_own_script():
     html = render()
     assert "<script>alert" not in html and "&lt;script&gt;alert(1)&lt;/script&gt;" in html
-    assert not re.search(r"<script\b", html)
-    assert "script-src" not in html and "default-src 'none'" in html
+    assert re.findall(r"<script\b[^>]*>", html) == ['<script src="/app.js" defer>']
+    assert "script-src 'self'" in page.CSP and "img-src https://pbs.twimg.com;" in page.CSP and "unsafe" not in page.CSP
     assert 'href="javascript:' not in html
     assert 'href="https://example.com/a?x=1&amp;y=2"' in html and ">example.com/a</a>" in html
     assert 'src="https://pbs.twimg.com/media/A.jpg?name=small"' in html
+    assert ' style=' not in html and "<style" not in html  # the policy allows the app's sheet only
 
 
 def test_page_layout():
     html = render()
-    assert html.index("Rates") < html.index("Threads") < html.index("Everything else")
+    main = html.split("<main>", 1)[1]
+    assert main.index("Rates") < main.index("Threads") < main.index("Everything else")
     assert "<summary>3 posts · @gina</summary>" in html and html.count("@gina") >= 3  # the thread, whole, folded
     assert "reposted by @dave" in html and ">@alice</a>" in html
-    assert html.count("<section") == 3 and html.count("<p>") == 2  # one paragraph a topic, none for the rest
-    assert 'href="2025-10-11-1800-pm.html"' in html
+    assert main.count("<section") == 3 and main.count("<p>") == 2  # one paragraph a topic, none for the rest
+    assert 'href="/b/2025-10-11-1800-pm"' in html  # earlier briefs, from the store
     assert 'class="status quiet"' in html and "6 posts from 4 accounts" in html and "since " in html
+    assert 'data-at="2025-10-12-0500-am"' in html
 
 
 def test_status_says_how_the_run_ended():
@@ -112,8 +118,8 @@ def test_status_says_how_the_run_ended():
 
 
 def test_empty_brief():
-    html = page.render(brief.Brief(), {}, [], META, "X brief · evening", [])
-    assert "Nothing new from the accounts you follow" in html
+    main, toc = page.brief_main(brief.Brief(), {}, {}, META)
+    assert "Nothing new from the accounts you follow" in main and toc == []
 
 
 def test_jitter_lands_inside_the_window():
@@ -128,12 +134,15 @@ def test_jitter_lands_inside_the_window():
     assert 0 <= w <= (2 * 3600 + 45 * 60)
 
 
-def test_publish_writes_the_page_and_index(monkeypatch):
+def test_publish_stores_the_run():
     from builders import BASE_MS
 
     pages = [xw_page([xw_item(xw_tweet(1, "a", "hello"))])]
-    meta = {**META, "started_ms": BASE_MS}
+    meta = {**META, "started_ms": BASE_MS, "boundary_id": 0}
     name = cli.publish(pages, meta, "am", ask=lambda t: "{}")
-    assert (config.BRIEFS / name).read_text() == (config.BRIEFS / "index.html").read_text()
-    assert name.endswith("-am.html") and "hello" in (config.BRIEFS / name).read_text()
+    assert name.endswith("-am") and store.latest_name() == name
+    run = store.load_run(name)
+    assert [p.text for p in run["posts"].values()] == ["hello"] and run["brief"].other == list(run["posts"])
     assert (config.LOGS / "run.log").read_text().count("brief ") == 1
+    cli.publish(pages, meta, "am", ask=lambda t: "{}")  # a rebrief replaces the run
+    assert len(store.runs()) == 1

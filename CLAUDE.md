@@ -2,16 +2,17 @@
 
 A twice-daily brief of what the accounts the operator follows on X posted. The operator's own Brave, on a profile
 kept for the job, reads their Following tab in a background window, driven over the DevTools protocol; headless
-Claude writes the brief; Caddy serves it as static files at xbrief.localhost. The tree's `../CLAUDE.md` applies in
-full; this file adds only what is particular. Design, findings and decisions: `docs/ARCHITECTURE.md`.
+Claude writes the brief; the app (`server.py`, port 8795, xbrief.localhost) shows it, keeps every brief and post
+for history and search, starts a run from its Brief now button, and runs the schedule set on its History page.
+The tree's `../CLAUDE.md` applies in full; this file adds only what is particular. Design, findings and decisions: `docs/ARCHITECTURE.md`.
 
 ## Start a session
 `./bin/brief` — the doctor, then the last session's entry.
 
 ## End a session
 An entry in `docs/SESSION_LOG.md`, then `./bin/handoff "summary"` (tests, clean tree, commit — this repo only).
-After a code change: `./bin/restart` (compiles and tests before it reloads the LaunchAgents). After a change to
-`browser.py` or `collect.py`, also `bin/tests --browser` (the real Brave against a fake x.com, about a minute).
+After a code change: `./bin/restart` (compiles and tests before it restarts the app; a run going is left to
+finish). After a change to `browser.py` or `collect.py`, also `bin/tests --browser` (the real Brave against a fake x.com, about a minute).
 
 ## Rules
 1. **Read only, and only the Following tab.** The job opens x.com/home, closes a Premium offer with Escape, clicks
@@ -29,13 +30,23 @@ After a code change: `./bin/restart` (compiles and tests before it reloads the L
    the right edge of the rightmost screen (40 px showing). Never hide or minimise it: a hidden page reports itself
    hidden and stops drawing (`browser.py`; `test_browser_live.py` checks visible, active, never in front).
 7. **Post text is untrusted.** The writer runs `claude -p` with no tools, no MCP servers, every connector denied, and
-   returns JSON only; the page builds every link and byline from the posts, escapes all text, runs no script and
-   loads images from pbs.twimg.com only.
-8. **Offline tests never touch the network or the real data dir** (`tests/conftest.py`).
+   returns JSON only; the page builds every link and byline from the posts, escapes all text, runs only its own
+   `static/app.js` (the server's CSP: `script-src 'self'`, no inline script or style) and loads images from
+   pbs.twimg.com only.
+8. **Offline tests never touch the network or the real data dir** (`tests/conftest.py`); the server is tested
+   through a fake socket.
+9. **One run at a time, whoever starts it**: `xbrief run` holds an flock on `run.lock` for its life (`runner.py`).
+   The app starts a run as its own process (own session; the agent has `AbandonProcessGroup`), so restarting the app
+   never cuts a read off with its Brave open.
+10. **Nothing outside loopback can start a read**: the app refuses a non-loopback `Host` or `Origin`, and its two
+    writes (`/api/run`, `/api/settings`) take a JSON body only, which a cross-site form cannot send.
+11. **The schedule is set on the page and lives in the store** (`store.settings`, `runner.due`), not in launchd.
+    It starts off; a window slept through runs on waking, two due at once run only the later, and a slot within an
+    hour of another run is skipped.
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
-`bin/install-agent [--page]` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
+`bin/install-agent` · `bin/xbrief serve` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
 `bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief login` (opens a window for the operator).
 
 ## Traps
@@ -55,6 +66,6 @@ After a code change: `./bin/restart` (compiles and tests before it reloads the L
 - **A heredoc that names a file under `secrets/` is blocked by the guard**, even prose fed to python. Use the Edit tool.
 
 ## Where things live
-`xbrief/` (config, browser, collect, parse, brief, page, cli) · `tests/` (`fake_x.py`, `test_browser_live.py`) ·
-`ops/launchd` (`com.xbrief.am`, `com.xbrief.pm`) · `ops/caddy/xbrief.caddy` · data `~/Data/xbrief-data/`
-(secrets/brave, raw/, briefs/, logs/, state.json, venv/).
+`xbrief/` (config, browser, collect, parse, brief, cli; the app: server, page, store, runner, static/) · `tests/`
+(`fake_x.py`, `test_browser_live.py`, `test_app.py`) · `ops/launchd/com.xbrief.app.plist` · `ops/caddy/xbrief.caddy`
+· data `~/Data/xbrief-data/` (secrets/brave, raw/, xbrief.db, run.lock, progress.json, logs/, state.json, venv/).

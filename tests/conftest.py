@@ -48,7 +48,8 @@ def no_network(monkeypatch, request):
 def fresh_data(monkeypatch, tmp_path):
     """Each test gets its own empty data dir."""
     d = tmp_path / "data"
-    for name, sub in [("DATA", ""), ("SECRETS", "secrets"), ("RAW", "raw"), ("BRIEFS", "briefs"), ("LOGS", "logs")]:
+    for name, sub in [("DATA", ""), ("SECRETS", "secrets"), ("RAW", "raw"), ("LOGS", "logs"), ("DB", "xbrief.db"),
+                      ("LOCK", "run.lock"), ("PROGRESS", "progress.json")]:
         monkeypatch.setattr(config, name, d / sub if sub else d)
     monkeypatch.setattr(config, "PROFILE", d / "secrets" / "brave")
     monkeypatch.setattr(config, "OLD_LOGIN", d / "secrets" / "old-login")

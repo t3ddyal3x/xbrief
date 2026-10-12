@@ -1,4 +1,4 @@
-"""xbrief run | rebrief | probe | login | status. See README.md."""
+"""xbrief serve | run | rebrief | probe | login | status. See README.md."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ import re
 import sys
 import time
 
-from . import brief, collect, config, page, parse
+from . import brief, collect, config, parse, runner, store
 
 LABELS = {"am": "morning", "pm": "evening"}
 
@@ -23,10 +23,6 @@ def log(msg: str) -> None:
     config.LOGS.mkdir(parents=True, exist_ok=True)
     with open(config.LOGS / "run.log", "a") as f:
         f.write(line + "\n")
-
-
-def label_now() -> str:
-    return "am" if dt.datetime.now().hour < 12 else "pm"
 
 
 def jitter_seconds(label: str, now: dt.datetime, rng: random.Random) -> float:
@@ -46,32 +42,18 @@ def entries_of(pages: list[dict]) -> list[parse.Entry]:
     return out
 
 
-def archive(exclude: str | None = None) -> list[tuple[str, str]]:
-    out = []
-    for p in sorted(config.BRIEFS.glob("20*.html"), reverse=True)[:20]:
-        if p.name == exclude:
-            continue
-        try:
-            d = dt.datetime.strptime(p.name[:15], "%Y-%m-%d-%H%M")
-            lab = LABELS.get(p.stem.rsplit("-", 1)[-1], "")
-            out.append((f"{d.strftime('%a %-d %b')} · {lab}", p.name))
-        except ValueError:
-            continue
-    return out
+def threads_of(entries: list[parse.Entry], posts: dict) -> list[list[str]]:
+    """The conversations of three posts or more that the brief holds, each in display order."""
+    return [[p.id for p in e.posts] for e in entries if len(e.posts) >= 3 and any(p.id in posts for p in e.posts)]
 
 
 def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude) -> str:
+    """Write the brief and store the run whole (store.save_run); the page reads it from there."""
     ents = entries_of(pages)
     b, posts = brief.write(ents, ask=ask, after_id=int(meta.get("boundary_id") or 0))
     started = dt.datetime.fromtimestamp((meta.get("started_ms") or time.time() * 1000) / 1000)
-    name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}.html"
-    title = f"X brief · {LABELS.get(label, label)}"
-    html = page.render(b, posts, ents, meta, title, archive(exclude=name))
-    config.BRIEFS.mkdir(parents=True, exist_ok=True)
-    for target in (config.BRIEFS / name, config.BRIEFS / "index.html"):
-        tmp = target.with_suffix(".part")
-        tmp.write_text(html)
-        tmp.replace(target)
+    name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}"
+    store.save_run(name, label, meta, b, posts, threads_of(ents, posts))
     log(f"brief {name}: {len(posts)} posts, {len(b.topics)} topics"
         + (f", writer failed: {b.writer_error}" if b.writer_error else ""))
     return name
@@ -79,28 +61,55 @@ def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude) -> 
 
 def cmd_run(a) -> int:
     config.ensure_dirs()
-    label = a.label or label_now()
+    label = a.label or runner.label_now()
     if not a.now:
         wait = jitter_seconds(label, dt.datetime.now(), random.Random())
         log(f"run {label}: starting in {wait / 60:.0f} min")
         time.sleep(wait)
-    if a.max_pages:
-        config.MAX_PAGES = a.max_pages
-    res = asyncio.run(collect.run(hours=a.hours))
-    path = collect.save_raw(res, label)
-    log(f"read {len(res.pages)} pages ({res.build or 'no site'}): {res.stop}" + (" · GAP" if res.gap else "")
-        + f" · raw {os.path.basename(path)}")
-    publish(res.pages, res.meta(), label)
-    pruned = collect.prune_raw()
-    if pruned:
-        log(f"deleted {pruned} raw files older than {config.RAW_KEEP_DAYS} days")
-    return 0 if res.normal else 1
+    lock = runner.take_lock()
+    if lock is None:
+        log(f"run {label}: another run is going; this one did not start")
+        return 3
+    pr, now_ms = runner.read_progress(), int(time.time() * 1000)
+    if not (pr.get("phase") == "starting" and now_ms - (pr.get("started_ms") or 0) < 60_000):  # not started by the page
+        runner.write_progress(fresh=True, label=label, hours=a.hours, by="terminal", started_ms=now_ms)
+    runner.write_progress(phase="starting", done=False, pid=os.getpid())
+    try:
+        if a.max_pages:
+            config.MAX_PAGES = a.max_pages
+        res = asyncio.run(collect.run(hours=a.hours, progress=lambda phase, **kw: runner.write_progress(phase=phase, **kw)))
+        path = collect.save_raw(res, label)
+        log(f"read {len(res.pages)} pages ({res.build or 'no site'}): {res.stop}" + (" · GAP" if res.gap else "")
+            + f" · raw {os.path.basename(path)}")
+        runner.write_progress(phase="writing the brief", stop=res.stop, normal=res.normal)
+        name = publish(res.pages, res.meta(), label)
+        runner.write_progress(phase="done", done=True, name=name)
+        pruned = collect.prune_raw()
+        if pruned:
+            log(f"deleted {pruned} raw files older than {config.RAW_KEEP_DAYS} days")
+        return 0 if res.normal else 1
+    except BaseException as e:
+        runner.write_progress(phase="failed", done=True, error=f"{type(e).__name__}: {e}"[:300])
+        raise
+    finally:
+        lock.close()
+
+
+def label_of(raw_path) -> str:
+    label = os.path.basename(str(raw_path)).rsplit("-", 1)[-1].removesuffix(".gz").removesuffix(".json")
+    return label if label in LABELS else "am"
 
 
 def cmd_rebrief(a) -> int:
     raw = collect.load_raw(a.raw)
-    label = os.path.basename(a.raw).rsplit("-", 1)[-1].removesuffix(".gz").removesuffix(".json")
-    publish(raw["pages"], raw["meta"], label if label in LABELS else "am")
+    publish(raw["pages"], raw["meta"], label_of(a.raw))
+    return 0
+
+
+def cmd_serve(a) -> int:
+    from . import server
+
+    server.serve()
     return 0
 
 
@@ -213,6 +222,7 @@ def cmd_status(a) -> int:
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="xbrief")
     sub = p.add_subparsers(dest="cmd", required=True)
+    sub.add_parser("serve", help="the app at xbrief.localhost, and the schedule (the LaunchAgent runs this)").set_defaults(fn=cmd_serve)
     r = sub.add_parser("run", help="read the Following tab and write the brief")
     r.add_argument("--label", choices=list(LABELS))
     r.add_argument("--now", action="store_true", help="start now, not at a random minute in the window")

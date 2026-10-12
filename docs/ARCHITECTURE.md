@@ -4,9 +4,32 @@ The plan it was built from is `../../docs/plans/2026-10-12_x-follows-brief.md`. 
 replaced the same day by the plan's own fallback, a real browser (operator, 2026-10-12: "real browser with the
 devtools update"). This file records what the build found and where it differs from the plan.
 
+## The app (2026-10-12)
+The static page became an app on the operator's word ("make it into a full blown app"; chosen: a local web app like
+macro, with a run button and history and search; X only). `server.py` on 127.0.0.1:8795 behind Caddy, the
+standard library only, macro's loopback perimeter. Pages are built on the server (`page.py`); one script,
+`static/app.js`, drives the Brief now button, the rail's live line (`/api/status`, every 1.5 s while a run goes,
+30 s otherwise) and the schedule form. The CSP allows that script and the app's sheet, nothing inline.
+
+- **The store** (`store.py`, `xbrief.db`, SQLite in WAL): a run is stored whole when its brief is written (meta,
+  topics, conversations), each post once however many runs saw it, and an FTS5 index over each post's words (with
+  what it reposts or quotes) and accounts. Posts are kept for good (a few hundred bytes each); raw reads, 30 days.
+  Search words are each quoted and prefix-matched, so no input can be a query-syntax error.
+- **Runs** are `xbrief run` processes, whoever starts them. An flock on `run.lock` keeps it to one; `progress.json`
+  carries the phase and the page and post counts (`collect.run(progress=…)`) to the page. The app starts a run in
+  its own session and the agent abandons its process group, so a restart never cuts a read off with Brave open.
+- **The schedule** moved from two launchd agents (`com.xbrief.am`/`pm`, never loaded) into the app, so the page
+  can turn it on and move its windows: settings in the store, one slot a day a window with a random fire time
+  (`runner.pick_fire`, same rule as `cli.jitter_seconds`), checked every 20 s. A window slept through runs on
+  waking (as launchd would); two due at once run only the later and skip the earlier, which loses nothing because
+  a run reads from where the last stopped; a slot within an hour of another run is skipped; turning it on or moving
+  it marks a window already over as skipped. Starts off.
+- The two briefs of the static build were written again from their raw reads into the store; the old HTML folder
+  `briefs/` went to the Trash.
+
 ## One run
-1. launchd fires at the start of the window; `cli.jitter_seconds` waits a random part of it (never past the window
-   end minus 15 minutes; a late wake runs at once).
+1. The app's schedule (or the Brief now button, or a terminal) starts `xbrief run --now`; a scheduled run's start
+   is already a random minute in its window. Without `--now`, `cli.jitter_seconds` waits a random part of it.
 2. `browser.Browser.start`: a separate Brave instance on `~/Data/xbrief-data/secrets/brave`, started with no
    window (`open -n -g … --no-startup-window`), one window opened in the background over the DevTools protocol and
    parked at the right edge of the rightmost screen. Flags keep a covered window from being throttled.
@@ -24,8 +47,8 @@ devtools update"). This file records what the build found and where it differs f
    no script) without a new page, `MAX_PAGES` or `MAX_MINUTES`, each of which is a **gap** the brief names. X's
    first Recent page holds ~100 posts, so a plain count of turns called a stall too early (2026-10-12). Any error status, failed request, non-feed answer or blocked page ends the
    run at once. Brave is always closed, and killed if it does not close.
-5. The pages are saved raw (`raw/`, one gzip a run, 30 days: a feed page is ~0.4 MB of JSON and compresses 7×); `brief.write` asks Claude; `page.render` writes the page and
-   `index.html`; old raw files are pruned.
+5. The pages are saved raw (`raw/`, one gzip a run, 30 days: a feed page is ~0.4 MB of JSON and compresses 7×);
+   `brief.write` asks Claude; the run is stored (`store.save_run`); old raw files are pruned.
 
 ## Why a real browser
 The first build used a pinned fork of twscrape and had to imitate the browser: headers, their order, the TLS
@@ -66,5 +89,5 @@ and placed every post. A writer failure still publishes every post, unsummarised
   x.com). macOS keeps 40 px of any window on screen, so the window waits at the right edge of the rightmost screen,
   behind the operator's windows.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
-- **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles and times in
-  a mono byline built from the data, and opens threads by default.
+- **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles, times and
+  controls in a mono, builds bylines from the data, and folds each topic's posts under its paragraph.

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# One screen: the login profile, the two runs, the page, the last run. Never opens the profile's files.
+# One screen: the login profile, the app and its front door, the schedule, the last run. Never opens the profile's files.
 set -uo pipefail
 source "$(dirname "${BASH_SOURCE[0]}")/_env"
 exec "$PY" - <<'PYEOF'
@@ -16,13 +16,25 @@ elif running(config.PROFILE):
 if config.OLD_LOGIN.exists():
     faults.append(("old login file", "the first build's cookie file is still there", "xbrief/bin/xbrief login deletes it"))
 out = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
-for label in ("com.xbrief.am", "com.xbrief.pm"):
-    if not any(l.endswith(label) for l in out.splitlines()):
-        faults.append((label, "not loaded: no automatic runs", "xbrief/bin/install-agent"))
+if not any(l.endswith("com.xbrief.app") for l in out.splitlines()):
+    faults.append(("com.xbrief.app", "not loaded: no page and no scheduled runs", "xbrief/bin/install-agent"))
+for old in ("com.xbrief.am", "com.xbrief.pm"):
+    if any(l.endswith(old) for l in out.splitlines()):
+        faults.append((old, "the static-page build's run agent is still loaded", "xbrief/bin/install-agent removes it"))
+health = None
 try:
-    urllib.request.urlopen("http://xbrief.localhost/", timeout=4)
+    with urllib.request.urlopen("http://127.0.0.1:8795/api/health", timeout=4) as r:
+        health = json.load(r)
 except Exception as exc:
-    faults.append(("page", f"xbrief.localhost unreachable ({type(exc).__name__})", "xbrief/bin/install-agent --page"))
+    faults.append(("app", f"127.0.0.1:8795 not answering ({type(exc).__name__})", "tail ~/Data/xbrief-data/logs/app.log"))
+try:
+    with urllib.request.urlopen("http://xbrief.localhost/api/health", timeout=4) as r:
+        json.load(r)
+except Exception as exc:
+    faults.append(("page", f"xbrief.localhost does not reach the app ({type(exc).__name__})", "xbrief/bin/install-agent"))
+if health:
+    print(f"xbrief  {health['runs']} briefs, {health['posts']} posts kept · schedule {'on' if health['schedule'] else 'off'}"
+          + (" · a run is going" if health["running"] else ""))
 from xbrief import collect
 raws = collect.raw_files()
 if raws:
@@ -31,8 +43,8 @@ if raws:
     print(f"xbrief  last run {raws[-1].name} ({age_h:.1f} h ago): {meta['stop']}{' · GAP' if meta.get('gap') else ''}")
     if not meta.get("normal"):
         faults.append(("last run", meta["stop"], "tail ~/Data/xbrief-data/logs/run.log; xbrief/bin/xbrief status"))
-    if age_h > 15:
-        faults.append(("runs", f"no run for {age_h:.0f} h (two a day)", "tail ~/Data/xbrief-data/logs/launchd.log"))
+    if age_h > 15 and health and health["schedule"]:
+        faults.append(("runs", f"no run for {age_h:.0f} h (two a day)", "tail ~/Data/xbrief-data/logs/app.log runs.log"))
 else:
     print("xbrief  no run yet")
 if not faults:

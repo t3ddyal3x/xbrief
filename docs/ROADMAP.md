@@ -1,7 +1,5 @@
 # xbrief — roadmap
 
-1. **First hand run**: `bin/xbrief login` (the operator logs in, closes X's notices, clicks Following once, quits),
-   `bin/xbrief probe`, one `bin/xbrief run --now`, the brief checked against the Following tab with replies. Then set
-   `config.MAX_PAGES` from that run's page count.
-2. `bin/install-agent` for the two daily runs.
-3. If the Following tab hides replies the operator wants: a private List on the same account instead (plan decision 4).
+1. **First scheduled day**: turn the schedule on (History), and read the next morning's and evening's briefs
+   against the Following tab. Then set `config.MAX_PAGES` from a full day's page count.
+2. If the Following tab hides replies the operator wants: a private List on the same account instead (plan decision 4).

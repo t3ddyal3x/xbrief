@@ -9,9 +9,13 @@ SECRETS = DATA / "secrets"
 PROFILE = SECRETS / "brave"  # the job's own Brave profile: the X login lives here, never read by a session
 OLD_LOGIN = SECRETS / "accounts.db"  # the twscrape login of the first build; `xbrief login` deletes it
 RAW = DATA / "raw"  # one file a run, the feed pages as x.com downloaded them; kept RAW_KEEP_DAYS
-BRIEFS = DATA / "briefs"  # what Caddy serves at xbrief.localhost
 LOGS = DATA / "logs"
 STATE = DATA / "state.json"  # the newest post the last good run reached
+DB = DATA / "xbrief.db"  # every brief and every post read, kept for history and search (store.py)
+LOCK = DATA / "run.lock"  # held by the one run going (flock), whoever started it
+PROGRESS = DATA / "progress.json"  # what the run going (or the last one) is doing, for the page
+
+HOST, PORT = "127.0.0.1", 8795  # the app (server.py), behind Caddy at xbrief.localhost
 
 HOME_URL = os.environ.get("XBRIEF_HOME_URL", "https://x.com/home")
 CLAUDE = os.environ.get("XBRIEF_CLAUDE", str(HOME / ".local" / "bin" / "claude"))
@@ -22,13 +26,13 @@ MAX_PAGES = 20  # hard cap a run: a Recent page holds ~85 entries, a day is ~5 p
 MAX_MINUTES = 40  # hard cap on one run's scrolling
 FIRST_RUN_HOURS = 24  # with no earlier run, read back this far (operator, 2026-10-12: a full day)
 
-# Each run starts at a random minute inside its window, the laptop's own time.
-# launchd fires at the window's start; the job sleeps a random part of the window first.
+# Each scheduled run starts at a random minute inside its window, the laptop's own time. These are the
+# defaults: the operator sets the windows, and turns the schedule on or off, on the page (store.settings).
 WINDOWS = {"am": ("05:30", "07:30"), "pm": ("17:00", "20:00")}
 
 
 def ensure_dirs() -> None:
-    for d in (DATA, RAW, BRIEFS, LOGS):
+    for d in (DATA, RAW, LOGS):
         d.mkdir(parents=True, exist_ok=True)
     SECRETS.mkdir(parents=True, exist_ok=True)
     os.chmod(SECRETS, 0o700)

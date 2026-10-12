@@ -1,10 +1,15 @@
 #!/usr/bin/env bash
-# xbrief has no server: after a code change, compile and test, then reload the two LaunchAgents.
+# Restart the app -- only after the code compiles and every test passes. A run going is left to finish.
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 source "$HERE/bin/_env"
 find "$HERE/xbrief" -name '*.py' -not -path '*/__pycache__/*' -print0 | xargs -0 "$PY" -m py_compile \
-  || { echo "python does not compile — not reloading" >&2; exit 1; }
-"$HERE/bin/tests" || { echo "tests failing — not reloading" >&2; exit 1; }
-"$HERE/bin/install-agent"
+  || { echo "python does not compile — not restarting" >&2; exit 1; }
+"$HERE/bin/tests" || { echo "tests failing — not restarting" >&2; exit 1; }
+if launchctl print "gui/$(id -u)/com.xbrief.app" >/dev/null 2>&1; then
+  launchctl kickstart -k "gui/$(id -u)/com.xbrief.app"
+else
+  "$HERE/bin/install-agent"
+fi
+for _ in $(seq 1 40); do curl -sf -o /dev/null http://127.0.0.1:8795/api/health && break; sleep 0.25; done
 "$HERE/bin/doctor"
