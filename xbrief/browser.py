@@ -6,8 +6,10 @@ of x.com is followed the way any browser follows it. The job only opens the page
 with the mouse wheel, and keeps the feed responses the page itself downloads.
 
 How it stays quiet: Brave is started with no window, then one window is opened in the background (it never comes
-to the front, checked 2026-10-12), and the app is hidden. Background throttling is off, so the page keeps
-behaving as a visible, scrolled page. Nothing is evaluated inside the page: no Runtime domain, no injected script.
+to the front, checked 2026-10-12) and parked at the right edge of the rightmost screen, where macOS leaves 40 px of
+it showing, behind the operator's windows. It is not hidden or minimised: a hidden page reports itself hidden (X's
+x-twitter-active-user becomes "no") and stops drawing, so clicks and scrolling do nothing (checked 2026-10-12).
+Background throttling is off, so a covered window keeps behaving as a visible, scrolled page. Nothing is evaluated inside the page: no Runtime domain, no injected script.
 Only Page, Network, DOM (to find the tab) and Input are used.
 """
 
@@ -52,16 +54,19 @@ def launch(profile: pathlib.Path, extra: list[str] | None = None, background: bo
 
 
 def running(profile: pathlib.Path) -> list[int]:
-    r = subprocess.run(["pgrep", "-f", f"--user-data-dir={profile}"], capture_output=True, text=True)
+    r = subprocess.run(["pgrep", "-f", "--", f"--user-data-dir={profile}"], capture_output=True, text=True)
     return [int(x) for x in r.stdout.split()]
 
 
-def hide_app(profile: pathlib.Path) -> None:
-    """cmd+H for this instance only (found by its profile's process id)."""
-    pids = running(profile)
-    if pids:
-        subprocess.run(["osascript", "-e", f'tell application "System Events" to set visible of '
-                        f"(first process whose unix id is {min(pids)}) to false"], capture_output=True)
+def park_left() -> int:
+    """The x where a window shows only macOS's minimum 40 px: the right edge of the rightmost screen, less 40."""
+    js = ('ObjC.import("AppKit");var s=$.NSScreen.screens,r=0;for(var i=0;i<s.count;i++){var f=s.objectAtIndex(i).frame;'
+          'r=Math.max(r,f.origin.x+f.size.width)};r')
+    out = subprocess.run(["osascript", "-l", "JavaScript", "-e", js], capture_output=True, text=True).stdout.strip()
+    try:
+        return int(float(out)) - 40
+    except ValueError:
+        return 0
 
 
 class Browser:
@@ -78,7 +83,7 @@ class Browser:
 
     # ── lifecycle ───────────────────────────────────────────────────────────────────────────────────
 
-    async def start(self, hide: bool = True, timeout: float = 30.0) -> "Browser":
+    async def start(self, park: bool = True, timeout: float = 30.0) -> "Browser":
         if running(self.profile):
             raise BrowserError("the job's Brave profile is already open (a login window, or a run that did not end)")
         launch(self.profile)
@@ -96,8 +101,10 @@ class Browser:
         made = await self._browser_call("Target.createTarget", {"url": "about:blank", "newWindow": True,
                                                                  "background": True, **WINDOW})
         self.target_id = made["targetId"]
-        if hide:
-            hide_app(self.profile)
+        if park:
+            win = await self._browser_call("Browser.getWindowForTarget", {"targetId": self.target_id})
+            await self._browser_call("Browser.setWindowBounds",
+                                     {"windowId": win["windowId"], "bounds": {"left": park_left(), "top": 120}})
         self._ws = await connect(f"ws://127.0.0.1:{self.port}/devtools/page/{self.target_id}", max_size=None)
         self._reader = asyncio.create_task(self._read())
         return self

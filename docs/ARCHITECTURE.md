@@ -8,8 +8,8 @@ devtools update"). This file records what the build found and where it differs f
 1. launchd fires at the start of the window; `cli.jitter_seconds` waits a random part of it (never past the window
    end minus 15 minutes; a late wake runs at once).
 2. `browser.Browser.start`: a separate Brave instance on `~/Data/xbrief-data/secrets/brave`, started with no
-   window (`open -n -g … --no-startup-window`), one window opened in the background over the DevTools protocol, the
-   app hidden. Flags keep a hidden window from being throttled.
+   window (`open -n -g … --no-startup-window`), one window opened in the background over the DevTools protocol and
+   parked at the right edge of the rightmost screen. Flags keep a covered window from being throttled.
 3. `collect.run`: open x.com/home; stop if the page lands on a login, landing or challenge path; close a Premium
    offer with Escape (a person would); wait a few seconds; click Following unless X already shows it (its own feed
    request says so); then turn the mouse wheel at a reading pace (`wheel_pause`: about a second, now and then a long
@@ -56,8 +56,10 @@ and placed every post. A writer failure still publishes every post, unsummarised
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an
   everyday profile, and the job must not touch the operator's open browser.
-- **Hidden, not off-screen**: macOS keeps 40 px of a window on screen, and the operator's laptop screen is left of the
-  main display.
+- **Parked, not hidden**: hiding the app (cmd+H) or minimising the window makes the page report itself hidden (X's
+  `x-twitter-active-user: no`) and stop drawing, so the feed does not load (both checked 2026-10-12 on the fake
+  x.com). macOS keeps 40 px of any window on screen, so the window waits at the right edge of the rightmost screen,
+  behind the operator's windows.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
 - **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles and times in
   a mono byline built from the data, and opens threads by default.

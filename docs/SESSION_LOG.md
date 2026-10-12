@@ -27,3 +27,8 @@ it clicks Following, scrolls with the wheel and keeps the feed responses x.com d
 `visible`, wheel loads pages, a 429 stops with no retry, a logout stops before any feed request, Brave closed after.
 **Next**: the operator runs `bin/xbrief login` (it also deletes the first build's cookie file), then probe, one hand
 run, `bin/install-agent`.
+**Then**: `browser.running` passed the profile path to pgrep as if it were an option, so it never found the job's
+Brave: the app was never really hidden in the first live tests, and the login command stopped waiting after 20 s (it
+deleted the first build's cookie file then, as planned, only early). Fixed (`pgrep -f --`). With hiding real, a
+hidden or minimised window reports `hidden` and loads nothing; the window is now parked at the right edge instead.
+37 tests including the 3 live ones pass. The operator logged in through the job's profile.

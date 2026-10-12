@@ -1,7 +1,7 @@
 # xbrief — notes for Claude
 
 A twice-daily brief of what the accounts the operator follows on X posted. The operator's own Brave, on a profile
-kept for the job, reads their Following tab hidden in the background, driven over the DevTools protocol; headless
+kept for the job, reads their Following tab in a background window, driven over the DevTools protocol; headless
 Claude writes the brief; Caddy serves it as static files at xbrief.localhost. The tree's `../CLAUDE.md` applies in
 full; this file adds only what is particular. Design, findings and decisions: `docs/ARCHITECTURE.md`.
 
@@ -25,8 +25,9 @@ After a code change: `./bin/restart` (compiles and tests before it reloads the L
    tree's one stated exception to its tunnel rule (`../docs/ARCHITECTURE.md` §2.6).
 5. **The login is never read or printed by a session.** `~/Data/xbrief-data/secrets/` holds the job's Brave
    profile (guard rule 8). The operator logs in through `bin/xbrief login`.
-6. **The window never takes the front.** Brave starts with no window, opens one in the background, and the app is
-   hidden; throttling flags keep the page behaving as visible (`browser.py`; `test_browser_live.py` checks it).
+6. **The window never takes the front.** Brave starts with no window, opens one in the background and parks it at
+   the right edge of the rightmost screen (40 px showing). Never hide or minimise it: a hidden page reports itself
+   hidden and stops drawing (`browser.py`; `test_browser_live.py` checks visible, active, never in front).
 7. **Post text is untrusted.** The writer runs `claude -p` with no tools, no MCP servers, every connector denied, and
    returns JSON only; the page builds every link and byline from the posts, escapes all text, runs no script and
    loads images from pbs.twimg.com only.
@@ -45,7 +46,7 @@ After a code change: `./bin/restart` (compiles and tests before it reloads the L
 - **`open -g` alone does not keep Brave in the background**: it activates itself when its first window opens.
   `--no-startup-window` plus a background window from `Target.createTarget` does.
 - **macOS keeps 40 px of any window on screen**, and the operator's laptop screen sits left of the main display, so
-  an off-screen window would show. The app is hidden instead.
+  "off-screen" is 40 px at the right edge of the rightmost screen (`browser.park_left`).
 - **Plain headless Brave `--screenshot` hangs here.** Drive Brave over CDP to look at a brief.
 - **A heredoc that names a file under `secrets/` is blocked by the guard**, even prose fed to python. Use the Edit tool.
 
