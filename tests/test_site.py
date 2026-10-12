@@ -90,7 +90,19 @@ def test_missing_operation_is_an_error():
     with pytest.raises(site.SiteError):
         asyncio.run(site.xweb_op(ENTRY, fake_cdn({ENTRY: ""}, [])))
     with pytest.raises(site.SiteError):
-        site.legacy_op(LEGACY_HTML, MAIN, "nothing here")
+        asyncio.run(site.legacy_op(LEGACY_HTML, MAIN, fake_cdn({MAIN: "nothing here"}, [])))
+
+
+def test_legacy_op_in_a_mapped_chunk_home_first():
+    # the old app's chunk maps, as twscrape's get_scripts_list reads them: {id:"name"} and {id:"16-hex hash"}
+    html = LEGACY_HTML + '<script>{1:"bundle.Explore",2:"bundle.Home"}[e]+"."+{1:"0123456789abcdef",2:"fedcba9876543210"}[e]</script>'
+    base = "https://abs.twimg.com/responsive-web/client-web/"
+    files = {MAIN: "no op here", base + "bundle.Home.fedcba9876543210a.js": MAIN_JS,
+             base + "bundle.Explore.0123456789abcdef" + "a.js": ""}
+    log = []
+    op = asyncio.run(site.legacy_op(html, MAIN, fake_cdn(files, log)))
+    assert op.query_id == "QID123" and op.script.endswith("bundle.Home.fedcba9876543210a.js") and op.page_script == MAIN
+    assert log == ["main.abc123ef.js", "bundle.Home.fedcba9876543210a.js"]
 
 
 def test_cache_refuses_odd_names():

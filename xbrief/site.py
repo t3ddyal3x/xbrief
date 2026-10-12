@@ -75,7 +75,7 @@ def detect(html: str) -> tuple[str, str]:
 
 async def cached(url: str, get_text: GetText) -> str:
     name = url.rsplit("/", 1)[-1]
-    if not re.fullmatch(r"[\w.-]+\.js", name):
+    if not re.fullmatch(r"[\w.~-]+\.js", name):
         raise SiteError(f"unexpected script name {name!r}")
     path = config.CACHE / name
     if path.exists():
@@ -117,10 +117,26 @@ def switch_values(state: dict) -> dict:
     return out
 
 
-def legacy_op(html: str, main_url: str, main_js: str) -> Op:
-    m = LEGACY_OP.search(main_js)
-    if not m:
-        raise SiteError(f"{LEGACY_NAME} is not in {main_url.rsplit('/', 1)[-1]}")
+def _legacy_rank(url: str) -> int:
+    name = url.rsplit("/", 1)[-1]
+    return 0 if name.startswith("main.") else 1 if re.search(r"home|timeline", name, re.I) else 2
+
+
+async def legacy_op(html: str, main_url: str, get_text: GetText) -> Op:
+    """The old app defines its requests across main.js and the chunks the page maps (2026-10-12: the Following
+    tab's is not in main.js). Search main, then chunks named for home or timelines, then the rest."""
+    from twscrape.xclid import get_scripts_list
+
+    urls = [u for u in dict.fromkeys([main_url] + get_scripts_list(html)) if "/responsive-web/" in u]
+    urls.sort(key=_legacy_rank)
+    for url in urls[:XWEB_SCAN_CAP]:
+        m = LEGACY_OP.search(await cached(url, get_text))
+        if m:
+            return _legacy_from_match(m, html, url, main_url)
+    raise SiteError(f"{LEGACY_NAME} not found in {len(urls)} script files the page maps")
+
+
+def _legacy_from_match(m: re.Match, html: str, script_url: str, main_url: str) -> Op:
     names = re.findall(r'"(\w+)"', m.group(2))
     toggles = re.findall(r'"(\w+)"', m.group(3))
     values = switch_values(initial_state(html))
@@ -128,7 +144,7 @@ def legacy_op(html: str, main_url: str, main_js: str) -> Op:
 
     features = {n: values.get(n, GQL_FEATURES.get(n, False)) for n in names}
     field_toggles = {n: values.get(n, False) for n in toggles}
-    return Op("legacy", m.group(1), LEGACY_NAME, main_url, main_url, features=features, field_toggles=field_toggles)
+    return Op("legacy", m.group(1), LEGACY_NAME, script_url, main_url, features=features, field_toggles=field_toggles)
 
 
 # ── xweb ────────────────────────────────────────────────────────────────────────────────────────────
@@ -214,7 +230,7 @@ async def resolve(html: str, get_text: GetText) -> tuple[Op, bool]:
     if saved and saved.build == build and saved.page_script == page_script:
         return saved, False
     if build == "legacy":
-        op = legacy_op(html, page_script, await cached(page_script, get_text))
+        op = await legacy_op(html, page_script, get_text)
     else:
         op = await xweb_op(page_script, get_text)
     tmp = config.SITE.with_suffix(".part")
