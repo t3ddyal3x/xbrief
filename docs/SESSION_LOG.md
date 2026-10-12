@@ -17,3 +17,13 @@ they stay in that transcript while this session lives). `bin/xbrief probe` works
 (`shared~bundle.Compose~bundle.HomeTimeline~bundle.LoggedInMain`), not main.js, so `site.legacy_op` now searches
 the page's chunk map (home/timeline names first). The browser comparison was not done: the extension's browser
 (NT$ prices, likely not profile "public") showed X's new Terms notice, which is the operator's to accept.
+
+## 2026-10-12 (later)
+**Changed**: the reading moved from the twscrape fork to the operator's own Brave over the DevTools protocol
+(operator: "real browser with the devtools update"). A separate Brave on `secrets/brave`, hidden, never in front;
+it clicks Following, scrolls with the wheel and keeps the feed responses x.com downloads. `site.py` and
+`request.py` are gone; twscrape and curl_cffi are no longer dependencies (websockets 15.0.1 is the one).
+**Checked**: 34 offline tests; `bin/tests --browser` (3) drove the real Brave against a fake x.com: hidden, page
+`visible`, wheel loads pages, a 429 stops with no retry, a logout stops before any feed request, Brave closed after.
+**Next**: the operator runs `bin/xbrief login` (it also deletes the first build's cookie file), then probe, one hand
+run, `bin/install-agent`.

@@ -3,12 +3,9 @@ name = "xbrief"
 version = "0.1.0"
 description = "A twice-daily brief of what the accounts I follow on X posted, read from my own Following tab"
 requires-python = ">=3.12"
-# Pinned by commit, never by branch: the fork's xbrief branch on top of twscrape v0.20.1 (5271cbd).
-# curl_cffi is pinned because its "chrome" profile is the identity the job presents (chrome150 in 0.16.3);
-# the fork refuses to start under another one. The full set is requirements.lock.
+# The reading is done by the operator's own Brave over the DevTools protocol; websockets is the one library.
 dependencies = [
-  "twscrape[curl] @ git+https://github.com/t3ddyal3x/twscrape@0897080809ac165cb6a2b94dd347744be624ec0a",
-  "curl_cffi==0.16.3",
+  "websockets==15.0.1",
 ]
 
 [project.optional-dependencies]

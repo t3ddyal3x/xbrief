@@ -5,10 +5,10 @@ from __future__ import annotations
 import argparse
 import asyncio
 import datetime as dt
-import getpass
 import json
 import os
 import random
+import re
 import sys
 import time
 
@@ -105,33 +105,48 @@ def cmd_rebrief(a) -> int:
 
 
 def cmd_probe(a) -> int:
-    """Open x.com/home once as the account and report the site build and its Following-tab request.
-    Reads no feed."""
+    """Open x.com/home once in the job's Brave (hidden) and say whether it is logged in and which web app X
+    serves. No click, no scroll: reads no feed."""
     config.ensure_dirs()
-    config.apply_job_env()
-    from twscrape import API
-    from twscrape.queue_client import XClIdGenStore
-
-    from . import request, site
+    if not config.PROFILE.exists():
+        print("no login: run xbrief/bin/xbrief login")
+        return 1
+    from .browser import Browser
 
     async def go():
-        api = API(pool=str(config.ACCOUNTS_DB), raise_when_no_account=True)
-        accs = await api.pool.get_all()
-        if not accs:
-            print("no login: run xbrief/bin/xbrief login")
+        b = Browser(config.PROFILE)
+        feed = collect.Feed(b)
+        seen: list[str] = []
+        try:
+            await b.start()
+            await b.send("Page.enable")
+            await b.send("Network.enable")
+            await b.send("Page.navigate", {"url": config.HOME_URL})
+            t0 = time.monotonic()
+            while time.monotonic() - t0 < 25 and not feed.problem:
+                try:
+                    ev = await asyncio.wait_for(b.events.get(), 1)
+                except asyncio.TimeoutError:
+                    if feed.loaded and time.monotonic() - t0 > 8:
+                        break
+                    continue
+                if ev.get("method") == "Network.requestWillBeSent":
+                    url = ev["params"]["request"]["url"]
+                    m = re.search(r"/graphql/[\w-]+/(\w+)", url)
+                    if m and m.group(1) not in [x.split()[0] for x in seen]:
+                        seen.append(f"{m.group(1)} ({collect.build_of(url)})")
+                if ev.get("method") != "Network.loadingFinished":
+                    await feed.handle(ev)
+        finally:
+            await b.close()
+        print(f"page       {feed.main_url or '(none)'}")
+        if feed.problem:
+            print(f"problem    {feed.problem}")
             return 1
-        gen = await XClIdGenStore.get(accs[0].username, cookies=accs[0].cookies)
-        op, reread = await site.resolve(gen.page_html or "", collect.fetch_script)
-        req = request.build(op, config.PAGE_SIZE, None, None)
-        print(f"build      {op.build}{' (read just now)' if reread else ' (saved)'}")
-        print(f"request    {req.method} {req.url}")
-        print(f"from       {op.script.rsplit('/', 1)[-1]}")
-        if req.params:
-            print(f"variables  {req.params['variables']}")
-        if req.body:
-            print(f"body       {json.dumps(req.body)[:600]}")
-        print("Compare with Brave (profile public): x.com/home, Following tab, DevTools, Network, filter HomeLatest.")
-        return 0
+        print("logged in  yes" if seen else "logged in  unclear: x.com/home made no feed requests")
+        for x in seen[:12]:
+            print(f"request    {x}")
+        return 0 if seen else 1
 
     try:
         return asyncio.run(go())
@@ -141,56 +156,42 @@ def cmd_probe(a) -> int:
 
 
 def cmd_login(a) -> int:
-    """Store the X session from the public Brave profile. Run in your own terminal; nothing is echoed."""
+    """Open the job's own Brave profile in an ordinary window for the operator to log in to X."""
     config.ensure_dirs()
-    config.apply_job_env()
-    from twscrape import AccountsPool
+    from .browser import login_window, running
 
-    print("In Brave (profile public): x.com, DevTools, Application, Cookies, https://x.com.")
-    handle = input("Your X handle, without @: ").strip().lstrip("@")
-    auth = getpass.getpass("auth_token value (hidden): ").strip()
-    ct0 = getpass.getpass("ct0 value (hidden): ").strip()
-    if not (handle and auth and ct0):
-        print("nothing stored: all three are needed")
-        return 1
-
-    async def go():
-        pool = AccountsPool(str(config.ACCOUNTS_DB))
-        await pool.add_account_cookies(handle, f"auth_token={auth}; ct0={ct0}")
-
-    old = os.umask(0o077)
-    try:
-        asyncio.run(go())
-    finally:
-        os.umask(old)
-    os.chmod(config.ACCOUNTS_DB, 0o600)
-    print(f"stored for @{handle} in {config.ACCOUNTS_DB} (mode 600). Next: xbrief/bin/xbrief probe")
+    print("A separate Brave window opens on X's login page. It is the job's own profile, not your usual one.")
+    print("  1. Log in to your main X account.")
+    print("  2. Close anything X shows (Premium offer, Terms notice) the way you would.")
+    print("  3. Click the Following tab once.")
+    print("  4. Quit that Brave with cmd+Q while its window is in front.")
+    login_window(config.PROFILE)
+    t0 = time.time()
+    while not running(config.PROFILE) and time.time() - t0 < 20:
+        time.sleep(0.5)
+    print("waiting for you to quit that Brave …", flush=True)
+    while running(config.PROFILE) and time.time() - t0 < 3600:
+        time.sleep(2)
+    if config.OLD_LOGIN.exists():
+        config.OLD_LOGIN.unlink()
+        print("deleted the first build's login file (the cookies pasted earlier)")
+    print("done. Next: xbrief/bin/xbrief probe")
     return 0
 
 
 def cmd_status(a) -> int:
-    config.apply_job_env()
     st = collect.load_state()
     if st.get("newest_id"):
         print(f"newest post read  {dt.datetime.fromtimestamp(parse.snowflake_ms(st['newest_id']) / 1000):%a %-d %b %H:%M}")
-    from . import site
-
-    op = site.load_saved()
-    print(f"site              {op.build + ' ' + op.name + ' ' + op.query_id if op else 'not read yet'}")
     raws = sorted(config.RAW.glob("*.json"))
     if raws:
         meta = json.loads(raws[-1].read_text())["meta"]
-        print(f"last run          {raws[-1].name}: {meta['stop']}{' · GAP' if meta.get('gap') else ''}")
-    if config.ACCOUNTS_DB.exists():
-        from twscrape import AccountsPool
+        print(f"last run          {raws[-1].name}: {meta['stop']}{' · GAP' if meta.get('gap') else ''}"
+              f" ({meta.get('page_count', 0)} pages, {meta.get('build') or 'no feed'})")
+    from .browser import running
 
-        accs = asyncio.run(AccountsPool(str(config.ACCOUNTS_DB)).get_all())
-        for x in accs:
-            locks = {k: v.astimezone().strftime('%H:%M') for k, v in x.locks.items() if v.timestamp() > time.time()}
-            print(f"login             @{x.username} {'active' if x.active else 'INACTIVE: ' + str(x.error_msg)}"
-                  + (f" · locked {locks}" if locks else ""))
-    else:
-        print("login             none")
+    print(f"login profile     {'present' if config.PROFILE.exists() else 'none: run xbrief/bin/xbrief login'}"
+          + (" (open now)" if running(config.PROFILE) else ""))
     return 0
 
 
@@ -205,9 +206,9 @@ def main(argv=None) -> int:
     rb = sub.add_parser("rebrief", help="write the brief again from a saved raw file")
     rb.add_argument("raw")
     rb.set_defaults(fn=cmd_rebrief)
-    sub.add_parser("probe", help="open x.com/home once and show the request a run would send").set_defaults(fn=cmd_probe)
-    sub.add_parser("login", help="store the X session (run it in your own terminal)").set_defaults(fn=cmd_login)
-    sub.add_parser("status", help="the last run, the site build, the login's state").set_defaults(fn=cmd_status)
+    sub.add_parser("probe", help="open x.com/home once (hidden) and say whether the job is logged in").set_defaults(fn=cmd_probe)
+    sub.add_parser("login", help="open the job's Brave profile so you can log in to X").set_defaults(fn=cmd_login)
+    sub.add_parser("status", help="the last run and the login profile").set_defaults(fn=cmd_status)
     a = p.parse_args(argv)
     return a.fn(a)
 

@@ -1,50 +1,51 @@
 # xbrief — how it works, what was found, what was decided
 
-The plan it was built from is `../../docs/plans/2026-10-12_x-follows-brief.md` (decisions 1–7, taken 2026-10-12).
-This file records what building it found, and where the build differs from the plan.
+The plan it was built from is `../../docs/plans/2026-10-12_x-follows-brief.md`. Its decision 2 (twscrape) was
+replaced the same day by the plan's own fallback, a real browser (operator, 2026-10-12: "real browser with the
+devtools update"). This file records what the build found and where it differs from the plan.
 
 ## One run
 1. launchd fires at the start of the window; `cli.jitter_seconds` waits a random part of it (never past the window
    end minus 15 minutes; a late wake runs at once).
-2. `collect.run`: the job's environment is set (`config.TWS_ENV`, proxies stripped). The fork loads **x.com/home**
-   once with the account's cookies to compute X's anti-bot header, and keeps the HTML.
-3. `site.resolve` reads from that HTML which web app the account is served and which script it names. When the
-   script is new (a deploy), the Following-tab request is read again from X's own script files (cached by their
-   content-hashed names) and saved to `site.json`.
-4. Pages are read on one connection (`API.raw_session`), with reading-like pauses (`collect.reading_pause`: a few
-   seconds, now and then a minute or more, redrawn rather than clamped so no value repeats), until a page reaches the
-   newest post of the previous run (by post id, the newest in each entry, promoted posts ignored), the feed ends, or
-   the cap of `config.MAX_PAGES` pages. Ending or capping before the boundary is a **gap**, said at the top.
+2. `browser.Browser.start`: a separate Brave instance on `~/Data/xbrief-data/secrets/brave`, started with no
+   window (`open -n -g … --no-startup-window`), one window opened in the background over the DevTools protocol, the
+   app hidden. Flags keep a hidden window from being throttled.
+3. `collect.run`: open x.com/home; stop if the page lands on a login, landing or challenge path; close a Premium
+   offer with Escape (a person would); wait a few seconds; click Following unless X already shows it (its own feed
+   request says so); then turn the mouse wheel at a reading pace (`wheel_pause`: about a second, now and then a long
+   stop; `wheel_delta`: mostly down, now and then a glance back up). Every feed response the page downloads is kept
+   (`Network.getResponseBody`).
+4. Stop when a page reaches the newest post of the previous run (by post id, the newest in each entry, promoted
+   posts ignored); or at the end of the feed, 40 wheel turns without a new page, `MAX_PAGES` or `MAX_MINUTES`, each
+   of which is a **gap** the brief names. Any error status, failed request, non-feed answer or blocked page ends the
+   run at once. Brave is always closed, and killed if it does not close.
 5. The pages are saved raw (`raw/`, 30 days); `brief.write` asks Claude; `page.render` writes the page and
    `index.html`; old raw files are pruned.
 
-## What x.com sends (read from its own code, 2026-10-12)
-x.com is mid-move between two web apps:
+## Why a real browser
+The first build used a pinned fork of twscrape and had to imitate the browser: headers, their order, the TLS
+handshake, the anti-bot id, the request ids and variables of whichever web app X served. Reviewing and running it
+found three things it got wrong or imitated imperfectly (below), and X changed under it twice in one day. In the
+operator's own Brave, all of that is produced by Brave and x.com's own code: the identity is Brave 154 on this Mac
+(checked: `Chrome/154.0.0.0` user agent, the operator's own build), the page's own requests, its own visibility
+state (`visible`, so X's `x-twitter-active-user` is `yes`, checked on a fake x.com), and a deploy of x.com is
+followed the way any browser follows it. What remains detectable is the remote-control channel itself; the job
+uses no Runtime domain and runs no script in the page, which is where automation is usually noticed.
 
-| | old app ("legacy") | new app ("xweb") |
-|---|---|---|
-| page names | `abs.twimg.com/responsive-web/client-web/main.<hash>.js` | `abs.twimg.com/x-web/x-web/entry-client-<hash>.js` |
-| Following tab | `POST x.com/i/api/graphql/<id>/HomeLatestTimeline`, body `{variables, features, queryId}` | `GET api.x.com/graphql/<id>/HomeLatestTimelineQuery?variables=…`; a page that reports already-seen posts is a `POST {queryId, variables}` |
-| variables | `count, cursor, includePromotedContent, latestControlAvailable, requestContext, seenTweetIds` (from published captures: **check on the first run**) | Relay's: `count, cursor, enableRanking(false), requestContext("launch" first), seenTweetIds`, then two provided flags (logged in: true; Grok note translation: false), every one present, null where unset |
-| post layout | `legacy.full_text`, `entryId` … | `details.full_text`, `details.created_at_ms`, `url_entities`, `media_entities2`, `quoted_tweet_results`, `reply_to_results`, `entry_id` … |
+## What x.com is (read from its own code, 2026-10-12)
+x.com is moving from its old web app (abs.twimg.com/responsive-web, requests to x.com/i/api/graphql with a features
+block) to a new Relay one (abs.twimg.com/x-web, persisted queries to api.x.com/graphql, a new post layout:
+`details.full_text`, `url_entities`, `media_entities2`, `entry_id` …). Logged out, x.com was the new app; the
+operator's account was served the old one, whose Following-tab request (`NmDBT3APtNxDpMqIEauu7A/
+HomeLatestTimeline`) is defined in a mapped chunk (`shared~bundle.Compose~bundle.HomeTimeline~bundle.LoggedInMain`),
+not in main.js. `parse.py` reads both layouts.
 
-The logged-out site was the new app on 2026-10-12, and every request id twscrape v0.20.1 pins differs from the new
-app's (twscrape's are the old app's). Which app a logged-in account gets is not visible from outside; `bin/xbrief
-probe` prints it and the request a run would send.
-
-The new app also pre-renders the first page on the server and sends a CORS preflight before each cross-origin call;
-the job does neither. Known differences, left as they are.
-
-## The fork (`t3ddyal3x/twscrape`, branch `xbrief`, one commit on v0.20.1)
-Found while reviewing the pinned release for "looking like a person":
-- it loaded **x.com/tesla** with the account's cookies every run to compute the anti-bot id (now `TWS_XCLID_PAGE`,
-  set to x.com/home);
-- its API requests carried **page-load headers** (`accept: text/html…`, `sec-fetch-mode: navigate`,
-  `upgrade-insecure-requests`) instead of a page's fetch() headers (now `TWS_XHR_HEADERS=1`: Chrome's order, the
-  chrome150 identity, `x-twitter-auth-type: OAuth2Session`; refuses to start under another curl_cffi Chrome);
-- it retried on its own in four places (now `TWS_CURL_RETRIES=0`, `TWS_FAIL_LIMIT=1`, `TWS_XCLID_TRIES=2`; a rate
-  limit with `TWS_RAISE_WHEN_NO_ACCOUNT=1` raises instead of waiting).
-Default behaviour is unchanged for anyone else. 207 tests pass (197 upstream, 10 the fork's).
+## The twscrape fork (retired the same day, kept)
+`t3ddyal3x/twscrape`, branch `xbrief` (0897080, one commit on v0.20.1), at `~/Developer/forks/twscrape`. Reviewing
+v0.20.1 found that it loaded **x.com/tesla** with the account's cookies every run to compute the anti-bot id, that
+its API calls carried **page-load headers** (`sec-fetch-mode: navigate`, `accept: text/html…`) instead of a page's
+fetch() headers, and that it **retried on its own** in four places. The fork fixes all three behind settings. It is
+no longer used; it stays for reference.
 
 ## The writer
 `claude -p --tools "" --strict-mcp-config --mcp-config '{"mcpServers":{}}' --disallowedTools "mcp__*"`, run in the
@@ -53,9 +54,10 @@ subscription login). On made-up posts including an injection attempt, it summari
 and placed every post. A writer failure still publishes every post, unsummarised, with the reason.
 
 ## Decisions
-- **The account's own build decides the request** (not a hard-coded id): x.com/home is loaded each run anyway for the
-  anti-bot id, so reading which app it is costs nothing, and a deploy is followed the way the browser follows it.
-- **seenTweetIds**: a later page reports the previous page's posts except the last three (still below the fold),
-  as the new app does when a reader scrolls.
+- **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an
+  everyday profile, and the job must not touch the operator's open browser.
+- **Hidden, not off-screen**: macOS keeps 40 px of a window on screen, and the operator's laptop screen is left of the
+  main display.
+- **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
 - **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles and times in
   a mono byline built from the data, and opens threads by default.

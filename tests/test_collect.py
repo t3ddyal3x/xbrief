@@ -1,97 +1,97 @@
+"""The run's decisions, against a scripted browser that emits the DevTools events Brave would."""
+
 import asyncio
-import datetime as dt
 import json
 import os
 import pathlib
 import random
 
-import pytest
-from builders import BASE_MS, sid, xw_item, xw_page, xw_tweet
+from builders import BASE_MS, sid, xw_item, xw_module, xw_page, xw_tweet
 
 from xbrief import collect, config, parse
 
-REAL_OP = (pathlib.Path(__file__).parent / "fixtures" / "xweb_home_op_2026-10-12.js").read_text()
-ENTRY = "https://abs.twimg.com/x-web/x-web/entry-client-ABC123.js"
-HTML = f'<script type="module" src="{ENTRY}"></script>'
-FILES = {ENTRY: 'import"./assets/home-3.js"', "https://abs.twimg.com/x-web/x-web/assets/home-3.js": REAL_OP}
+HOME = "https://x.com/home"
+LATEST = "https://x.com/i/api/graphql/NmDBT3APtNxDpMqIEauu7A/HomeLatestTimeline?variables=x"
 
 
-async def cdn(url):
-    return FILES[url]
+class FakeBrowser:
+    """Pages arrive one per `wheels_per_page` wheel turns after the Following tab is clicked."""
 
+    def __init__(self, pages, *, remembered=False, status=200, nav_to=HOME, upsell=None, wheels_per_page=3,
+                 tab_found=True, latest_url=LATEST):
+        self.pages, self.remembered, self.status, self.nav_to = list(pages), remembered, status, nav_to
+        self.upsell, self.wheels_per_page, self.tab_found, self.latest_url = upsell, wheels_per_page, tab_found, latest_url
+        self.events = asyncio.Queue()
+        self.bodies, self.calls, self.wheels, self.clicks, self.keys = {}, [], 0, 0, []
+        self.closed = self.started = False
+        self.n = 0
 
-class Acc:
-    def __init__(self, active=True, locks=None, error_msg=None):
-        self.username, self.cookies, self.active = "me", {"auth_token": "a", "ct0": "c"}, active
-        self.locks, self.error_msg = locks or {}, error_msg
-
-
-class Rep:
-    def __init__(self, page):
-        self.page = page
-
-    def json(self):
-        return self.page
-
-
-class Session:
-    def __init__(self, script, calls):
-        self.script, self.calls = script, calls
-
-    async def __aenter__(self):
+    async def start(self):
+        self.started = True
         return self
 
-    async def __aexit__(self, *a):
-        return False
+    async def close(self):
+        self.closed = True
 
-    async def req(self, method, url, params=None, headers=None, json=None):
-        self.calls.append({"method": method, "url": url, "params": params, "json": json, "headers": headers})
-        step = self.script.pop(0)
-        if isinstance(step, Exception):
-            raise step
-        return None if step is None else Rep(step)
+    def ev(self, method, **params):
+        self.events.put_nowait({"method": method, "params": params})
 
+    def emit_page(self):
+        if not self.pages:
+            return
+        rid = f"r{self.n}"
+        self.n += 1
+        self.ev("Network.requestWillBeSent", requestId=rid, request={"url": self.latest_url})
+        self.ev("Network.responseReceived", requestId=rid, response={"status": self.status})
+        if self.status == 200:
+            self.bodies[rid] = json.dumps(self.pages.pop(0))
+            self.ev("Network.loadingFinished", requestId=rid)
 
-class Pool:
-    def __init__(self, accs):
-        self.accs = accs
+    async def send(self, method, params=None):
+        self.calls.append(method)
+        if method == "Page.navigate":
+            self.ev("Network.requestWillBeSent", requestId="ft", request={"url": "https://x.com/i/api/graphql/Q/HomeTimeline"})
+            self.ev("Page.frameNavigated", frame={"id": "main", "url": self.nav_to})
+            self.ev("Page.loadEventFired")
+            if self.upsell:
+                self.ev("Page.navigatedWithinDocument", frameId="main", url="https://x.com/i/premium_sign_up")
+            if self.remembered:
+                self.emit_page()
+        if method == "Network.getResponseBody":
+            return {"body": self.bodies.pop(params["requestId"]), "base64Encoded": False}
+        return {}
 
-    async def get_all(self):
-        return self.accs
+    async def find_box(self, xpath):
+        return (120.0, 24.0) if self.tab_found else None
 
+    async def click(self, x, y):
+        self.clicks += 1
+        self.emit_page()
 
-class Api:
-    def __init__(self, script, accs=None):
-        self.pool, self.script, self.calls = Pool([Acc()] if accs is None else accs), script, []
+    async def key(self, name):
+        self.keys.append(name)
+        if self.upsell == "closes":
+            self.ev("Page.navigatedWithinDocument", frameId="main", url=HOME)
 
-    def raw_session(self, name):
-        self.name = name
-        return Session(self.script, self.calls)
-
-
-@pytest.fixture(autouse=True)
-def page_load(monkeypatch):
-    from twscrape.queue_client import XClIdGenStore
-
-    class Gen:
-        page_html = HTML
-
-    async def get(username, proxy=None, cookies=None, fresh=False):
-        return Gen()
-
-    monkeypatch.setattr(XClIdGenStore, "get", get)
+    async def wheel(self, dy):
+        self.wheels += 1
+        if self.wheels % self.wheels_per_page == 0:
+            self.emit_page()
 
 
 def page(minutes_list, bottom="CUR"):
     return xw_page([xw_item(xw_tweet(m, f"u{m}", f"post {m}")) for m in minutes_list], bottom=bottom)
 
 
-def go(api, now_minutes=60, sleeps=None):
-    async def sleep(s):
-        (sleeps if sleeps is not None else []).append(s)
+def go(b, now_minutes=60):
+    slept = []
 
-    return asyncio.run(collect.run(rng=random.Random(1), sleep=sleep, now_ms=BASE_MS + now_minutes * 60_000,
-                                   api=api, get_script=cdn))
+    async def sleep(s):
+        slept.append(s)
+
+    res = asyncio.run(collect.run(rng=random.Random(1), sleep=sleep, now_ms=BASE_MS + now_minutes * 60_000, browser=b))
+    res.slept = slept
+    return res
 
 
 def set_state(minutes):
@@ -100,122 +100,132 @@ def set_state(minutes):
 
 def test_catches_up_at_the_previous_newest_post():
     set_state(20)
-    api = Api([page([50, 45, 40]), page([35, 30, 25]), page([22, 20, 18])])
-    sleeps = []
-    res = go(api, sleeps=sleeps)
+    b = FakeBrowser([page([50, 45, 40]), page([35, 30, 25]), page([22, 20, 18])])
+    res = go(b)
     assert res.normal and res.stop == "caught up" and not res.gap and len(res.pages) == 3
+    assert res.build == "legacy" and b.clicks == 1 and b.closed
     assert res.newest_id == int(sid(50)) and collect.load_state()["newest_id"] == int(sid(50))
-    assert len(sleeps) == 2 and all(2 <= s <= 25 + 90 for s in sleeps)
-    assert api.name == "HomeLatestTimelineQuery"
+    assert b.wheels == 6 and len(res.slept) == 6
 
 
-def test_requests_follow_the_page():
+def test_a_remembered_following_tab_is_not_clicked():
     set_state(20)
-    api = Api([page([50, 49, 48, 47, 46]), page([30, 20])])
-    go(api)
-    first, second = api.calls
-    assert first["method"] == "GET" and json.loads(first["params"]["variables"])["requestContext"] == "launch"
-    assert second["method"] == "POST" and second["json"]["variables"]["cursor"] == "CUR"
-    assert second["json"]["variables"]["seenTweetIds"] == [sid(50), sid(49)]  # the last three were below the fold
-    assert first["headers"]["origin"] == "https://x.com"
+    b = FakeBrowser([page([50, 20])], remembered=True)
+    res = go(b)
+    assert res.stop == "caught up" and b.clicks == 0
+
+
+def test_new_app_build_is_read_off_the_request():
+    set_state(20)
+    res = go(FakeBrowser([page([50, 20])], latest_url="https://api.x.com/graphql/y49/HomeLatestTimelineQuery?variables=x"))
+    assert res.build == "xweb" and res.stop == "caught up"
 
 
 def test_first_run_reads_back_the_window():
-    api = Api([page([50, 40]), page([-60 * 11, -60 * 13])])
-    res = go(api, now_minutes=60)
-    assert res.normal and res.stop == "read back to the start of the window" and not res.gap
+    res = go(FakeBrowser([page([50, 40]), page([-60 * 11, -60 * 13])]), now_minutes=60)
+    assert res.normal and res.stop == "read back to the start of the window"
 
 
 def test_end_of_feed_before_the_boundary_is_a_gap():
     set_state(10)
-    res = go(Api([page([50, 40], bottom=None)]))
+    res = go(FakeBrowser([page([50, 40], bottom=None)]))
     assert res.gap and not res.normal and res.stop == "reached the end of what X serves"
-    assert collect.load_state()["newest_id"] == int(sid(50))  # still advances: what is lost is lost
+    assert collect.load_state()["newest_id"] == int(sid(50))
 
 
 def test_page_cap_is_a_gap(monkeypatch):
     monkeypatch.setattr(config, "MAX_PAGES", 2)
     set_state(1)
-    res = go(Api([page([50, 49]), page([48, 47]), page([2])]))
-    assert res.gap and len(res.pages) == 2 and res.stop.startswith("stopped at the cap")
+    res = go(FakeBrowser([page([50, 49]), page([48, 47]), page([46])]))
+    assert res.gap and res.stop.startswith("stopped at the cap of 2 pages")
 
 
-def test_refused_request_ends_the_run_without_retry():
+def test_feed_that_stops_loading_is_a_gap():
     set_state(1)
-    api = Api([page([50, 40]), None, page([3])])
-    res = go(api)
-    assert not res.normal and "refused" in res.stop and len(api.calls) == 2
+    b = FakeBrowser([page([50, 49])], wheels_per_page=10_000)
+    res = go(b)
+    assert res.gap and res.stop == "the feed stopped loading while scrolling" and b.wheels == collect.STALL_WHEELS
 
 
-def test_no_account_explains_the_lock():
-    from twscrape.accounts_pool import NoAccountError
-
+def test_rate_limit_ends_the_run_and_keeps_the_boundary():
     set_state(1)
-    until = dt.datetime(2026, 10, 12, 9, 45, tzinfo=dt.timezone.utc)
-    api = Api([NoAccountError("x")], accs=[Acc(locks={"HomeLatestTimelineQuery": until})])
-    res = go(api)
-    assert "rate-limited" in res.stop and not res.pages
-    assert collect.load_state()["newest_id"] == int(sid(1))  # nothing read: the boundary stays
+    res = go(FakeBrowser([page([50])], status=429))
+    assert "HTTP 429" in res.stop and "rate limited" in res.stop and not res.pages
+    assert collect.load_state()["newest_id"] == int(sid(1))
 
 
-def test_inactive_login_stops_before_any_request():
-    api = Api([], accs=[Acc(active=False, error_msg="(32) Could not authenticate you")])
-    res = go(api)
-    assert "ended the session" in res.stop and "(32)" in res.stop and api.calls == []
+def test_logged_out_landing_ends_the_run():
+    for url in ("https://x.com/", "https://x.com/i/flow/login?redirect_after_login=%2Fhome", "https://x.com/account/access"):
+        b = FakeBrowser([page([50])], nav_to=url)
+        res = go(b)
+        assert "X sent the page to" in res.stop and b.clicks == 0 and b.closed, url
 
 
-def test_no_login():
-    res = go(Api([], accs=[]))
-    assert res.stop.startswith("no login")
+def test_premium_offer_is_closed_with_escape():
+    set_state(20)
+    b = FakeBrowser([page([50, 20])], upsell="closes")
+    res = go(b)
+    assert b.keys == ["Escape"] and res.stop == "caught up"
 
 
-def test_feed_error_clears_the_saved_site():
-    set_state(1)
-    res = go(Api([{"errors": [{"message": "PersistedQueryNotFound"}]}]))
-    assert "without a feed" in res.stop and not config.SITE.exists()
+def test_premium_offer_that_stays_ends_the_run():
+    b = FakeBrowser([page([50])], upsell="stays")
+    res = go(b)
+    assert "Premium offer" in res.stop and b.clicks == 0
+
+
+def test_missing_tab_ends_the_run():
+    res = go(FakeBrowser([page([50])], tab_found=False))
+    assert res.stop == "could not find the Following tab on x.com/home"
+
+
+def test_no_profile_means_no_login():
+    res = asyncio.run(collect.run(now_ms=BASE_MS))
+    assert res.stop.startswith("no login") and not config.PROFILE.exists()
+
+
+def test_browser_is_closed_even_on_an_unexpected_error():
+    class Broken(FakeBrowser):
+        async def find_box(self, xpath):
+            raise RuntimeError("boom")
+
+    b = Broken([page([50])])
+    res = go(b)
+    assert res.stop == "RuntimeError: boom" and b.closed
 
 
 def test_promoted_posts_never_end_the_read():
     set_state(20)
     p1 = xw_page([xw_item(xw_tweet(50, "a", "x")), xw_item(xw_tweet(1, "ad", "old ad"), entry_id="promoted-1", promoted=True)])
-    res = go(Api([p1, page([20])]))
+    res = go(FakeBrowser([p1, page([20])]))
     assert len(res.pages) == 2 and res.stop == "caught up"
 
 
-def test_job_env_is_set_and_proxies_removed(monkeypatch):
-    monkeypatch.setenv("HTTPS_PROXY", "socks5://127.0.0.1:1080")
-    monkeypatch.setenv("TWS_PROXY", "socks5://127.0.0.1:1080")
-    go(Api([], accs=[]))
-    assert "HTTPS_PROXY" not in os.environ and "TWS_PROXY" not in os.environ
-    for k, v in config.TWS_ENV.items():
-        assert os.environ[k] == v
+def test_boundary_uses_the_newest_post_in_a_module():
+    set_state(20)
+    mod = xw_module([xw_tweet(-100, "a", "old parent"), xw_tweet(30, "b", "new reply")], "home-conversation-9")
+    res = go(FakeBrowser([xw_page([xw_item(xw_tweet(40, "c", "x")), mod]), page([10])]))
+    assert len(res.pages) == 2
 
 
-def test_reading_pauses_vary():
+def test_pacing_varies_and_never_repeats():
     rng = random.Random(7)
-    xs = [collect.reading_pause(rng) for _ in range(500)]
-    assert min(xs) >= 2 and max(xs) <= 115 and len(set(xs)) == 500
-    assert sum(x > 25 for x in xs) > 10  # the occasional long stop
+    xs = [collect.wheel_pause(rng) for _ in range(800)]
+    assert min(xs) >= 0.35 and max(xs) <= 52 and len(set(xs)) == 800
+    assert sum(x > 8 for x in xs) > 10
+    ds = [collect.wheel_delta(rng) for _ in range(400)]
+    assert any(d < 0 for d in ds) and all(-400 <= d <= 880 for d in ds)
 
 
 def test_raw_is_saved_and_pruned():
     set_state(20)
-    res = go(Api([page([50, 20])]))
+    res = go(FakeBrowser([page([50, 20])]))
     path = pathlib.Path(collect.save_raw(res, "am"))
     saved = json.loads(path.read_text())
-    assert saved["meta"]["stop"] == "caught up" and saved["meta"]["page_count"] == 1 and len(saved["pages"]) == 1
+    assert saved["meta"]["stop"] == "caught up" and saved["meta"]["page_count"] == 1
     os.utime(path, (0, 0))
     assert collect.prune_raw() == 1 and not path.exists()
 
 
-def test_boundary_uses_the_newest_post_in_a_module():
-    from builders import xw_module
-
-    set_state(20)
-    mod = xw_module([xw_tweet(-100, "a", "old parent"), xw_tweet(30, "b", "new reply")], "home-conversation-9")
-    res = go(Api([xw_page([xw_item(xw_tweet(40, "c", "x")), mod]), page([10])]))
-    assert len(res.pages) == 2  # the old parent did not stop the read
-
-
-def test_parse_ms_helpers_agree_with_builders():
+def test_snowflake_helpers_agree_with_builders():
     assert parse.snowflake_ms(sid(0)) == BASE_MS

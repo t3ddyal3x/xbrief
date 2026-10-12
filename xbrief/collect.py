@@ -1,10 +1,10 @@
-"""Read the Following tab newest first, from the last post the previous run reached.
+"""Read the Following tab newest first, from the last post the previous run reached, in the operator's own Brave.
 
-One run: load x.com/home once (the fork computes the anti-bot id from it, and its HTML says which site build
-this account gets), find that build's Following-tab request, then read page after page with reading-like
-pauses on one connection until the page reaches the previous run's newest post. Anything X pushes back with
-(a rate limit, a challenge, a logout, an error) ends the run at once; nothing is retried. What was read is
-saved raw, one file a run, and the brief says how the run ended.
+One run: Brave opens x.com/home on the job's profile (hidden, never in front), the Following tab is clicked unless
+X already shows it, and the page is scrolled with the mouse wheel at a reading pace. The feed pages x.com itself
+downloads are kept, until one reaches the previous run's newest post, the feed stops, or a cap. Anything X pushes back
+with (an error status, a login or challenge page, a feed that stops loading) ends the run at once and nothing is
+retried. What was read is saved raw, one file a run, and the brief says how the run ended.
 """
 
 from __future__ import annotations
@@ -13,31 +13,52 @@ import asyncio
 import json
 import math
 import random
+import re
 import time
 from dataclasses import dataclass, field
 
-from . import config, parse, request, site
+from . import config, parse
 
-Sleep = asyncio.sleep
+TIMELINE = re.compile(r"/graphql/[\w-]+/HomeLatestTimeline(?:Query)?(?:[?#]|$)")
+# logged out (the landing page, a login flow) or held up (a lock, a challenge)
+# Paths of the main page. Logged out (the landing page, a login flow) or held up (a lock, a challenge):
+BLOCKED = re.compile(r"^/(?:$|i/flow/|login|logout|account/access)", re.I)
+UPSELL = re.compile(r"^/i/premium_sign_up", re.I)  # an offer a person closes with Escape
+
+
+def path_of(url: str) -> str:
+    from urllib.parse import urlparse
+
+    return urlparse(url).path or "/"
+FOLLOWING_TAB = ["//a[@role='tab'][.//span[text()='Following']]", "(//*[@role='tablist']//*[@role='tab'])[2]"]
+LOAD_WAIT_S = 30
+FIRST_PAGE_WAIT_S = 20
+STALL_WHEELS = 40  # wheel turns without a new feed page before the run calls the feed stopped
 
 
 @dataclass
 class Result:
     started_ms: int
     finished_ms: int = 0
-    stop: str = ""  # how the run ended, in words
-    normal: bool = False  # ended by catching up (or reaching the end of a first read)
-    gap: bool = False  # stopped before reaching the previous run's newest post
+    stop: str = ""
+    normal: bool = False
+    gap: bool = False
     boundary_id: int = 0
     newest_id: int = 0
     pages: list[dict] = field(default_factory=list)
-    build: str = ""
+    build: str = ""  # "legacy" (x.com/i/api) or "xweb" (api.x.com), read off the feed request the page made
     reread_site: bool = False
 
     def meta(self) -> dict:
         d = {k: v for k, v in self.__dict__.items() if k != "pages"}
         d["page_count"] = len(self.pages)
         return d
+
+
+class Stop(Exception):
+    def __init__(self, why: str, normal: bool = False, gap: bool = False):
+        super().__init__(why)
+        self.why, self.normal, self.gap = why, normal, gap
 
 
 # ── state ───────────────────────────────────────────────────────────────────────────────────────────
@@ -59,134 +80,221 @@ def save_state(state: dict) -> None:
 # ── pacing ──────────────────────────────────────────────────────────────────────────────────────────
 
 
-def reading_pause(rng: random.Random) -> float:
-    """Seconds between pages: mostly a few seconds, now and then much longer, never the same twice."""
-    s = rng.lognormvariate(math.log(6.0), 0.55)
-    while not 2.0 <= s <= 25.0:  # redraw, never clamp: a clamp piles pauses onto one exact value
-        s = rng.lognormvariate(math.log(6.0), 0.55)
-    if rng.random() < 0.10:
-        s += rng.uniform(20.0, 90.0)
+def wheel_pause(rng: random.Random) -> float:
+    """Seconds between wheel turns: mostly about a second, now and then a long stop to read. Redrawn, never
+    clamped, so no value piles up."""
+    s = rng.lognormvariate(math.log(1.3), 0.6)
+    while not 0.35 <= s <= 7.0:
+        s = rng.lognormvariate(math.log(1.3), 0.6)
+    if rng.random() < 0.04:
+        s += rng.uniform(8.0, 45.0)
     return s
 
 
-def seen_split(ids: list[str], carried: list[str]) -> tuple[list[str], list[str]]:
-    """(ids reported as seen with the next page, ids still below the fold). The next page loads as the
-    reader nears the bottom, so the last few posts of a page have not been on screen yet."""
-    on_screen = carried + ids[:-3] if len(ids) > 3 else carried
-    return on_screen, ids[-3:] if len(ids) > 3 else ids
+def wheel_delta(rng: random.Random) -> float:
+    if rng.random() < 0.05:
+        return -rng.uniform(120, 400)  # a glance back up
+    return rng.uniform(240, 880)
+
+
+# ── the feed, as the page downloads it ──────────────────────────────────────────────────────────────
+
+
+class Feed:
+    def __init__(self, browser):
+        self.b = browser
+        self.tracked: dict[str, str] = {}  # requestId → url
+        self.pages: list[dict] = []
+        self.urls: list[str] = []
+        self.loaded = False
+        self.problem: str | None = None
+        self.main_url = ""
+        self.main_frame: str | None = None
+
+    async def pump(self, seconds: float) -> None:
+        """Handle the browser's events for `seconds` (or until the page has a problem)."""
+        end = time.monotonic() + seconds
+        while not self.problem:
+            if not self.b.events.empty():  # what has already arrived is always handled
+                ev = self.b.events.get_nowait()
+            else:
+                left = end - time.monotonic()
+                if left <= 0:
+                    return
+                try:
+                    ev = await asyncio.wait_for(self.b.events.get(), left)
+                except asyncio.TimeoutError:
+                    return
+            await self.handle(ev)
+
+    async def handle(self, ev: dict) -> None:
+        m, p = ev.get("method"), ev.get("params") or {}
+        if m == "Network.requestWillBeSent":
+            url = (p.get("request") or {}).get("url", "")
+            if TIMELINE.search(url):
+                self.tracked[p["requestId"]] = url
+        elif m == "Network.responseReceived" and p.get("requestId") in self.tracked:
+            status = (p.get("response") or {}).get("status", 0)
+            if status != 200:
+                self.problem = f"X answered the feed request with HTTP {status}" + (" (rate limited)" if status == 429 else "")
+        elif m == "Network.loadingFinished" and p.get("requestId") in self.tracked:
+            rid = p["requestId"]
+            url = self.tracked.pop(rid)
+            body = await self.b.send("Network.getResponseBody", {"requestId": rid})
+            text = body.get("body") or ""
+            if body.get("base64Encoded"):
+                import base64
+
+                text = base64.b64decode(text).decode("utf-8", "replace")
+            try:
+                page = json.loads(text)
+            except ValueError:
+                self.problem = "X answered the feed request with something other than JSON"
+                return
+            if not parse.timeline(page):
+                errs = "; ".join(str(e.get("message", e)) for e in (page.get("errors") or []))[:300]
+                self.problem = f"X answered without a feed ({errs or 'no errors given'})"
+                return
+            self.pages.append(page)
+            self.urls.append(url)
+        elif m == "Network.loadingFailed" and p.get("requestId") in self.tracked:
+            self.problem = f"the feed request failed ({p.get('errorText', 'no reason given')})"
+        elif m == "Page.frameNavigated" and not (p.get("frame") or {}).get("parentId"):
+            self.main_frame = p["frame"].get("id")
+            self._at(p["frame"].get("url", ""))
+        elif m == "Page.navigatedWithinDocument" and p.get("frameId") == self.main_frame:
+            self._at(p.get("url", ""))
+        elif m == "Page.loadEventFired":
+            self.loaded = True
+        elif m == "xbrief.closed":
+            self.problem = f"the browser closed ({p.get('error', '')})"[:200]
+
+
+    def _at(self, url: str) -> None:
+        self.main_url = url
+        if BLOCKED.search(path_of(url)):
+            self.problem = (f"X sent the page to {url.split('?')[0]}: logged out, or X wants something from you "
+                            "(open xbrief/bin/xbrief login to see)")
+
+    @property
+    def upsell(self) -> bool:
+        return bool(self.main_url) and bool(UPSELL.search(path_of(self.main_url)))
+
+
+def build_of(url: str) -> str:
+    return "xweb" if url.startswith("https://api.x.com/") else "legacy"
 
 
 # ── the run ─────────────────────────────────────────────────────────────────────────────────────────
 
 
-async def fetch_script(url: str) -> str:
-    """A script file from X's CDN, as the page's own <script type=module> fetch: no cookies (another site)."""
-    from curl_cffi.requests import AsyncSession
-    from twscrape.http import order_xhr_headers
-
-    headers = order_xhr_headers(
-        {"origin": "https://x.com", "referer": "https://x.com/", "sec-fetch-site": "cross-site",
-         "sec-fetch-dest": "script", "priority": "u=1"}
-    )
-    async with AsyncSession(impersonate="chrome150") as s:
-        rep = await s.get(url, headers=headers, default_headers=False)
-        if rep.status_code != 200:
-            raise site.SiteError(f"script {url.rsplit('/', 1)[-1]}: HTTP {rep.status_code}")
-        return rep.text
-
-
-async def _explain_no_account(pool) -> str:
-    accs = await pool.get_all()
-    if not accs:
-        return "no login: the operator runs xbrief/bin/xbrief login"
-    a = accs[0]
-    if not a.active:
-        return f"X ended the session or blocked the account ({a.error_msg or 'no reason given'})"
-    if a.locks:
-        until = max(a.locks.values())
-        return f"X rate-limited the account until {until.astimezone().strftime('%H:%M')}"
-    return "the account was unavailable"
-
-
-async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None = None, api=None, get_script=None) -> Result:
-    config.apply_job_env()
+async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None = None, browser=None,
+              home_url: str | None = None) -> Result:
     rng = rng or random.Random()
-    sleep = sleep or Sleep
-    get_script = get_script or fetch_script
+    sleep = sleep or asyncio.sleep
     now_ms = now_ms or int(time.time() * 1000)
+    home_url = home_url or config.HOME_URL
     res = Result(started_ms=now_ms)
-
     state = load_state()
     first = not state.get("newest_id")
     res.boundary_id = int(state.get("newest_id") or parse.ms_to_snowflake(now_ms - config.FIRST_RUN_HOURS * 3_600_000))
 
-    from twscrape import API
-    from twscrape.accounts_pool import NoAccountError
-    from twscrape.queue_client import XClIdGenStore
-
-    if api is None and not config.ACCOUNTS_DB.exists():  # never create the login file outside `xbrief login`
-        res.stop = "no login: the operator runs xbrief/bin/xbrief login"
-        return _done(res)
-    api = api or API(pool=str(config.ACCOUNTS_DB), raise_when_no_account=True)
-    try:
-        accs = await api.pool.get_all()
-        if not accs:
+    if browser is None:
+        if not config.PROFILE.exists():
             res.stop = "no login: the operator runs xbrief/bin/xbrief login"
             return _done(res)
-        acc = accs[0]
-        if not acc.active:
-            res.stop = await _explain_no_account(api.pool)
-            return _done(res)
+        from .browser import Browser
 
-        gen = await XClIdGenStore.get(acc.username, cookies=acc.cookies)
-        op, res.reread_site = await site.resolve(gen.page_html or "", get_script)
-        res.build = op.build
-
-        cursor, carried, newest = None, [], 0
-        async with api.raw_session(op.name) as s:
-            for n in range(config.MAX_PAGES):
-                if n:
-                    await sleep(reading_pause(rng))
-                seen = None
-                if n:
-                    seen, carried = seen_split(last_ids, carried)
-                req = request.build(op, config.PAGE_SIZE, cursor, seen)
-                rep = await s.req(req.method, req.url, params=req.params, headers=req.headers, json=req.body)
-                if rep is None:
-                    res.stop = "X refused the request (blocked or challenged); see logs/run.log"
-                    break
-                page = rep.json()
-                res.pages.append(page)
-                if not parse.timeline(page):
-                    errs = "; ".join(str(e.get("message", e)) for e in (page.get("errors") or []))[:300]
-                    res.stop = f"X answered without a feed ({errs or 'no errors given'})"
-                    if any(w in errs.lower() for w in ("persisted", "not found", "feature", "query")):
-                        config.SITE.unlink(missing_ok=True)  # read the site again next run
-                    break
-                ents, cursor = parse.entries(page)
-                real = [e for e in ents if not e.promoted]
-                newest = max([newest] + [e.newest_id for e in real])
-                if any(0 < e.newest_id <= res.boundary_id for e in real):
-                    res.stop, res.normal = ("read back to the start of the window" if first else "caught up"), True
-                    break
-                if not cursor or not real:
-                    res.stop = "reached the end of what X serves"
-                    res.gap = not first
-                    res.normal = first
-                    break
-                last_ids = [p.id for e in real for p in e.posts]
-            else:
-                res.stop = f"stopped at the cap of {config.MAX_PAGES} pages"
-                res.gap = True
-        res.newest_id = newest
-    except NoAccountError:
-        res.stop = await _explain_no_account(api.pool)
-    except site.LoggedOut as e:
-        res.stop = str(e)
+        browser = Browser(config.PROFILE)
+    feed = Feed(browser)
+    try:
+        await browser.start()
+        await browser.send("Page.enable")
+        await browser.send("Network.enable", {"maxTotalBufferSize": 200_000_000, "maxResourceBufferSize": 50_000_000})
+        await browser.send("Page.navigate", {"url": home_url})
+        t0 = time.monotonic()
+        while not feed.loaded and not feed.problem and time.monotonic() - t0 < LOAD_WAIT_S:
+            await feed.pump(0.5)
+        _check(feed)
+        if not feed.loaded:
+            raise Stop("x.com/home did not finish loading")
+        await feed.pump(3 + rng.uniform(0, 3))  # a person looks at the page before clicking
+        _check(feed)
+        if feed.upsell:
+            await browser.key("Escape")
+            await feed.pump(2.5)
+            if feed.upsell:
+                raise Stop("X is showing a Premium offer that Escape does not close (open xbrief/bin/xbrief login to see)")
+        if not feed.pages and not feed.tracked:
+            await _click_following(browser, feed, rng)
+        t0 = time.monotonic()
+        while not feed.pages and not feed.problem and time.monotonic() - t0 < FIRST_PAGE_WAIT_S:
+            await feed.pump(0.5)
+        _check(feed)
+        if not feed.pages:
+            raise Stop("the Following tab did not load: X may be showing a notice that needs you "
+                       "(open xbrief/bin/xbrief login to see)")
+        res.build = build_of(feed.urls[0])
+        await _read(browser, feed, res, first, rng, sleep)
+    except Stop as s:
+        res.stop, res.normal, res.gap = s.why, s.normal, s.gap
     except Exception as e:  # anything else ends the run, says what it was, and is never retried
-        hint = " (x.com/home did not load as a logged-in page)" if type(e).__name__.startswith("XClId") else ""
-        res.stop = f"{type(e).__name__}: {e}"[:400] + hint
+        res.stop = f"{type(e).__name__}: {e}"[:400]
+    finally:
+        try:
+            await browser.close()
+        except Exception:
+            pass
+    res.pages = feed.pages
+    if feed.pages and not res.build:
+        res.build = build_of(feed.urls[0])
+    res.newest_id = max([0] + [e.newest_id for p in feed.pages for e in parse.entries(p)[0] if not e.promoted])
     return _done(res)
+
+
+def _check(feed: Feed) -> None:
+    if feed.problem:
+        raise Stop(feed.problem)
+
+
+async def _click_following(browser, feed: Feed, rng: random.Random) -> None:
+    for xpath in FOLLOWING_TAB:
+        box = await browser.find_box(xpath)
+        if box:
+            await browser.click(box[0] + rng.uniform(-8, 8), box[1] + rng.uniform(-3, 3))
+            return
+    raise Stop("could not find the Following tab on x.com/home")
+
+
+async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Random, sleep) -> None:
+    done = 0  # pages already judged
+    stalled = 0
+    t_end = time.monotonic() + config.MAX_MINUTES * 60
+    while True:
+        while done < len(feed.pages):
+            ents, cursor = parse.entries(feed.pages[done])
+            done += 1
+            real = [e for e in ents if not e.promoted]
+            if any(0 < e.newest_id <= res.boundary_id for e in real):
+                raise Stop("read back to the start of the window" if first else "caught up", normal=True)
+            if not cursor or not real:
+                raise Stop("reached the end of what X serves", normal=first, gap=not first)
+            if done >= config.MAX_PAGES:
+                raise Stop(f"stopped at the cap of {config.MAX_PAGES} pages", gap=True)
+            stalled = 0
+        _check(feed)
+        if stalled >= STALL_WHEELS:
+            raise Stop("the feed stopped loading while scrolling", gap=True)
+        if time.monotonic() > t_end:
+            raise Stop(f"stopped at the cap of {config.MAX_MINUTES} minutes", gap=True)
+        await browser.wheel(wheel_delta(rng))
+        stalled += 1
+        pause = wheel_pause(rng)
+        if sleep is asyncio.sleep:
+            await feed.pump(pause)
+        else:  # tests: time passes in the fake sleep, events are handled at once
+            await sleep(pause)
+            await feed.pump(0)
 
 
 def _done(res: Result) -> Result:
