@@ -39,7 +39,6 @@ RUN_NAME = re.compile(r"^/b/(\d{4}-\d{2}-\d{2}-\d{4}-(?:am|pm))$")
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 MAX_POST = 4096
 TICK_S = 20
-SPAWN_GRACE_MS = 20_000  # a run the page just started, before its process has taken the lock
 READY_FOR_MS = 30 * 60_000  # how long the rail offers a new brief
 PHASES = {"starting": "Starting", "opening Brave": "Opening Brave", "opening x.com": "Opening x.com",
           "writing the brief": "Writing the brief"}
@@ -50,7 +49,7 @@ def live(at: str | None = None, now: dt.datetime | None = None) -> dict:
     now = now or dt.datetime.now()
     now_ms = int(now.timestamp() * 1000)
     pr = runner.read_progress()
-    on = runner.running() or (pr.get("done") is False and now_ms - (pr.get("started_ms") or 0) < SPAWN_GRACE_MS)
+    on = runner.running() or runner.just_started(now_ms)
     if on:
         phase = pr.get("phase") or "starting"
         text = (f"Reading · {pr.get('pages', 0)} pages · {pr.get('posts', 0)} posts" if phase == "reading"
@@ -199,7 +198,7 @@ class Handler(BaseHTTPRequestHandler):
                     return self._html(page.shell("X brief", page.rail("brief", lv, running=lv["running"]),
                                                  '<p class="empty">No brief by that name. <a href="/history">Every '
                                                  'brief</a>.</p>'), 404)
-                return self._html(page.brief_page(run, store.runs(limit=12), lv, lv["running"]))
+                return self._html(page.brief_page(run, store.runs(), lv, lv["running"]))
             if path == "/history":
                 lv = live()
                 return self._html(page.history_page(store.runs(), store.settings(),
@@ -218,13 +217,15 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def schedule_loop(stop: threading.Event) -> None:
-    while not stop.wait(TICK_S):
+    while True:  # a look at once on start, then every TICK_S
         try:
             label = runner.tick()
             if label:
                 print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} schedule: started the {page.LABELS[label]} run", flush=True)
         except Exception:  # noqa: BLE001  the page keeps serving; the next tick tries again
             traceback.print_exc()
+        if stop.wait(TICK_S):
+            return
 
 
 def serve(port: int = config.PORT) -> None:

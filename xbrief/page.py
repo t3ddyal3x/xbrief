@@ -193,7 +193,7 @@ def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False
     meta = run["meta"]
     title = run_title(run["name"], run["label"], meta.get("started_ms") or 0)
     main, toc = brief_main(run["brief"], run["posts"], run["threads"], meta)
-    others = [r for r in earlier if r["name"] != run["name"]][:10]
+    others = [r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)][:10]  # older than this one
     arch = "".join(f'<li><a href="/b/{esc(r["name"])}">{esc(run_title(r["name"], r["label"], r["started_ms"]))}</a>'
                    f'<span class="n">{r["n_posts"]}</span></li>' for r in others)
     extra = (f'<h2>{esc(title)}</h2><p class="when">read {day(meta.get("started_ms") or 0)}</p>'

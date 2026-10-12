@@ -64,3 +64,12 @@ the raw reads hold everything it did.
 settings) and the schedule's rules; Brief now run end to end on a throwaway data dir (no login: stopped at once,
 stored, shown); pages looked at 2000 px dark/light and phone width with a guard refusing every write.
 **Next**: the operator presses Brief now once, then turns the schedule on (History).
+**Review (same session, operator: "double check your work")** found and fixed five: (1) the page's status check
+holds the run lock for a moment to look, so a run starting at that instant gave up as "another run is going"; a run
+now waits up to 3 s for the lock (`runner.acquire`). (2) A double click could start two processes; `runner.start`
+now counts a run started in the last 20 s as going. (3) Turning the schedule on inside a window could start a run
+within 20 s; the minute is now drawn from what is left of the window. (4) An older brief's "Earlier" list showed
+newer briefs. (5) The live post count kept the Popular pages dropped on switching to Recent. Each has a test.
+Checked: offline and `--browser` tests pass; the live app refuses a foreign Host, a foreign or null Origin, a form
+or text body and a preflight, with no run started; both stored briefs hold every post their raw read gives, each
+placed once.

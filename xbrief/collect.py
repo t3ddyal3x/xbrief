@@ -108,7 +108,6 @@ class Feed:
     def __init__(self, browser, progress=None):
         self.b = browser
         self.progress = progress or (lambda phase, **kw: None)  # tells the page what the run is doing
-        self.posts = 0
         self.tracked: dict[str, str] = {}  # requestId → url
         self.pages: list[dict] = []
         self.urls: list[str] = []
@@ -167,8 +166,9 @@ class Feed:
                 return
             self.pages.append(page)
             self.urls.append(url)
-            self.posts += sum(len(e.posts) for e in parse.entries(page)[0] if not e.promoted)
-            self.progress("reading", pages=len(self.pages), posts=self.posts)
+            # counted over the pages kept, so the Popular pages dropped on switching to Recent drop out too
+            posts = sum(len(e.posts) for pg in self.pages for e in parse.entries(pg)[0] if not e.promoted)
+            self.progress("reading", pages=len(self.pages), posts=posts)
         elif m == "Network.loadingFailed" and p.get("requestId") in self.tracked:
             self.problem = f"the feed request failed ({p.get('errorText', 'no reason given')})"
         elif m == "Page.frameNavigated" and not (p.get("frame") or {}).get("parentId"):

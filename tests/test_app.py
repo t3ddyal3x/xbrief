@@ -81,6 +81,27 @@ def test_a_run_in_a_terminal_waits_for_the_lock(monkeypatch):
     held.close()
 
 
+def test_a_run_waits_out_a_look_at_the_lock(monkeypatch):
+    real, tries = runner.take_lock, []
+
+    def busy_once():
+        tries.append(1)
+        return None if len(tries) == 1 else real()  # the page's status held it the first time
+
+    monkeypatch.setattr(runner, "take_lock", busy_once)
+    f = runner.acquire(wait_s=1)
+    assert f is not None and len(tries) == 2
+    f.close()
+
+
+def test_a_double_click_starts_one_run(monkeypatch):
+    spawned = []
+    monkeypatch.setattr(runner.subprocess, "Popen", lambda *a, **kw: spawned.append(a))
+    assert runner.start(hours=12) is True
+    assert runner.start(hours=12) is False  # its process has not taken the lock yet
+    assert len(spawned) == 1
+
+
 def test_run_command():
     cmd = runner.run_cmd("pm", 24.0)
     assert cmd[1:] == ["-m", "xbrief", "run", "--now", "--label", "pm", "--hours", "24"]
@@ -135,6 +156,15 @@ def test_turning_it_on_at_night_does_not_start_the_morning():
     assert s["am"]["fired_ms"] == -1 and s["pm"]["fired_ms"] is None
     assert runner.due(at(12, 1), SETT, None, random.Random(6)) is None
     assert runner.next_fire(at(12, 1)) == s["pm"]["fire_ms"]
+
+
+def test_turning_it_on_inside_a_window_does_not_start_a_run_at_once():
+    runner.apply_settings(SETT, now=at(6, 0))
+    s = store.slots(DAY.isoformat())
+    assert at(6, 0) <= dt.datetime.fromtimestamp(s["am"]["fire_ms"] / 1000) <= at(7, 15)
+    store.forget_unfired(DAY.isoformat())
+    runner.apply_settings(SETT, now=at(7, 20))  # too late in the window to hold a run
+    assert store.slots(DAY.isoformat())["am"]["fired_ms"] == -1
 
 
 def test_moving_a_window_redraws_the_slots_not_yet_run():

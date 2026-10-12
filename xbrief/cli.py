@@ -66,7 +66,7 @@ def cmd_run(a) -> int:
         wait = jitter_seconds(label, dt.datetime.now(), random.Random())
         log(f"run {label}: starting in {wait / 60:.0f} min")
         time.sleep(wait)
-    lock = runner.take_lock()
+    lock = runner.acquire()
     if lock is None:
         log(f"run {label}: another run is going; this one did not start")
         return 3

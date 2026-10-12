@@ -115,8 +115,10 @@ def go(b, now_minutes=60):
     async def sleep(s):
         slept.append(s)
 
-    res = asyncio.run(collect.run(rng=random.Random(1), sleep=sleep, now_ms=BASE_MS + now_minutes * 60_000, browser=b))
-    res.slept = slept
+    told = []
+    res = asyncio.run(collect.run(rng=random.Random(1), sleep=sleep, now_ms=BASE_MS + now_minutes * 60_000, browser=b,
+                                  progress=lambda phase, **kw: told.append((phase, kw))))
+    res.slept, res.told = slept, told
     return res
 
 
@@ -284,6 +286,8 @@ def test_popular_order_is_switched_to_recent():
     res = go(b)
     assert res.stop == "caught up" and not res.ranked and len(res.pages) == 2  # the Popular page was dropped
     assert b.clicks == 3  # the tab, the tab again (its menu), Recent
+    assert res.told[-1] == ("reading", {"pages": 2, "posts": 5})  # the dropped Popular page is not counted
+    assert [t[0] for t in res.told[:2]] == ["opening Brave", "opening x.com"]
 
 
 def test_popular_without_a_menu_reads_to_a_page_with_nothing_new():

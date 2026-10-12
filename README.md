@@ -12,7 +12,7 @@ Free: no X API, and the writing runs on your Claude subscription.
   the last 12, 24 or 48 hours. The line under it says what the run is doing, then offers the new brief.
 - **History** lists every brief, and sets the **schedule**: two briefs a day, each starting at a random minute
   inside its window (morning 05:30–07:30, evening 17:00–20:00 to begin with). It starts off; tick it and save.
-- **Search** looks through every post ever read: words (each must appear), `@name` for an account, and dates.
+- **Search** looks through every post a brief has held: words (each must appear), `@name` for an account, and dates.
   Each post links to the brief that had it. Posts are kept for good; the raw reads they came from, 30 days.
 
 While a run is going, a second Brave icon sits in the Dock for a few minutes, and its window waits at the right

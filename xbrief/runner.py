@@ -18,6 +18,7 @@ import os
 import random
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from . import config, store
 
 REPO = Path(__file__).resolve().parent.parent
 RECENT_RUN_MS = 60 * 60_000  # a slot that falls due within an hour of another run's start is skipped
+SPAWN_GRACE_MS = 20_000  # a run just started, before its process has taken the lock, counts as going
+_starting = threading.Lock()  # the server's threads start one run at a time
 
 
 # ── the lock ────────────────────────────────────────────────────────────────────────────────────────
@@ -42,12 +45,29 @@ def take_lock():
     return f
 
 
+def acquire(wait_s: float = 3.0):
+    """The lock for a run, waiting a moment: `running()` (the page's status, the schedule) holds it for a few
+    microseconds to look, and a run must not give up for meeting one of those looks."""
+    end = time.monotonic() + wait_s
+    while True:
+        f = take_lock()
+        if f is not None or time.monotonic() >= end:
+            return f
+        time.sleep(0.1)
+
+
 def running() -> bool:
     f = take_lock()
     if f is None:
         return True
     f.close()  # closing lets go of it
     return False
+
+
+def just_started(now_ms: int | None = None) -> bool:
+    pr = read_progress()
+    now_ms = now_ms or int(time.time() * 1000)
+    return pr.get("done") is False and now_ms - (pr.get("started_ms") or 0) < SPAWN_GRACE_MS
 
 
 # ── progress ────────────────────────────────────────────────────────────────────────────────────────
@@ -84,18 +104,20 @@ def run_cmd(label: str, hours: float | None) -> list[str]:
 
 
 def start(label: str | None = None, hours: float | None = None, by: str = "page") -> bool:
-    """Start `xbrief run` in the background. False if one is already going."""
-    if running():
-        return False
-    label = label or label_now()
-    write_progress(fresh=True, phase="starting", label=label, hours=hours, by=by,
-                   started_ms=int(time.time() * 1000), done=False)
-    config.LOGS.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, "PYTHONPATH": str(REPO), "PYTHONUNBUFFERED": "1"}
-    with open(config.LOGS / "runs.log", "a") as log:
-        subprocess.Popen(run_cmd(label, hours), cwd=REPO, env=env, stdin=subprocess.DEVNULL, stdout=log,
-                         stderr=subprocess.STDOUT, start_new_session=True)
-    return True
+    """Start `xbrief run` in the background. False if one is already going, or was started a moment ago and has
+    not taken the lock yet (a double click)."""
+    with _starting:
+        if running() or just_started():
+            return False
+        label = label or label_now()
+        write_progress(fresh=True, phase="starting", label=label, hours=hours, by=by,
+                       started_ms=int(time.time() * 1000), done=False)
+        config.LOGS.mkdir(parents=True, exist_ok=True)
+        env = {**os.environ, "PYTHONPATH": str(REPO), "PYTHONUNBUFFERED": "1"}
+        with open(config.LOGS / "runs.log", "a") as log:
+            subprocess.Popen(run_cmd(label, hours), cwd=REPO, env=env, stdin=subprocess.DEVNULL, stdout=log,
+                             stderr=subprocess.STDOUT, start_new_session=True)
+        return True
 
 
 # ── the schedule ────────────────────────────────────────────────────────────────────────────────────
@@ -105,23 +127,28 @@ def _at(day: dt.date, hhmm: str) -> dt.datetime:
     return dt.datetime.combine(day, dt.time(int(hhmm[:2]), int(hhmm[3:5])))
 
 
-def pick_fire(day: dt.date, window: list[str], rng: random.Random) -> int:
-    """A random minute in the window, leaving the read and the writing time before its end (15 minutes)."""
+def pick_fire(day: dt.date, window: list[str], rng: random.Random, not_before: dt.datetime | None = None) -> int:
+    """A random minute in the window, leaving the read and the writing time before its end (15 minutes), and not
+    before `not_before`."""
     start, end = _at(day, window[0]), _at(day, window[1]) - dt.timedelta(minutes=15)
+    if not_before is not None and not_before > start:
+        start = min(not_before, end)
     t = start + dt.timedelta(seconds=rng.uniform(0, max(0.0, (end - start).total_seconds())))
     return int(t.timestamp() * 1000)
 
 
 def fill_day(day: dt.date, sett: dict, rng: random.Random, skip_ended_before: dt.datetime | None = None) -> None:
-    """Make today's slots. With `skip_ended_before` (the schedule was just turned on or moved), a window already
-    over is recorded as skipped, so turning it on at night does not start the morning's run."""
+    """Make today's slots. With `skip_ended_before` (the schedule was just turned on or moved), a window too far gone
+    to hold a run is recorded as skipped and the others draw their minute from what is left of the window, so turning
+    it on neither starts the morning's run at night nor a run the moment it is saved."""
     key = day.isoformat()
     have = store.slots(key)
     for label, window in sett["windows"].items():
         if label in have:
             continue
-        over = skip_ended_before is not None and _at(day, window[1]) <= skip_ended_before
-        store.put_slot(key, label, pick_fire(day, window, rng), -1 if over else None)
+        cut = skip_ended_before
+        over = cut is not None and _at(day, window[1]) - dt.timedelta(minutes=15) <= cut
+        store.put_slot(key, label, pick_fire(day, window, rng, not_before=cut), -1 if over else None)
 
 
 def due(now: dt.datetime, sett: dict, last_run_ms: int | None, rng: random.Random) -> str | None:

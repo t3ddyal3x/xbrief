@@ -106,6 +106,9 @@ def test_page_layout():
     assert "reposted by @dave" in html and ">@alice</a>" in html
     assert main.count("<section") == 3 and main.count("<p>") == 2  # one paragraph a topic, none for the rest
     assert 'href="/b/2025-10-11-1800-pm"' in html  # earlier briefs, from the store
+    store.save_run("2025-10-12-1800-pm", "pm", {**META, "started_ms": META["started_ms"] + 3_600_000}, brief.Brief(), {}, [])
+    again = page.brief_page(store.load_run("2025-10-12-0500-am"), store.runs(), {"text": ""})
+    assert "2025-10-12-1800-pm" not in again  # a later brief is not "earlier"
     assert 'class="status quiet"' in html and "6 posts from 4 accounts" in html and "since " in html
     assert 'data-at="2025-10-12-0500-am"' in html
 
