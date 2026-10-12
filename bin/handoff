@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Session end: tests pass, .git is still a pointer, no data in the tree, the log is dated today, commit.
+#   ./bin/handoff "one-line summary"        (becomes the commit subject)
+# It commits THIS project only (git add -A inside xbrief/): other apps are other repos.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+SUMMARY="${1:?usage: bin/handoff \"one-line summary\"}"
+CO_AUTHOR="${XBRIEF_CO_AUTHOR:-Claude <noreply@anthropic.com>}"
+LOG="$HERE/docs/SESSION_LOG.md"
+rc=0
+step() { echo; echo "── $*"; }
+
+step "1/3 tests (offline)"
+"$HERE/bin/tests" 2>&1 | tail -2 || rc=1
+
+step "2/3 the tree stays clean"
+if [ -d "$HERE/.git" ]; then
+  echo "   !! .git is a DIRECTORY — it must be a gitdir pointer under ~/Data/xbrief-data/git/"; rc=1
+else
+  echo "   .git is a pointer ✓"
+fi
+if [ -n "$(find "$HERE" \( -name '*.db' -o -name '*.log' -o -path '*/raw/*' -o -name 'cookies*' \) -not -path '*/.git*' 2>/dev/null)" ]; then
+  echo "   !! a data-dir file is in the tree — the login, raw pages and logs live in ~/Data/xbrief-data"; rc=1
+else
+  echo "   no data-dir files in the tree ✓"
+fi
+if grep -q "^## $(date +%Y-%m-%d)" "$LOG"; then
+  echo "   session log dated today ✓"
+else
+  echo "   !! $LOG has no entry for today — what changed · next · open"; rc=1
+fi
+
+step "3/3 git"
+cd "$HERE"
+if [ $rc -ne 0 ]; then
+  echo "   refusing to commit while a check is failing"
+elif [ -z "$(git status --short)" ]; then
+  echo "   nothing to commit; HEAD $(git log -1 --format='%h %s' 2>/dev/null)"
+else
+  git add -A && git commit -q -F - <<MSG && echo "   committed: $(git log -1 --format='%h %s')" || rc=1
+$SUMMARY
+
+Co-Authored-By: $CO_AUTHOR
+MSG
+fi
+echo; [ $rc -eq 0 ] && echo "handoff OK" || echo "handoff FAILED (rc=$rc)"
+exit $rc

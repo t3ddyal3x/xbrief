@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Every test, offline: fixtures only, a throwaway data dir, and a network guard that fails any test that reaches out.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$HERE/bin/_env"
+exec "$PY" -m pytest "$HERE/tests" -q --no-header -p no:cacheprovider "$@"

@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Session start: the doctor, then the last session's entry.
+set -uo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+"$HERE/bin/doctor" || true
+echo; echo "── last session"
+sed -n '/^## /{p;q;}' "$HERE/docs/SESSION_LOG.md"
+sed -n '/^## /,/^$/p' "$HERE/docs/SESSION_LOG.md" | sed -n '2,6p' | sed 's/^/   /'

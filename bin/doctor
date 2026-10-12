@@ -1,0 +1,48 @@
+#!/usr/bin/env bash
+# One screen: the login, the two runs, the page, the last brief. Reads the login's state, never its cookies.
+set -uo pipefail
+source "$(dirname "${BASH_SOURCE[0]}")/_env"
+exec "$PY" - <<'PYEOF'
+import json, os, subprocess, sys, time, urllib.request
+from xbrief import config
+faults = []
+if not os.path.exists(os.path.expanduser(os.environ.get("XBRIEF_PY", "~/Data/xbrief-data/venv/bin/python"))):
+    faults.append(("venv", "missing", "see README: Setting up"))
+if not config.ACCOUNTS_DB.exists():
+    faults.append(("login", "none stored", "the operator runs xbrief/bin/xbrief login in their own terminal"))
+else:
+    mode = oct(config.ACCOUNTS_DB.stat().st_mode & 0o777)
+    if mode != "0o600":
+        faults.append(("login file", f"mode {mode}, not 600", f"chmod 600 {config.ACCOUNTS_DB}"))
+    config.apply_job_env()
+    import asyncio
+    from twscrape import AccountsPool
+    accs = asyncio.run(AccountsPool(str(config.ACCOUNTS_DB)).get_all())
+    for a in accs:
+        if not a.active:
+            faults.append(("login", f"@{a.username} inactive: {a.error_msg}", "log in again in Brave (public), then xbrief/bin/xbrief login"))
+out = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
+for label in ("com.xbrief.am", "com.xbrief.pm"):
+    if not any(l.endswith(label) for l in out.splitlines()):
+        faults.append((label, "not loaded: no automatic runs", "xbrief/bin/install-agent"))
+try:
+    urllib.request.urlopen("http://xbrief.localhost/", timeout=4)
+except Exception as exc:
+    faults.append(("page", f"xbrief.localhost unreachable ({type(exc).__name__})", "xbrief/bin/install-agent (adds the Caddy block)"))
+raws = sorted(config.RAW.glob("*.json"))
+if raws:
+    meta = json.loads(raws[-1].read_text())["meta"]
+    age_h = (time.time() * 1000 - meta["started_ms"]) / 3_600_000
+    print(f"xbrief  last run {raws[-1].name} ({age_h:.1f} h ago): {meta['stop']}{' · GAP' if meta.get('gap') else ''}")
+    if not meta.get("normal"):
+        faults.append(("last run", meta["stop"], "tail ~/Data/xbrief-data/logs/run.log; xbrief/bin/xbrief status"))
+    if age_h > 15:
+        faults.append(("runs", f"no run for {age_h:.0f} h (two a day)", "tail ~/Data/xbrief-data/logs/launchd.log"))
+else:
+    print("xbrief  no run yet")
+if not faults:
+    print("doctor: no faults")
+for what, why, fix in faults:
+    print(f"FAULT  {what}: {why}\n       fix: {fix}")
+sys.exit(1 if faults else 0)
+PYEOF

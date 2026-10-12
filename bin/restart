@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# xbrief has no server: after a code change, compile and test, then reload the two LaunchAgents.
+set -euo pipefail
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+source "$HERE/bin/_env"
+find "$HERE/xbrief" -name '*.py' -not -path '*/__pycache__/*' -print0 | xargs -0 "$PY" -m py_compile \
+  || { echo "python does not compile — not reloading" >&2; exit 1; }
+"$HERE/bin/tests" || { echo "tests failing — not reloading" >&2; exit 1; }
+"$HERE/bin/install-agent"
+"$HERE/bin/doctor"

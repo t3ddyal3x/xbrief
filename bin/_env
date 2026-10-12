@@ -1,0 +1,5 @@
+# One interpreter decision, in one place. xbrief's own venv (it needs the twscrape fork and curl_cffi, pinned in
+# ../pyproject.toml and ../requirements.lock), kept with the data, outside the tree.
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PY="${XBRIEF_PY:-$HOME/Data/xbrief-data/venv/bin/python}"
+export PYTHONPATH="$HERE${PYTHONPATH:+:$PYTHONPATH}"

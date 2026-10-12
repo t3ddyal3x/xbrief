@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# xbrief run | rebrief <raw> | probe | login | status
+source "$(dirname "${BASH_SOURCE[0]}")/_env"
+exec "$PY" -m xbrief "$@"

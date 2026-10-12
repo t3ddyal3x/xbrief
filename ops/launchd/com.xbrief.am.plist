@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.xbrief.am</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO__/bin/xbrief</string>
+    <string>run</string>
+    <string>--label</string>
+    <string>am</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>PYTHONUNBUFFERED</key><string>1</string>
+  </dict>
+  <!-- Fires at the start of the window (config.WINDOWS: morning 05:30-07:30, evening 17:00-20:00, local time);
+       the job then waits a random part of it so no two days start alike. twscrape's settings are set in code
+       (config.TWS_ENV), not here, so a hand run behaves the same. -->
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>5</integer><key>Minute</key><integer>30</integer></dict>
+  <key>RunAtLoad</key><false/>
+  <key>StandardOutPath</key><string>__DATA__/logs/launchd.log</string>
+  <key>StandardErrorPath</key><string>__DATA__/logs/launchd.log</string>
+</dict>
+</plist>

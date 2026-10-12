@@ -1,0 +1,10 @@
+# xbrief's front door: the briefs folder as static files, no server of its own. Pasted into
+# /opt/homebrew/etc/Caddyfile by bin/install-agent, ABOVE the catch-all, beside the other apps' blocks.
+# `import loopback_only` FIRST (see the guard's comment at the top of the Caddyfile).
+http://xbrief.localhost {
+	import loopback_only
+	route {
+		root * __DATA__/briefs
+		file_server
+	}
+}
