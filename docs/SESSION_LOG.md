@@ -42,3 +42,7 @@ in 3 min of reading and 4 min of writing. **Efficiency pass** (operator asked): 
 buffers 200→60 MB, the event pump bounded by its deadline, our code measured at 3 ms parse + 1 ms render; the writer
 is the only real cost (~13k tokens for 100 posts). **Added** `run --hours H` (operator: a full day in the morning, the
 last 12 in the evening, on demand) and the window on the page; first run 24 h; `MAX_PAGES` 20, `MAX_MINUTES` 40.
+**The brief was a feed** (operator: "it looks like it's just a pull with every post and repost"): 113 items for
+189 posts, one line a post, because the writer was asked for items and told to place every post. Now one paragraph
+a topic (under 90 words asked, 110 enforced) with the topic's posts folded beneath it, and posts with nothing to say
+(memes, bare images, one-liners) listed at the end without words. The 24-hour hand run read 4 pages in 9 minutes.

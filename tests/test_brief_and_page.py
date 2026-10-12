@@ -27,10 +27,10 @@ META = {"stop": "caught up", "normal": True, "gap": False, "started_ms": 1_760_2
 def answer_for(posts):
     ids = list(posts)
     return "```json\n" + json.dumps({
-        "topics": [{"title": "Rates", "items": [{"summary": "@bob says rates were cut.", "posts": [ids[0], "999"]}]},
-                   {"title": "Threads", "items": [{"summary": "@gina wrote a thread.", "posts": [ids[2]]}]},
-                   {"title": "Empty", "items": [{"summary": "", "posts": [ids[1]]}]}],
-        "other": [{"summary": "@dave reposted @alice on BTC.", "posts": [ids[1]]}],
+        "topics": [{"title": "Rates", "summary": "@bob says rates were cut.", "posts": [ids[0], "999"]},
+                   {"title": "Threads", "summary": "@gina wrote a thread.", "posts": [ids[2], ids[0]]},
+                   {"title": "Empty", "summary": "", "posts": [ids[1]]}],
+        "other": [ids[1]],
     }) + "\n```"
 
 
@@ -55,10 +55,19 @@ def test_writer_runs_with_no_tools():
 def test_answer_is_checked_and_nothing_is_dropped():
     ents = entries()
     b, posts = brief.write(ents, ask=lambda text: answer_for(brief.unique_posts(ents)))
-    assert [t for t, _ in b.topics] == ["Rates", "Threads"]  # the empty item and its topic are gone
-    assert b.topics[0][1][0].posts == [list(posts)[0]]  # an id the writer made up is dropped
-    placed = {p for _, its in b.topics for it in its for p in it.posts} | {p for it in b.other for p in it.posts}
-    assert set(b.unplaced) == set(posts) - placed and len(b.unplaced) == 3
+    ids = list(posts)
+    assert [t.title for t in b.topics] == ["Rates", "Threads"]  # the empty topic is gone
+    assert b.topics[0].posts == [ids[0]]  # an id the writer made up is dropped
+    assert b.topics[1].posts == [ids[2]]  # a post placed twice stays where it was placed first
+    assert b.other[0] == ids[1] and set(b.other) == set(ids) - {ids[0], ids[2]}  # the rest, never dropped
+
+
+def test_a_long_paragraph_is_cut():
+    ents = entries()
+    posts = brief.unique_posts(ents)
+    long = " ".join(["word"] * 200)
+    b = brief.parse_answer(json.dumps({"topics": [{"title": "T", "summary": long, "posts": [list(posts)[0]]}]}), posts)
+    assert len(b.topics[0].summary.split()) == brief.SUMMARY_WORDS + 1 and b.topics[0].summary.endswith("…")
 
 
 def test_writer_failure_still_lists_every_post():
@@ -66,7 +75,7 @@ def test_writer_failure_still_lists_every_post():
         raise RuntimeError("claude exited 1: usage limit")
 
     b, posts = brief.write(entries(), ask=broken)
-    assert b.writer_error.startswith("RuntimeError") and set(b.unplaced) == set(posts) and not b.topics
+    assert b.writer_error.startswith("RuntimeError") and set(b.other) == set(posts) and not b.topics
 
 
 def render(meta=META, ask=None):
@@ -88,8 +97,9 @@ def test_page_escapes_and_runs_no_script():
 def test_page_layout():
     html = render()
     assert html.index("Rates") < html.index("Threads") < html.index("Everything else")
-    assert "<details open><summary>thread</summary>" in html and html.count("@gina") >= 3
+    assert "<summary>3 posts · @gina</summary>" in html and html.count("@gina") >= 3  # the thread, whole, folded
     assert "reposted by @dave" in html and ">@alice</a>" in html
+    assert html.count("<section") == 3 and html.count("<p>") == 2  # one paragraph a topic, none for the rest
     assert 'href="2025-10-11-1800-pm.html"' in html
     assert 'class="status quiet"' in html and "6 posts from 4 accounts" in html and "since " in html
 

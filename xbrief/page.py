@@ -12,7 +12,7 @@ import re
 import time
 from collections import Counter
 
-from .brief import Brief, Item
+from .brief import Brief, Topic
 from .parse import Entry, Post
 
 CSP = ("default-src 'none'; img-src https://pbs.twimg.com; style-src 'unsafe-inline'; "
@@ -45,15 +45,12 @@ padding:3rem 2rem 6rem}
 section{margin:0 0 3rem}
 section>h2{font:600 1.45rem/1.25 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--fg);margin:0 0 1.1rem;
 padding-bottom:.4rem;border-bottom:1px solid var(--rule)}
-.item{margin:0 0 1.35rem}
-.item p{margin:0}
-.by{display:block;font-size:12px;color:var(--dim);margin-top:.25rem}
-.by a{color:var(--dim);text-decoration:none}.by a:hover{color:var(--link)}
+section>p{margin:0 0 .5rem;font-size:17.5px;line-height:1.6}
 details{margin-top:.35rem}
 summary{cursor:pointer;font-size:12px;color:var(--dim);list-style:none}
 summary::-webkit-details-marker{display:none}
 summary::before{content:"+ ";}details[open]>summary::before{content:"− "}
-.post{border-left:1px solid var(--rule);padding:.5rem 0 .5rem 1rem;margin:.5rem 0 0;font-size:15.5px}
+.post{border-left:1px solid var(--rule);padding:.5rem 0 .5rem 1rem;margin:.6rem 0 0;font-size:15px}
 .post .meta{font-size:12px;color:var(--dim);display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.15rem}
 .post .meta a{color:var(--dim)}
 .post .t{white-space:pre-wrap;overflow-wrap:anywhere}
@@ -139,27 +136,25 @@ def threads(entries: list[Entry]) -> dict[str, list[Post]]:
     return out
 
 
-def item_html(it: Item, posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
+def topic_posts(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> list[Post]:
+    """The topic's posts newest first, a conversation kept together where its first post falls."""
     shown: list[Post] = []
-    ids: set[str] = set()
-    is_thread = False
-    for pid in it.posts:
-        group = thr.get(pid)
-        if group:
-            is_thread = True
-        for p in group or [posts[pid]]:
-            if p.id not in ids:
-                ids.add(p.id)
+    seen: set[str] = set()
+    for pid in sorted(ids, key=lambda x: -posts[x].created_ms):
+        for p in thr.get(pid) or [posts[pid]]:
+            if p.id not in seen:
+                seen.add(p.id)
                 shown.append(p)
-    first: dict[str, Post] = {}  # each author once, linked to their first post in the item
-    for pid in it.posts:
-        p = posts[pid].retweet_of or posts[pid]
-        first.setdefault(p.handle, p)
-    by = " · ".join(f'<a href="{esc(p.url)}" rel="noreferrer">@{esc(h)}</a>' for h, p in first.items())
-    label = "thread" if is_thread else ("post" if len(shown) == 1 else f"{len(shown)} posts")
-    return (f'<div class="item"><p>{esc(it.summary)}</p><span class="by">{by}</span>'
-            f'<details{" open" if is_thread else ""}><summary>{esc(label)}</summary>'
-            f'{"".join(post_html(p) for p in shown)}</details></div>')
+    return shown
+
+
+def topic_html(t: Topic, posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
+    shown = topic_posts(t.posts, posts, thr)
+    handles = list(dict.fromkeys((p.retweet_of or p).handle for p in shown))
+    who = ", ".join(f"@{h}" for h in handles[:6]) + (f" and {len(handles) - 6} more" if len(handles) > 6 else "")
+    label = f"{len(shown)} post{'s' if len(shown) != 1 else ''} · {who}"
+    return (f'<p>{esc(t.summary)}</p><details><summary>{esc(label)}</summary>'
+            f'{"".join(post_html(p) for p in shown)}</details>')
 
 
 def status_html(meta: dict, b: Brief, n_posts: int, n_accounts: int) -> str:
@@ -191,18 +186,16 @@ def render(b: Brief, posts: dict[str, Post], entries: list[Entry], meta: dict, t
     thr = threads(entries)
     accounts = Counter(p.handle for p in posts.values())  # who I follow; a repost counts as the reposter
     sections, toc = [], []
-    for i, (topic, items) in enumerate(b.topics):
+    for i, t in enumerate(b.topics):
         sid = f"t{i}"
-        toc.append(f'<li><a href="#{sid}">{esc(topic)}</a><span class="n">{len(items)}</span></li>')
-        sections.append(f'<section id="{sid}"><h2>{esc(topic)}</h2>{"".join(item_html(it, posts, thr) for it in items)}</section>')
-    rest = list(b.other)
-    if b.unplaced:
-        rest += [Item("", [pid]) for pid in sorted(b.unplaced, key=lambda x: -posts[x].created_ms)]
-    if rest:
+        toc.append(f'<li><a href="#{sid}">{esc(t.title)}</a><span class="n">{len(t.posts)}</span></li>')
+        sections.append(f'<section id="{sid}"><h2>{esc(t.title)}</h2>{topic_html(t, posts, thr)}</section>')
+    if b.other:
+        rest = topic_posts(b.other, posts, thr)
         toc.append(f'<li><a href="#other">Everything else</a><span class="n">{len(rest)}</span></li>')
-        body = "".join(item_html(it, posts, thr) if it.summary else
-                       f'<div class="item">{post_html(posts[it.posts[0]])}</div>' for it in rest)
-        sections.append(f'<section id="other"><h2>Everything else</h2>{body}</section>')
+        sections.append(f'<section id="other"><h2>Everything else</h2><p class="empty">Memes, pictures, one-liners '
+                        f'and reposts with nothing to add: {len(rest)} posts, as read.</p>'
+                        f'<details><summary>{len(rest)} posts</summary>{"".join(post_html(p) for p in rest)}</details></section>')
     if not posts:
         sections.append('<p class="empty">Nothing new from the accounts you follow since the last brief.</p>')
     arch = "".join(f'<li><a href="{esc(href)}">{esc(name)}</a></li>' for name, href in archive)
