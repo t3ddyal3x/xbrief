@@ -81,14 +81,15 @@ data dir. Checked 2026-10-12: asked to list its tools, it answered NONE. `--bare
 subscription login). On made-up posts including an injection attempt, it summarised the attempt rather than obeying it,
 and placed every post. A writer failure still publishes every post, unsummarised, with the reason.
 
-**Model and prompt** (2026-10-12): the writer is named, `claude-fable-5-1` (`config.MODEL`): Fable for summaries,
-Opus at the least, never Sonnet (operator). It lists only the topics' posts; whatever it leaves out is shown at the
+**Model and prompt** (2026-10-12): the writer is named, `claude-opus-5-5` (`config.MODEL`): Opus, the operator's
+choice after both were timed; never Sonnet. It lists only the topics' posts; whatever it leaves out is shown at the
 end. Timed on the 390-post read of 2026-10-12, one run each:
 
 | writer | time | posts in topics | unsummarised posts of 50+ words |
 |---|---|---|---|
 | Fable, listing every post | 623 s | 235 | 13 |
-| Fable, topics only (kept) | 315 s | 262 | 8 |
+| Fable, topics only | 315 s | 262 | 8 |
+| Opus, topics only (kept) | 335 s | 252 | 12 |
 
 (Sonnet was also tried, 80 s, and left 24 such posts unsummarised; ruled out by the operator.)
 

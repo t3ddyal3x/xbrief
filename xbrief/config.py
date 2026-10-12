@@ -19,8 +19,8 @@ HOST, PORT = "127.0.0.1", 8795  # the app (server.py), behind Caddy at xbrief.lo
 
 HOME_URL = os.environ.get("XBRIEF_HOME_URL", "https://x.com/home")
 CLAUDE = os.environ.get("XBRIEF_CLAUDE", str(HOME / ".local" / "bin" / "claude"))
-MODEL = os.environ.get("XBRIEF_MODEL") or "claude-fable-5-1"  # the writer: Fable for summaries, Opus at the
-# least, never Sonnet (operator, 2026-10-12); named, so it never follows the subscription's default
+MODEL = os.environ.get("XBRIEF_MODEL") or "claude-opus-5-5"  # the writer: Opus (operator, 2026-10-12; never
+# Sonnet); named, so it never follows the subscription's default
 
 RAW_KEEP_DAYS = 30
 MAX_PAGES = 20  # hard cap a run: a Recent page holds ~85 entries, a day is ~5 pages (hand run 2026-10-12)

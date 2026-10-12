@@ -87,3 +87,5 @@ On the 390-post read: 623 s → 315 s, and fewer long posts left unsummarised (1
 ~670 MB); tested on a made-up tree: caches skipped, cookies and local storage kept. How much it saves is not
 measured: sessions are kept out of the profile.
 **Next**: unchanged (ROADMAP §1).
+**Then**: the writer is Opus (`claude-opus-5-5`), on the operator's word. Same read, topics only: 335 s, 12 long
+posts unsummarised (Fable: 315 s, 8).
