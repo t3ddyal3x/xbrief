@@ -30,7 +30,7 @@
     } catch (e) {
       show({ kind: "bad", text: "The app is not answering." });
     }
-    timer = setTimeout(poll, s && s.running ? 1500 : 30000);
+    timer = setTimeout(poll, !s || !s.running ? 30000 : s.slow ? 5000 : 1500);
   }
 
   async function post(path, body) {

@@ -49,6 +49,8 @@ def test_a_post_seen_twice_is_kept_once_and_cut_is_reported():
     publish([xw_tweet(1, "bob", "same post")])
     publish([xw_tweet(1, "bob", "same post")], label="pm", minutes=600)
     assert store.counts()["posts"] == 1
+    with store.db() as con:  # its row in the word index replaced, not added to
+        assert con.execute("SELECT count(*) FROM posts_fts").fetchone()[0] == 1
     for i in range(5):
         publish([xw_tweet(100 + i, "x", f"many {i}")], minutes=1000 + i)
     hits, cut = store.search("many", limit=3)
@@ -274,6 +276,10 @@ def test_live_line():
                           started_ms=int(now.timestamp() * 1000))
     held = runner.take_lock()
     assert server.live(now=now) == {"running": True, "kind": "on", "text": "Reading · 3 pages · 180 posts"}
+    runner.write_progress(phase="writing the brief", posts=150, writing_ms=int(now.timestamp() * 1000))
+    assert server.live(now=now)["text"] == "Writing the brief · 150 posts"
+    lv = server.live(now=now + dt.timedelta(minutes=4, seconds=50))
+    assert lv["text"] == "Writing the brief · 150 posts · 4 min" and lv["slow"]  # the page asks less often
     held.close()
     runner.write_progress(phase="done", done=True, name="2026-10-12-1200-pm")
     lv = server.live(now=dt.datetime.now())
@@ -284,3 +290,17 @@ def test_live_line():
     assert lv["kind"] == "bad" and "HTTP 429" in lv["text"] and lv["href"] == "/b/2026-10-12-1200-pm"
     runner.write_progress(phase="failed", done=True, error="BrowserError: no port")
     assert server.live(now=dt.datetime.now())["kind"] == "bad"
+
+
+def test_the_first_builds_word_index_is_rebuilt_once():
+    publish([xw_tweet(1, "bob", "Rates were cut"), xw_tweet(2, "amy", "Nothing here")])
+    with store.db() as con:  # make the index the first build had: the post id in a column
+        con.execute("DROP TABLE posts_fts")
+        con.execute("CREATE VIRTUAL TABLE posts_fts USING fts5 (post_id UNINDEXED, body, who)")
+        con.execute("INSERT INTO posts_fts (post_id, body, who) SELECT id, 'stale', handle FROM posts")
+    store._fts_checked.clear()  # a new process
+    assert [p.text for p, _ in store.search("rates")[0]] == ["Rates were cut"]
+    assert store.search("stale")[0] == []
+    with store.db() as con:
+        assert "post_id" not in con.execute("SELECT sql FROM sqlite_master WHERE name = 'posts_fts'").fetchone()[0]
+        assert con.execute("SELECT count(*) FROM posts_fts").fetchone()[0] == 2

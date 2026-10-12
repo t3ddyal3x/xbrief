@@ -81,7 +81,9 @@ def cmd_run(a) -> int:
         path = collect.save_raw(res, label)
         log(f"read {len(res.pages)} pages ({res.build or 'no site'}): {res.stop}" + (" · GAP" if res.gap else "")
             + f" · raw {os.path.basename(path)}")
-        runner.write_progress(phase="writing the brief", stop=res.stop, normal=res.normal)
+        n = len(brief.unique_posts(entries_of(res.pages), int(res.boundary_id or 0)))  # what the writer gets
+        runner.write_progress(phase="writing the brief", stop=res.stop, normal=res.normal, posts=n,
+                              writing_ms=int(time.time() * 1000))
         name = publish(res.pages, res.meta(), label)
         runner.write_progress(phase="done", done=True, name=name)
         pruned = collect.prune_raw()

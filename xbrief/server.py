@@ -52,8 +52,14 @@ def live(at: str | None = None, now: dt.datetime | None = None) -> dict:
     on = runner.running() or runner.just_started(now_ms)
     if on:
         phase = pr.get("phase") or "starting"
-        text = (f"Reading · {pr.get('pages', 0)} pages · {pr.get('posts', 0)} posts" if phase == "reading"
-                else PHASES.get(phase, phase.capitalize()))
+        if phase == "reading":
+            text = f"Reading · {pr.get('pages', 0)} pages · {pr.get('posts', 0)} posts"
+        elif phase == "writing the brief" and pr.get("writing_ms"):  # the long part: say how long it has run
+            mins = max(0, now_ms - pr["writing_ms"]) // 60_000
+            text = f"Writing the brief · {pr.get('posts', 0)} posts" + (f" · {mins} min" if mins else "")
+            return {"running": True, "kind": "on", "text": text, "slow": True}  # the page asks every 5 s, not 1.5
+        else:
+            text = PHASES.get(phase, phase.capitalize())
         return {"running": True, "kind": "on", "text": text}
     recent = now_ms - (pr.get("updated_ms") or 0) < READY_FOR_MS
     if pr.get("phase") == "failed" and recent:

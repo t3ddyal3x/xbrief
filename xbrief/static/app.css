@@ -12,7 +12,9 @@ a:focus-visible,summary:focus-visible{outline:2px solid var(--link);outline-offs
 .mono,.rail,.by,.meta,.status,summary,.ctl,.runs,.day,.hits{font-family:"SF Mono",ui-monospace,Menlo,monospace}
 .wrap{display:grid;grid-template-columns:minmax(200px,260px) minmax(0,46rem);gap:4rem;justify-content:center;
 padding:3rem 2rem 6rem}
-.rail{position:sticky;top:2rem;align-self:start;font-size:12.5px;line-height:1.5;color:var(--dim)}
+.rail{position:sticky;top:2rem;align-self:start;font-size:12.5px;line-height:1.5;color:var(--dim);
+max-height:calc(100vh - 4rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
+padding:3px;margin:-3px}  /* a long brief's topics scroll inside the rail; the padding keeps focus rings */
 .rail h1{font:600 13px/1.3 "SF Mono",ui-monospace,Menlo,monospace;color:var(--fg);margin:0 0 .2rem;letter-spacing:.02em}
 .rail .when{margin:0 0 1.6rem}
 .rail ol,.rail ul{list-style:none;margin:0 0 1.8rem;padding:0}
@@ -43,7 +45,7 @@ summary::before{content:"+ ";}details[open]>summary::before{content:"− "}
 background:#000a;color:#fff;padding:.1rem .35rem;border-radius:3px}
 .empty{color:var(--dim)}
 @media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:1.5rem;padding:1.5rem 16px 4rem}
-.rail{position:static}.rail ol{columns:2}}
+.rail{position:static;max-height:none;overflow:visible}.rail ol{columns:2}}
 
 
 /* ── the app: the rail's controls, history, search ─────────────────────────────────────────────── */

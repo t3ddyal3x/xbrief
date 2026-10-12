@@ -3,7 +3,8 @@
 The posts are strangers' text, so the writer gets them as data on stdin with no tools of any kind (no built-in
 tools, no MCP servers, every connector denied: checked 2026-10-12) and returns JSON only. Claude writes no
 HTML and no links: the page builds every link and byline from the posts themselves, so text in a post cannot
-add a link, a script or a name. Every post the answer does not place lands at the end, never dropped.
+add a link, a script or a name. Every post the answer does not place lands at the end, never dropped; so the
+writer lists only the topics' posts, not the rest (it used to list both, which only cost output time).
 
 A brief is shorter than the feed (operator, 2026-10-12: "it looks like it's just a pull with every post"): a topic
 gets one paragraph that merges what was said, not a line a post, and posts with nothing to say get no words.
@@ -33,13 +34,13 @@ words, that says what was said and by whom (@handle), merging posts that say the
 adds nothing. Quote a key number or claim when it matters. Order topics by how much was said about them. A thread
 or a conversation belongs to one topic. Do not add links, opinions, or anything the posts do not say.
 
-Posts with nothing to summarise go in "other" and get no words: memes, photos or videos without text, one-word
-replies, greetings, reposts that add nothing to what another post already says. Every post id goes in exactly one
-place, a topic or "other". Do not invent ids.
+Posts with nothing to summarise get no words and are not listed: memes, photos or videos without text, one-word
+replies, greetings, reposts that add nothing to what another post already says. Every post that says something
+belongs to a topic; every post left out of the topics is shown at the end of the brief as it is. A post id goes in
+one topic at most. Do not invent ids.
 
 Reply with JSON only, no prose and no code fence, in exactly this shape:
-{"topics": [{"title": "short topic name", "summary": "the paragraph", "posts": ["post id", ...]}],
- "other": ["post id", ...]}
+{"topics": [{"title": "short topic name", "summary": "the paragraph", "posts": ["post id", ...]}]}
 
 BEGIN POSTS
 """

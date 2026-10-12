@@ -73,3 +73,17 @@ newer briefs. (5) The live post count kept the Popular pages dropped on switchin
 Checked: offline and `--browser` tests pass; the live app refuses a foreign Host, a foreign or null Origin, a form
 or text body and a preflight, with no run started; both stored briefs hold every post their raw read gives, each
 placed once.
+
+## 2026-10-12 (efficiency and use pass)
+**Changed** (operator: "do it all" on a review of speed and use): (1) the left rail scrolls on its own, so a 30-topic
+brief's last topics and Earlier are reachable at a normal window height (looked at 1440×900, headless, writes
+refused). (2) While the brief is written, the live line says "Writing the brief · N posts · M min", and the page
+asks every 5 s instead of 1.5. (3) The search index is keyed by the post's id as its rowid; the first build's
+`post_id` column made each re-stored post scan the whole index. The live index was rebuilt on restart (390 of 390
+posts, search counts unchanged; a copy of the database was taken first). (4) The writer is named: Fable
+(operator: "never Sonnet", "opus at minimum", "fable preferred for summaries"), and lists only the topics' posts.
+On the 390-post read: 623 s → 315 s, and fewer long posts left unsummarised (13 → 8); table in ARCHITECTURE.
+(5) `_config_mac/backup_ops/backup` skips Chromium's cache folders in the job's Brave profile (the profile was
+~670 MB); tested on a made-up tree: caches skipped, cookies and local storage kept. How much it saves is not
+measured: sessions are kept out of the profile.
+**Next**: unchanged (ROADMAP §1).

@@ -7,6 +7,9 @@ text, and the raw pages they came from are pruned after 30 days. Runs write and 
 WAL lets them share the file.
 
 Search is SQLite's own full-text index over each post's words (with what it reposts or quotes) and its accounts.
+Its rows are keyed by the post's id itself (X's ids are numbers that fit SQLite's rowid, and stay put through a
+VACUUM), so storing a post replaces its row by key. The first build kept the id in a column the index cannot look
+up, so every replace scanned the whole index; `_upgrade_fts` rebuilds such an index once, from the posts.
 """
 
 from __future__ import annotations
@@ -47,8 +50,8 @@ CREATE TABLE IF NOT EXISTS run_posts (
   PRIMARY KEY (run_id, post_id)
 );
 CREATE INDEX IF NOT EXISTS run_posts_post ON run_posts (post_id);
-CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5 (
-  post_id UNINDEXED, body, who, tokenize = 'unicode61 remove_diacritics 2'
+CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5 (  -- rowid: the post's id as a number
+  body, who, tokenize = 'unicode61 remove_diacritics 2'
 );
 CREATE TABLE IF NOT EXISTS schedule (
   day TEXT NOT NULL,                  -- 2026-10-12, local
@@ -61,6 +64,7 @@ CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 """
 
 DEFAULTS = {"schedule": False, "windows": {k: list(v) for k, v in config.WINDOWS.items()}}
+_fts_checked: set[str] = set()  # the databases this process has already looked at for the old index
 
 
 @contextlib.contextmanager
@@ -71,6 +75,9 @@ def db():
         con.execute("PRAGMA journal_mode=WAL")
         con.execute("PRAGMA foreign_keys=ON")
         con.executescript(SCHEMA)
+        if str(config.DB) not in _fts_checked:
+            _upgrade_fts(con)
+            _fts_checked.add(str(config.DB))
         with con:
             yield con
     finally:
@@ -97,6 +104,38 @@ def _who(p: Post) -> str:
     return " ".join(x for x in out if x)
 
 
+def _old_fts(con) -> bool:
+    row = con.execute("SELECT sql FROM sqlite_master WHERE name = 'posts_fts'").fetchone()
+    return bool(row and "post_id" in row[0])
+
+
+def _upgrade_fts(con) -> None:
+    """Rebuild the first build's index (a `post_id` column) as one keyed by rowid, from the posts, once. The server
+    and a run may both open the file first: the second finds the work done."""
+    if not _old_fts(con):
+        return
+    con.execute("BEGIN IMMEDIATE")
+    try:
+        if _old_fts(con):
+            con.execute("DROP TABLE posts_fts")
+            con.execute(re.search(r"CREATE VIRTUAL TABLE[^;]+\)", SCHEMA).group(0))
+            for (doc,) in con.execute("SELECT doc FROM posts").fetchall():
+                _index(con, Post.from_dict(json.loads(doc)))
+        con.execute("COMMIT")
+    except BaseException:
+        con.execute("ROLLBACK")
+        raise
+
+
+def _index(con, p: Post) -> None:
+    """The post's row in the full-text index, replaced by key. X's post ids are numbers; one that is not (never
+    seen) is left out of word search, and is still found by account and date."""
+    if not p.id.isdigit():
+        return
+    con.execute("DELETE FROM posts_fts WHERE rowid = ?", (int(p.id),))
+    con.execute("INSERT INTO posts_fts (rowid, body, who) VALUES (?,?,?)", (int(p.id), _body(p), _who(p)))
+
+
 def save_run(name: str, label: str, meta: dict, b: Brief, posts: dict[str, Post], threads: list[list[str]]) -> int:
     """Store one run whole. Writing a run again (a rebrief) replaces it."""
     doc = {"topics": [t.__dict__ for t in b.topics], "other": b.other, "writer_error": b.writer_error}
@@ -111,8 +150,7 @@ def save_run(name: str, label: str, meta: dict, b: Brief, posts: dict[str, Post]
             con.execute("INSERT INTO posts (id, handle, created_ms, doc) VALUES (?,?,?,?) ON CONFLICT(id) DO UPDATE "
                         "SET handle = excluded.handle, created_ms = excluded.created_ms, doc = excluded.doc",
                         (p.id, p.handle, p.created_ms, json.dumps(p.to_dict(), ensure_ascii=False)))
-            con.execute("DELETE FROM posts_fts WHERE post_id = ?", (p.id,))
-            con.execute("INSERT INTO posts_fts (post_id, body, who) VALUES (?,?,?)", (p.id, _body(p), _who(p)))
+            _index(con, p)
             con.execute("INSERT OR IGNORE INTO run_posts (run_id, post_id) VALUES (?,?)", (run_id, p.id))
     return run_id
 
@@ -189,7 +227,7 @@ def search(q: str, since: str = "", until: str = "", limit: int = 300) -> tuple[
         return [], False
     where, args = [], []
     if words:
-        where.append("p.id IN (SELECT post_id FROM posts_fts WHERE posts_fts MATCH ?)")
+        where.append("p.id IN (SELECT CAST(rowid AS TEXT) FROM posts_fts WHERE posts_fts MATCH ?)")
         args.append(_fts(words))
     if handles:
         # the account that posted, or the account a repost is of
