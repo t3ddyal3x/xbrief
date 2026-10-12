@@ -62,7 +62,7 @@ def archive(exclude: str | None = None) -> list[tuple[str, str]]:
 
 def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude) -> str:
     ents = entries_of(pages)
-    b, posts = brief.write(ents, ask=ask)
+    b, posts = brief.write(ents, ask=ask, after_id=int(meta.get("boundary_id") or 0))
     started = dt.datetime.fromtimestamp((meta.get("started_ms") or time.time() * 1000) / 1000)
     name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}.html"
     title = f"X brief · {LABELS.get(label, label)}"
@@ -86,7 +86,7 @@ def cmd_run(a) -> int:
         time.sleep(wait)
     if a.max_pages:
         config.MAX_PAGES = a.max_pages
-    res = asyncio.run(collect.run())
+    res = asyncio.run(collect.run(hours=a.hours))
     path = collect.save_raw(res, label)
     log(f"read {len(res.pages)} pages ({res.build or 'no site'}): {res.stop}" + (" · GAP" if res.gap else "")
         + f" · raw {os.path.basename(path)}")
@@ -98,8 +98,8 @@ def cmd_run(a) -> int:
 
 
 def cmd_rebrief(a) -> int:
-    raw = json.loads(open(a.raw).read())
-    label = os.path.basename(a.raw).rsplit("-", 1)[-1].removesuffix(".json")
+    raw = collect.load_raw(a.raw)
+    label = os.path.basename(a.raw).rsplit("-", 1)[-1].removesuffix(".gz").removesuffix(".json")
     publish(raw["pages"], raw["meta"], label if label in LABELS else "am")
     return 0
 
@@ -117,6 +117,7 @@ def cmd_probe(a) -> int:
         b = Browser(config.PROFILE)
         feed = collect.Feed(b)
         seen: list[str] = []
+        feed_vars: list[str] = []
         try:
             await b.start()
             await b.send("Page.enable")
@@ -135,6 +136,18 @@ def cmd_probe(a) -> int:
                     m = re.search(r"/graphql/[\w-]+/(\w+)", url)
                     if m and m.group(1) not in [x.split()[0] for x in seen]:
                         seen.append(f"{m.group(1)} ({collect.build_of(url)})")
+                    if collect.TIMELINE.search(url):  # the feed request's variables: no cookies, those are headers
+                        req = ev["params"]["request"]
+                        body = req.get("postData") or ""
+                        try:
+                            variables = json.loads(body).get("variables") if body else None
+                        except ValueError:
+                            variables = None
+                        if variables is None:
+                            from urllib.parse import parse_qs, urlparse
+
+                            variables = parse_qs(urlparse(url).query).get("variables", ["?"])[0]
+                        feed_vars.append(f"{req.get('method')} {json.dumps(variables) if not isinstance(variables, str) else variables}")
                 if ev.get("method") != "Network.loadingFinished":
                     await feed.handle(ev)
         finally:
@@ -146,6 +159,8 @@ def cmd_probe(a) -> int:
         print("logged in  yes" if seen else "logged in  unclear: x.com/home made no feed requests")
         for x in seen[:12]:
             print(f"request    {x}")
+        for v in feed_vars:
+            print(f"Following  {v[:700]}")
         return 0 if seen else 1
 
     try:
@@ -183,9 +198,9 @@ def cmd_status(a) -> int:
     st = collect.load_state()
     if st.get("newest_id"):
         print(f"newest post read  {dt.datetime.fromtimestamp(parse.snowflake_ms(st['newest_id']) / 1000):%a %-d %b %H:%M}")
-    raws = sorted(config.RAW.glob("*.json"))
+    raws = collect.raw_files()
     if raws:
-        meta = json.loads(raws[-1].read_text())["meta"]
+        meta = collect.load_raw(raws[-1])["meta"]
         print(f"last run          {raws[-1].name}: {meta['stop']}{' · GAP' if meta.get('gap') else ''}"
               f" ({meta.get('page_count', 0)} pages, {meta.get('build') or 'no feed'})")
     from .browser import running
@@ -202,6 +217,7 @@ def main(argv=None) -> int:
     r.add_argument("--label", choices=list(LABELS))
     r.add_argument("--now", action="store_true", help="start now, not at a random minute in the window")
     r.add_argument("--max-pages", type=int)
+    r.add_argument("--hours", type=float, help="read back this many hours from now, not to where the last run stopped")
     r.set_defaults(fn=cmd_run)
     rb = sub.add_parser("rebrief", help="write the brief again from a saved raw file")
     rb.add_argument("raw")

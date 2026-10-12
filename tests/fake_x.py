@@ -20,7 +20,7 @@ const feed=document.getElementById('feed');let cursor=null,busy=false,mode='fory
 async function load(){
   if(busy)return;busy=true;
   const op=mode==='following'?'QL/HomeLatestTimeline':'QF/HomeTimeline';
-  const r=await fetch('/i/api/graphql/'+op+'?cursor='+encodeURIComponent(cursor??''),
+  const r=await fetch('/i/api/graphql/'+op+'?variables='+encodeURIComponent(JSON.stringify({count:20,enableRanking:false}))+'&cursor='+encodeURIComponent(cursor??''),
     {headers:{'x-twitter-active-user':document.visibilityState!=='hidden'?'yes':'no','x-vis':document.visibilityState}});
   const j=await r.json();busy=false;
   const n=j.render||0;for(let i=0;i<n;i++){const d=document.createElement('div');d.className='post';d.textContent=mode+' post';feed.appendChild(d);}

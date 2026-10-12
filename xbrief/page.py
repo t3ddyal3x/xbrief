@@ -168,9 +168,15 @@ def status_html(meta: dict, b: Brief, n_posts: int, n_accounts: int) -> str:
         lines.append(f"<b>The read stopped early:</b> {esc(meta.get('stop'))}.")
     if meta.get("gap"):
         lines.append("<b>Gap:</b> some posts between the last brief and this one were not read.")
+    if meta.get("ranked"):
+        lines.append("<b>Popular order:</b> X is sorting the Following tab by Popular, which can leave posts out. "
+                     "Set it to Recent to get every post.")
     if b.writer_error:
         lines.append(f"<b>No summary this time</b> ({esc(b.writer_error)}). Every post is listed below as read.")
-    head = (f"{esc(meta.get('stop') or 'read')} · {n_posts} posts from {n_accounts} accounts · "
+    from .parse import snowflake_ms
+
+    since = f"since {day(snowflake_ms(meta['boundary_id']))} · " if meta.get("boundary_id") else ""
+    head = (f"{since}{esc(meta.get('stop') or 'read')} · {n_posts} posts from {n_accounts} accounts · "
             f"read {hhmm(meta.get('started_ms') or 0)}–{hhmm(meta.get('finished_ms') or 0)}")
     if meta.get("reread_site"):
         head += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"

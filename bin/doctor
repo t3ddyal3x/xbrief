@@ -23,9 +23,10 @@ try:
     urllib.request.urlopen("http://xbrief.localhost/", timeout=4)
 except Exception as exc:
     faults.append(("page", f"xbrief.localhost unreachable ({type(exc).__name__})", "xbrief/bin/install-agent --page"))
-raws = sorted(config.RAW.glob("*.json"))
+from xbrief import collect
+raws = collect.raw_files()
 if raws:
-    meta = json.loads(raws[-1].read_text())["meta"]
+    meta = collect.load_raw(raws[-1])["meta"]
     age_h = (time.time() * 1000 - meta["started_ms"]) / 3_600_000
     print(f"xbrief  last run {raws[-1].name} ({age_h:.1f} h ago): {meta['stop']}{' · GAP' if meta.get('gap') else ''}")
     if not meta.get("normal"):

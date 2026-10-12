@@ -31,9 +31,12 @@ def path_of(url: str) -> str:
 
     return urlparse(url).path or "/"
 FOLLOWING_TAB = ["//a[@role='tab'][.//span[text()='Following']]", "(//*[@role='tablist']//*[@role='tab'])[2]"]
+# Clicking the selected Following tab opens its sort menu: Recent (newest first) or Popular (ranked).
+RECENT_ITEM = ["//*[@role='menuitem'][.//span[text()='Recent']]", "//*[@role='menu']//*[@role='menuitem'][1]"]
 LOAD_WAIT_S = 30
 FIRST_PAGE_WAIT_S = 20
-STALL_WHEELS = 40  # wheel turns without a new feed page before the run calls the feed stopped
+STALL_WHEELS = 15  # wheel turns at the end of the page without a new feed page before the feed counts as stopped
+                   # (X's first Recent page holds ~100 posts: turns are only counted once the page's end is near)
 
 
 @dataclass
@@ -47,6 +50,7 @@ class Result:
     newest_id: int = 0
     pages: list[dict] = field(default_factory=list)
     build: str = ""  # "legacy" (x.com/i/api) or "xweb" (api.x.com), read off the feed request the page made
+    ranked: bool = False  # the Following tab is sorted by Popular (enableRanking), not Recent
     reread_site: bool = False
 
     def meta(self) -> dict:
@@ -110,17 +114,20 @@ class Feed:
         self.problem: str | None = None
         self.main_url = ""
         self.main_frame: str | None = None
+        self.ranked: bool | None = None  # from the feed request's own variables; None until one is seen
 
     async def pump(self, seconds: float) -> None:
         """Handle the browser's events for `seconds` (or until the page has a problem)."""
         end = time.monotonic() + seconds
+        drained = False
         while not self.problem:
-            if not self.b.events.empty():  # what has already arrived is always handled
+            if not self.b.events.empty() and not drained:  # what has already arrived is always handled
                 ev = self.b.events.get_nowait()
             else:
                 left = end - time.monotonic()
                 if left <= 0:
                     return
+                drained = True  # from here the deadline rules, however fast events keep coming (a video's chunks)
                 try:
                     ev = await asyncio.wait_for(self.b.events.get(), left)
                 except asyncio.TimeoutError:
@@ -133,6 +140,7 @@ class Feed:
             url = (p.get("request") or {}).get("url", "")
             if TIMELINE.search(url):
                 self.tracked[p["requestId"]] = url
+                self.ranked = bool(self.ranked) or ranking_of(p.get("request") or {})
         elif m == "Network.responseReceived" and p.get("requestId") in self.tracked:
             status = (p.get("response") or {}).get("status", 0)
             if status != 200:
@@ -181,6 +189,27 @@ class Feed:
         return bool(self.main_url) and bool(UPSELL.search(path_of(self.main_url)))
 
 
+def ranking_of(request: dict) -> bool:
+    """Whether a feed request asks for X's ranked (Popular) order. Unknown counts as ranked: the safe reading."""
+    from urllib.parse import parse_qs, urlparse
+
+    raw = None
+    if request.get("postData"):
+        try:
+            raw = json.loads(request["postData"]).get("variables")
+        except ValueError:
+            raw = None
+    else:
+        q = parse_qs(urlparse(request.get("url", "")).query).get("variables", [None])[0]
+        try:
+            raw = json.loads(q) if q else None
+        except ValueError:
+            raw = None
+    if not isinstance(raw, dict) or "enableRanking" not in raw:
+        return True
+    return bool(raw["enableRanking"])
+
+
 def build_of(url: str) -> str:
     return "xweb" if url.startswith("https://api.x.com/") else "legacy"
 
@@ -189,15 +218,19 @@ def build_of(url: str) -> str:
 
 
 async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None = None, browser=None,
-              home_url: str | None = None) -> Result:
+              home_url: str | None = None, hours: float | None = None) -> Result:
+    """`hours`: read back that far from now instead of to where the last run stopped (an ad-hoc brief)."""
     rng = rng or random.Random()
     sleep = sleep or asyncio.sleep
     now_ms = now_ms or int(time.time() * 1000)
     home_url = home_url or config.HOME_URL
     res = Result(started_ms=now_ms)
     state = load_state()
-    first = not state.get("newest_id")
-    res.boundary_id = int(state.get("newest_id") or parse.ms_to_snowflake(now_ms - config.FIRST_RUN_HOURS * 3_600_000))
+    first = hours is not None or not state.get("newest_id")  # a chosen window reads to a time, not to a post
+    if hours is not None:
+        res.boundary_id = parse.ms_to_snowflake(now_ms - int(hours * 3_600_000))
+    else:
+        res.boundary_id = int(state.get("newest_id") or parse.ms_to_snowflake(now_ms - config.FIRST_RUN_HOURS * 3_600_000))
 
     if browser is None:
         if not config.PROFILE.exists():
@@ -210,7 +243,8 @@ async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None =
     try:
         await browser.start()
         await browser.send("Page.enable")
-        await browser.send("Network.enable", {"maxTotalBufferSize": 200_000_000, "maxResourceBufferSize": 50_000_000})
+        # the browser keeps response bodies for getResponseBody; a feed page is ~0.4 MB, a run at most MAX_PAGES
+        await browser.send("Network.enable", {"maxTotalBufferSize": 60_000_000, "maxResourceBufferSize": 4_000_000})
         await browser.send("Page.navigate", {"url": home_url})
         t0 = time.monotonic()
         while not feed.loaded and not feed.problem and time.monotonic() - t0 < LOAD_WAIT_S:
@@ -234,6 +268,8 @@ async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None =
         if not feed.pages:
             raise Stop("the Following tab did not load: X may be showing a notice that needs you "
                        "(open xbrief/bin/xbrief login to see)")
+        if feed.ranked:
+            await _choose_recent(browser, feed, rng)
         res.build = build_of(feed.urls[0])
         await _read(browser, feed, res, first, rng, sleep)
     except Stop as s:
@@ -246,6 +282,7 @@ async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None =
         except Exception:
             pass
     res.pages = feed.pages
+    res.ranked = bool(feed.ranked)
     if feed.pages and not res.build:
         res.build = build_of(feed.urls[0])
     res.newest_id = max([0] + [e.newest_id for p in feed.pages for e in parse.entries(p)[0] if not e.promoted])
@@ -266,6 +303,41 @@ async def _click_following(browser, feed: Feed, rng: random.Random) -> None:
     raise Stop("could not find the Following tab on x.com/home")
 
 
+async def _choose_recent(browser, feed: Feed, rng: random.Random) -> bool:
+    """The operator reads Recent. If the job's profile shows Popular, choose Recent in the tab's own menu, as a
+    person would, and keep only what the feed shows after that. If the menu is not there, carry on in Popular order
+    (the reader handles it and the brief says so)."""
+    tab = None
+    for xpath in FOLLOWING_TAB:
+        tab = await browser.find_box(xpath)
+        if tab:
+            break
+    if not tab:
+        return False
+    await browser.click(tab[0] + rng.uniform(-6, 6), tab[1] + rng.uniform(-2, 2))
+    await feed.pump(1.2 + rng.uniform(0, 0.8))
+    item = None
+    for xpath in RECENT_ITEM:
+        item = await browser.find_box(xpath)
+        if item:
+            break
+    if not item:
+        await browser.key("Escape")
+        await feed.pump(0.5)
+        return False
+    before = len(feed.pages)
+    feed.ranked = None
+    await browser.click(item[0] + rng.uniform(-10, 10), item[1] + rng.uniform(-2, 2))
+    t0 = time.monotonic()
+    while len(feed.pages) == before and not feed.problem and time.monotonic() - t0 < FIRST_PAGE_WAIT_S:
+        await feed.pump(0.5)
+    _check(feed)
+    if len(feed.pages) == before:
+        raise Stop("the Following tab did not reload after choosing Recent")
+    del feed.pages[:before], feed.urls[:before]  # the Popular pages read before the switch
+    return True
+
+
 async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Random, sleep) -> None:
     done = 0  # pages already judged
     stalled = 0
@@ -275,8 +347,12 @@ async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Rando
             ents, cursor = parse.entries(feed.pages[done])
             done += 1
             real = [e for e in ents if not e.promoted]
-            if any(0 < e.newest_id <= res.boundary_id for e in real):
-                raise Stop("read back to the start of the window" if first else "caught up", normal=True)
+            caught = "read back to the start of the window" if first else "caught up"
+            if feed.ranked:  # Popular mixes old posts in: done when a whole page has nothing newer
+                if real and not any(e.newest_id > res.boundary_id for e in real):
+                    raise Stop(caught, normal=True)
+            elif any(0 < e.newest_id <= res.boundary_id for e in real):  # Recent: newest first
+                raise Stop(caught, normal=True)
             if not cursor or not real:
                 raise Stop("reached the end of what X serves", normal=first, gap=not first)
             if done >= config.MAX_PAGES:
@@ -288,7 +364,7 @@ async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Rando
         if time.monotonic() > t_end:
             raise Stop(f"stopped at the cap of {config.MAX_MINUTES} minutes", gap=True)
         await browser.wheel(wheel_delta(rng))
-        stalled += 1
+        stalled = stalled + 1 if await browser.at_bottom() else 0
         pause = wheel_pause(rng)
         if sleep is asyncio.sleep:
             await feed.pump(pause)
@@ -307,19 +383,37 @@ def _done(res: Result) -> Result:
 
 
 def save_raw(res: Result, label: str) -> str:
+    """One gzip file a run: a feed page is ~0.4 MB as JSON and compresses 7×, and 30 days of runs would otherwise
+    near a gigabyte."""
+    import gzip
+
     config.RAW.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y-%m-%d_%H%M", time.localtime(res.started_ms / 1000))
-    path = config.RAW / f"{stamp}-{label}.json"
+    path = config.RAW / f"{stamp}-{label}.json.gz"
     tmp = path.with_suffix(".part")
-    tmp.write_text(json.dumps({"meta": res.meta(), "pages": res.pages}))
+    with gzip.open(tmp, "wt", compresslevel=6) as f:
+        json.dump({"meta": res.meta(), "pages": res.pages}, f)
     tmp.replace(path)
     return str(path)
+
+
+def load_raw(path) -> dict:
+    import gzip
+
+    path = str(path)
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt") as f:
+        return json.load(f)
+
+
+def raw_files() -> list:
+    return sorted(p for p in config.RAW.iterdir() if p.name.endswith((".json", ".json.gz")))
 
 
 def prune_raw(now_ms: int | None = None) -> int:
     cutoff = (now_ms or int(time.time() * 1000)) / 1000 - config.RAW_KEEP_DAYS * 86400
     n = 0
-    for p in config.RAW.glob("*.json"):
+    for p in raw_files():
         if p.stat().st_mtime < cutoff:
             p.unlink()
             n += 1

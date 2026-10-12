@@ -35,13 +35,17 @@ After a code change: `./bin/restart` (compiles and tests before it reloads the L
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
-`bin/install-agent [--page]` · `bin/xbrief run [--now] [--label am|pm] [--max-pages N]` · `bin/xbrief probe` ·
-`bin/xbrief status` · `bin/xbrief rebrief <raw.json>` · `bin/xbrief login` (opens a window for the operator).
+`bin/install-agent [--page]` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
+`bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief login` (opens a window for the operator).
 
 ## Traps
 - **x.com runs two web apps** (2026-10-12): the old one (feed at x.com/i/api/graphql/…/HomeLatestTimeline) and a
   new Relay one (api.x.com/graphql/…/HomeLatestTimelineQuery). The operator's account got the old one. Their post
   layouts differ; `parse.py` reads both; `collect.TIMELINE` matches both.
+- **A fresh profile's Following tab is in Popular order** (`enableRanking: true`), which mixes old posts in. The
+  job switches it to Recent through the tab's menu; the raw file's `ranked` says which order a run read.
+- **X's first Recent page holds ~100 posts.** Stalls are judged at the page's end (`browser.at_bottom`), never by a
+  plain count of wheel turns.
 - **Chromium refuses remote control of a browser's everyday profile**, hence the job's own profile.
 - **`open -g` alone does not keep Brave in the background**: it activates itself when its first window opens.
   `--no-startup-window` plus a background window from `Target.createTarget` does.

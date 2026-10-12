@@ -25,6 +25,8 @@ nothing, and the brief says so at the top. A brief that stopped early or missed 
 
 ## Day to day
 `bin/doctor` says whether it is healthy. `bin/xbrief status` shows the last run.
-`bin/xbrief rebrief ~/Data/xbrief-data/raw/<file>.json` writes a brief again from a saved read (kept 30 days).
+A brief whenever you want one: `bin/xbrief run --now --hours 24` reads the last 24 hours (or `--hours 12`, any
+number), and the brief says what window it covers. The next scheduled run carries on from where it stopped.
+`bin/xbrief rebrief ~/Data/xbrief-data/raw/<file>.json.gz` writes a brief again from a saved read (kept 30 days).
 
 If a brief says X logged you out or wants something: run `bin/xbrief login`, deal with it in that window, quit.

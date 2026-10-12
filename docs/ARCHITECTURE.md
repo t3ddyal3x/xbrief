@@ -12,14 +12,19 @@ devtools update"). This file records what the build found and where it differs f
    parked at the right edge of the rightmost screen. Flags keep a covered window from being throttled.
 3. `collect.run`: open x.com/home; stop if the page lands on a login, landing or challenge path; close a Premium
    offer with Escape (a person would); wait a few seconds; click Following unless X already shows it (its own feed
-   request says so); then turn the mouse wheel at a reading pace (`wheel_pause`: about a second, now and then a long
+   request says so). **If the feed request asks for Popular order** (`enableRanking: true`, which a fresh profile
+   gets), choose **Recent** in the tab's own menu (click the selected tab, click Recent), as the operator's browser
+   is set; the Popular pages read before the switch are dropped. If the menu is not there, read on in Popular order:
+   the stop rule then waits for a whole page with nothing newer, the brief leaves out posts older than the last
+   brief, and the brief says X is sorting by Popular. Then turn the mouse wheel at a reading pace (`wheel_pause`: about a second, now and then a long
    stop; `wheel_delta`: mostly down, now and then a glance back up). Every feed response the page downloads is kept
    (`Network.getResponseBody`).
 4. Stop when a page reaches the newest post of the previous run (by post id, the newest in each entry, promoted
-   posts ignored); or at the end of the feed, 40 wheel turns without a new page, `MAX_PAGES` or `MAX_MINUTES`, each
-   of which is a **gap** the brief names. Any error status, failed request, non-feed answer or blocked page ends the
+   posts ignored); or at the end of the feed, 15 wheel turns **at the end of the page** (`Page.getLayoutMetrics`,
+   no script) without a new page, `MAX_PAGES` or `MAX_MINUTES`, each of which is a **gap** the brief names. X's
+   first Recent page holds ~100 posts, so a plain count of turns called a stall too early (2026-10-12). Any error status, failed request, non-feed answer or blocked page ends the
    run at once. Brave is always closed, and killed if it does not close.
-5. The pages are saved raw (`raw/`, 30 days); `brief.write` asks Claude; `page.render` writes the page and
+5. The pages are saved raw (`raw/`, one gzip a run, 30 days: a feed page is ~0.4 MB of JSON and compresses 7×); `brief.write` asks Claude; `page.render` writes the page and
    `index.html`; old raw files are pruned.
 
 ## Why a real browser

@@ -200,6 +200,16 @@ class Browser:
         await asyncio.sleep(0.06)
         await self.send("Input.dispatchKeyEvent", {"type": "keyUp", **base})
 
+    async def at_bottom(self, within: float = 1.5) -> bool:
+        """Whether the page is scrolled to within `within` viewports of its end (Page.getLayoutMetrics: no script
+        runs). True when the metrics cannot be read, so a caller never scrolls forever on their account."""
+        try:
+            m = await self.send("Page.getLayoutMetrics")
+            vp, cs = m["cssVisualViewport"], m["cssContentSize"]
+            return vp["pageY"] + vp["clientHeight"] >= cs["height"] - within * vp["clientHeight"]
+        except (BrowserError, KeyError, TypeError):
+            return True
+
     async def wheel(self, dy: float, x: float | None = None, y: float | None = None) -> None:
         x = WINDOW["width"] / 2 if x is None else x
         y = WINDOW["height"] / 2 if y is None else y

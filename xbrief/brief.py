@@ -50,10 +50,12 @@ class Brief:
     writer_error: str | None = None
 
 
-def unique_posts(entries: list[Entry]) -> dict[str, Post]:
+def unique_posts(entries: list[Entry], after_id: int = 0) -> dict[str, Post]:
+    """Each post once, ads left out, and (with `after_id`) only entries holding a post newer than the last brief:
+    a ranked feed mixes in posts an earlier brief already had. A conversation is kept whole for context."""
     out: dict[str, Post] = {}
     for e in entries:
-        if e.promoted:
+        if e.promoted or (after_id and e.newest_id <= after_id):
             continue
         for p in e.posts:
             if p.id and p.id not in out:
@@ -131,8 +133,8 @@ def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
     return b
 
 
-def write(entries: list[Entry], ask=ask_claude) -> tuple[Brief, dict[str, Post]]:
-    posts = unique_posts(entries)
+def write(entries: list[Entry], ask=ask_claude, after_id: int = 0) -> tuple[Brief, dict[str, Post]]:
+    posts = unique_posts(entries, after_id)
     if not posts:
         return Brief(), posts
     try:

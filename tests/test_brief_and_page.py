@@ -20,7 +20,7 @@ def entries():
     ]))[0]
 
 
-META = {"stop": "caught up", "normal": True, "gap": False, "started_ms": 1_760_270_400_000,
+META = {"stop": "caught up", "normal": True, "gap": False, "started_ms": 1_760_270_400_000, "boundary_id": 1_900_000_000_000_000_000,
         "finished_ms": 1_760_270_700_000, "page_count": 3, "build": "xweb", "reread_site": False}
 
 
@@ -91,7 +91,7 @@ def test_page_layout():
     assert "<details open><summary>thread</summary>" in html and html.count("@gina") >= 3
     assert "reposted by @dave" in html and ">@alice</a>" in html
     assert 'href="2025-10-11-1800-pm.html"' in html
-    assert 'class="status quiet"' in html and "6 posts from 4 accounts" in html
+    assert 'class="status quiet"' in html and "6 posts from 4 accounts" in html and "since " in html
 
 
 def test_status_says_how_the_run_ended():

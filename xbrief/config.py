@@ -18,9 +18,9 @@ CLAUDE = os.environ.get("XBRIEF_CLAUDE", str(HOME / ".local" / "bin" / "claude")
 MODEL = os.environ.get("XBRIEF_MODEL") or None  # None: the subscription's default model
 
 RAW_KEEP_DAYS = 30
-MAX_PAGES = 40  # hard cap a run (about 20 posts a page). Set from the first hand run's count.
-MAX_MINUTES = 25  # hard cap on one run's scrolling
-FIRST_RUN_HOURS = 12  # with no earlier run, read back this far
+MAX_PAGES = 20  # hard cap a run: a Recent page holds ~85 entries, a day is ~5 pages (hand run 2026-10-12)
+MAX_MINUTES = 40  # hard cap on one run's scrolling
+FIRST_RUN_HOURS = 24  # with no earlier run, read back this far (operator, 2026-10-12: a full day)
 
 # Each run starts at a random minute inside its window, the laptop's own time.
 # launchd fires at the window's start; the job sleeps a random part of the window first.

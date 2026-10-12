@@ -32,3 +32,13 @@ Brave: the app was never really hidden in the first live tests, and the login co
 deleted the first build's cookie file then, as planned, only early). Fixed (`pgrep -f --`). With hiding real, a
 hidden or minimised window reports `hidden` and loads nothing; the window is now parked at the right edge instead.
 37 tests including the 3 live ones pass. The operator logged in through the job's profile.
+
+## 2026-10-12 (evening)
+**First real reads.** Run 1 (one page, 35 posts) stopped early: the fresh profile's Following tab was in
+**Popular** order, mixing old posts in; the job now switches it to Recent through the tab's menu (operator's
+setting) and reads Popular if it must. Run 2 (103 posts) called a stall after 40 wheel turns on X's ~100-post first
+Recent page; stalls are now judged at the page's end (`browser.at_bottom`). Run 3: 2 pages, 189 posts, 12 h back
+in 3 min of reading and 4 min of writing. **Efficiency pass** (operator asked): raw files gzipped (7×), browser
+buffers 200→60 MB, the event pump bounded by its deadline, our code measured at 3 ms parse + 1 ms render; the writer
+is the only real cost (~13k tokens for 100 posts). **Added** `run --hours H` (operator: a full day in the morning, the
+last 12 in the evening, on demand) and the window on the page; first run 24 h; `MAX_PAGES` 20, `MAX_MINUTES` 40.
