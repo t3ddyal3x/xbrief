@@ -46,3 +46,5 @@ last 12 in the evening, on demand) and the window on the page; first run 24 h; `
 189 posts, one line a post, because the writer was asked for items and told to place every post. Now one paragraph
 a topic (under 90 words asked, 110 enforced) with the topic's posts folded beneath it, and posts with nothing to say
 (memes, bare images, one-liners) listed at the end without words. The 24-hour hand run read 4 pages in 9 minutes.
+**24-hour brief**: 390 posts from 92 accounts, 33 topics, ~1,800 words, 124 wordless at the end; 9 min of reading,
+~10 min of writing. Live as the front page. **Next**: the operator reads it; on their word, `bin/install-agent`.
