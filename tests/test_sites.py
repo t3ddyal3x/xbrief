@@ -7,7 +7,7 @@ import json
 
 from test_app import call
 
-from xbrief import config, sites, store
+from xbrief import config, page, sites, store
 
 SIGIL = {"key": "sigil", "name": "Sigil Fund", "home": "https://www.sigilfund.com/insights",
          "list": "https://www.sigilfund.com/sitemap.xml", "kind": "sitemap", "match": "/blog/"}
@@ -109,9 +109,10 @@ def test_first_check_learns_the_list_and_reads_the_newest():
 
 def test_the_feed_copy_is_read_when_there_is_one():
     asked = []
-    get = getter({ZEE["list"]: RSS, "https://zeeprime.capital/argonauts-journey/": "<html><body><h1>Argonauts Journey</h1></body></html>"})
+    get = getter({ZEE["list"]: RSS, "https://zeeprime.capital/argonauts-journey/": "<html><body><h1>Zee Prime Capital</h1></body></html>"})
     sites.check([ZEE], get=get, ask=lambda t: asked.append(t) or ANSWER, now_ms=1)
     assert "More of the essay, part 29." in asked[0]  # the feed's own copy, not the thin page
+    assert '"published": "2026-07-20"' in asked[0]  # the post's date is given, not guessed from its text
     assert store.site_posts()[0]["title"] == "Argonauts Journey"
 
 
@@ -162,6 +163,21 @@ def test_the_sites_page(monkeypatch):
 
 
 def test_the_real_list_is_well_formed():
-    assert {s["key"] for s in config.SITES} == {"sigil", "zeeprime"}
+    assert {s["key"] for s in config.SITES} == {"sigil", "zeeprime", "capriole"}
     for s in config.SITES:
         assert s["kind"] in ("rss", "sitemap") and s["list"].startswith("https://") and s["home"].startswith("https://")
+
+
+def test_the_people_behind_a_source():
+    from test_app import publish
+    from builders import xw_tweet
+    publish([xw_tweet(1, "Fiskantes", "Zero mainnet is close"), xw_tweet(2, "bob", "RT", retweet=xw_tweet(-5, "Fiskantes", "a repost of theirs"))])
+    src = dict(SIGIL, x=["Fiskantes"])
+    newest = max(p.created_ms for p, _ in store.search("@Fiskantes")[0])
+    got = sites.people_posts([src], now_ms=newest + 1)
+    assert [p.text for p in got["Fiskantes"]] == ["Zero mainnet is close"]  # their own posts, not another's repost of one
+    assert sites.people_posts([src], now_ms=newest + (config.SITES_X_DAYS + 1) * 86_400_000) == {"Fiskantes": []}
+    store.save_site_post({"source": "sigil", "url": "https://www.sigilfund.com/blog/q2-letter", "title": "Q2", "error": "E"}, 1)
+    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""}, xposts=got)
+    assert html.count('href="https://x.com/Fiskantes"') == 3  # On X, the post's byline, the list
+    assert "Zero mainnet is close" in html and 'href="/search?q=%40Fiskantes"' in html

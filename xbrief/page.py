@@ -11,6 +11,7 @@ from __future__ import annotations
 import html
 import re
 import time
+from urllib.parse import quote
 
 from . import config
 from .brief import Brief, Thesis, Topic
@@ -108,16 +109,51 @@ def topic_posts(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post
     return shown
 
 
-def linked(text: str, posts: dict[str, Post]) -> str:
+class Notes:
+    """Numbers the margin notes down one page, 1, 2, 3, in reading order."""
+
+    def __init__(self) -> None:
+        self.n = 0
+
+    def next(self) -> int:
+        self.n += 1
+        return self.n
+
+
+def opening(p: Post, limit: int = 180) -> str:
+    """A post's first words for a margin note: its text without links, cut at a word near `limit`."""
+    text = re.sub(r"\s*https?://\S+", "", p.text or "").strip()
+    text = re.sub(r"\s+", " ", text)
+    if len(text) <= limit:
+        return text
+    return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:—-") + "…"
+
+
+def linked(text: str, posts: dict[str, Post], notes: Notes | None = None) -> str:
     """A summary, escaped, each [[post id]] made a small link to that post on X; an id not in this brief is dropped.
-    The link is built from the post, never from the writer's words."""
+    With `notes`, the link carries a number and the post itself goes in the margin beside the sentence: name,
+    @handle, time and its opening words (wide screens only; narrow ones keep the ↗). Built from the post, never
+    from the writer's words."""
     def go(m: re.Match) -> str:
         p = posts.get(m.group(1))
         if not p:
             return ""
-        return (f'&nbsp;<a class="go" href="{esc((p.retweet_of or p).url)}" rel="noreferrer" title="the post on X" '
-                f'aria-label="the post on X">↗</a>')
+        shown = p.retweet_of or p
+        url = esc(shown.url)
+        link = (f'<a class="go" href="{url}" rel="noreferrer" title="the post on X" aria-label="the post on X">'
+                + (f'<span class="num">{notes.next()}</span>' if notes else "") + '<span class="arr">↗</span></a>')
+        if not notes:
+            return "&nbsp;" + link
+        name = f'<b>{esc(shown.name)}</b> ' if shown.name and shown.name != shown.handle else ""
+        return (f'{link}<span class="sn"><span class="sn-by"><span class="sn-n">{notes.n}</span>{name}'
+                f'<a href="{url}" rel="noreferrer">@{esc(shown.handle)}</a> · {hhmm(shown.created_ms)}</span>'
+                f'<span class="sn-t">{esc(opening(shown))}</span></span>')
     return POST_REF.sub(go, esc(text))
+
+
+def lead(html_text: str, words: int = 3) -> str:
+    """A section's opening: its first few words set in small caps, as a book opens a section."""
+    return re.sub(r"^((?:[^\s<&]+\s+){0,%d}[^\s<&]+)" % (words - 1), r'<span class="nt">\1</span>', html_text, count=1)
 
 
 def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
@@ -131,8 +167,14 @@ def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -
     return f'<details><summary>{esc(label)}</summary>{"".join(post_html(p) for p in shown)}</details>'
 
 
-def topic_html(t: Topic, posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
-    return f'<p>{linked(t.summary, posts)}</p>{folded(t.posts, posts, thr)}'
+def topic_html(t: Topic, posts: dict[str, Post], thr: dict[str, list[Post]], notes: Notes | None = None) -> str:
+    return f'<p>{lead(linked(t.summary, posts, notes))}</p>{folded(t.posts, posts, thr)}'
+
+
+def bar(n: int, most: int) -> str:
+    """A topic's share of the brief, drawn as a short bar beside its count: the big stories stand out unread."""
+    w = max(4, round(100 * n / most)) if most else 0
+    return f'<svg class="bar" viewBox="0 0 100 4" preserveAspectRatio="none" aria-hidden="true"><rect width="{w}" height="4"/></svg>'
 
 
 def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], sid: str, h: int = 2) -> str:
@@ -283,12 +325,15 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
     """The brief's body and the rail's list of its parts: HYPE, a line for each thesis (written up on the Theses
     tab), the topics, everything else."""
     sections, toc = [], []
+    notes = Notes()
     on_hype = [t for t in b.theses if t.hype]
+    n_hype = len(b.hype.posts if b.hype else []) + sum(len(t.posts) for t in on_hype)
+    most = max([n_hype] + [len(t.posts) for t in b.topics])  # the bars' scale: the biggest story
     if b.hype or on_hype:
-        n = len(b.hype.posts if b.hype else []) + sum(len(t.posts) for t in on_hype)
-        toc.append(f'<li><a href="#hype">HYPE</a><span class="n">{n}</span></li>')
+        toc.append(f'<li><a href="#hype">HYPE</a>{bar(n_hype, most)}<span class="n">{n_hype}</span></li>')
         sections.append('<section id="hype" class="hype"><h2>HYPE</h2>'
-                        + (f'<p>{linked(b.hype.summary, posts)}</p>{folded(b.hype.posts, posts, thr)}' if b.hype else "")
+                        + (f'<p>{lead(linked(b.hype.summary, posts, notes))}</p>{folded(b.hype.posts, posts, thr)}'
+                           if b.hype else "")
                         + "".join(thesis_html(t, posts, thr, f"h{i}", 3) for i, t in enumerate(on_hype)) + "</section>")
     theses = [t for t in b.theses if not t.hype]
     if theses:
@@ -299,8 +344,8 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
         sections.append(f'<section id="theses"><h2>Theses</h2><ol class="theses">{items}</ol></section>')
     for i, t in enumerate(b.topics):
         sid = f"t{i}"
-        toc.append(f'<li><a href="#{sid}">{esc(t.title)}</a><span class="n">{len(t.posts)}</span></li>')
-        sections.append(f'<section id="{sid}"><h2>{esc(t.title)}</h2>{topic_html(t, posts, thr)}</section>')
+        toc.append(f'<li><a href="#{sid}">{esc(t.title)}</a>{bar(len(t.posts), most)}<span class="n">{len(t.posts)}</span></li>')
+        sections.append(f'<section id="{sid}"><h2>{esc(t.title)}</h2>{topic_html(t, posts, thr, notes)}</section>')
     if b.other:
         rest = topic_posts([i for i in b.other if i in posts], posts, thr)
         toc.append(f'<li><a href="#other">Everything else</a><span class="n">{len(rest)}</span></li>')
@@ -449,14 +494,33 @@ def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | Non
 # ── sites ───────────────────────────────────────────────────────────────────────────────────────────
 
 
-def site_post_html(d: dict, names: dict[str, str], i: int) -> str:
+def x_links(handles: list[str]) -> str:
+    return " ".join(f'<a href="https://x.com/{esc(h)}" rel="noreferrer">@{esc(h)}</a>' for h in handles)
+
+
+def people_html(sources: list[dict], xposts: dict[str, list[Post]]) -> str:
+    """The people behind each source, on X: their posts from the Following tab's reads in the last
+    `config.SITES_X_DAYS` days, and a link to all of them in search."""
+    out = []
+    for s in sources:
+        for h in s.get("x") or []:
+            got = xposts.get(h) or []
+            body = "".join(post_html(x) for x in got) or f'<p class="empty">Nothing in the last {config.SITES_X_DAYS} days.</p>'
+            out.append(f'<div class="person"><h3>{x_links([h])}<span class="by">{esc(s["name"])}</span></h3>{body}'
+                       f'<p class="by"><a href="/search?q={esc(quote("@" + h))}">Every post kept</a></p></div>')
+    return f'<section id="onx" class="thesis site"><h2>On X</h2>{"".join(out)}</section>' if out else ""
+
+
+def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, list[str]] | None = None) -> str:
     """One post from a site: its title linked to the page, the gist, the points, the calls it makes, and Claude's
     view under its own label. The link is the stored address, and only an http(s) one."""
     url = safe_url(d.get("url"))
     title = esc(d.get("title") or d.get("url"))
     head = f'<a href="{esc(url)}" rel="noreferrer">{title}</a>' if url else title
     when = d.get("published_ms") or d.get("seen_ms") or 0
+    who = (people or {}).get(d.get("source")) or []
     by = (f'<p class="by">{esc(names.get(d.get("source"), d.get("source")))} · '
+          + (x_links(who) + " · " if who else "") +
           f'{time.strftime("%a %-d %b %Y", time.localtime(when / 1000))}</p>')
     s = d.get("summary") or {}
     if d.get("error") or not s:
@@ -473,12 +537,13 @@ def site_post_html(d: dict, names: dict[str, str], i: int) -> str:
 
 
 def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[str, int], checking: bool,
-               live: dict, running: bool = False) -> str:
+               live: dict, running: bool = False, xposts: dict[str, list[Post]] | None = None) -> str:
     """Every post read from the sites on the list, newest first; the list itself, when each was last checked, and
     the daily check's switch."""
     names = {s["key"]: s["name"] for s in sources}
     state = sett.get("sites_state") or {}
-    main = "".join(site_post_html(d, names, i) for i, d in enumerate(posts))
+    people = {s["key"]: s.get("x") or [] for s in sources}
+    main = "".join(site_post_html(d, names, i, people) for i, d in enumerate(posts))
     if not posts:
         main = '<p class="empty">Nothing read yet. <b>Check now</b> reads each site\'s list and its newest post.</p>'
     rows = []
@@ -491,7 +556,7 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
         else:
             note, cls = "not checked yet", ""
         rows.append(f'<li><a href="{esc(safe_url(s["home"]) or "")}" rel="noreferrer">{esc(s["name"])}</a>'
-                    f'<span class="n">{esc(s["kind"])}</span><span class="end {cls}">{esc(note)}</span></li>')
+                    f'<span class="n">{x_links(s.get("x") or [])}</span><span class="end {cls}">{esc(note)}</span></li>')
     last = sett.get("sites_checked_ms")
     line = ("Checking the sites now…" if checking else
             f"Last checked {day(last)}." if last else "Not checked yet.")
@@ -501,7 +566,9 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
            f'<button type="button" id="sites-now"{" disabled" if checking else ""}>Check now</button></div></form>'
            f'<p class="note" id="sites-msg"{" data-checking=1" if checking else ""}>{esc(line)}</p>')
     toc = "".join(f'<li><a href="#s{i}">{esc(d.get("title") or d.get("url"))}</a></li>' for i, d in enumerate(posts[:40]))
-    extra = f'<h2>Posts</h2><ol class="claims">{toc}</ol>' if toc else ""
-    main = (main + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
+    onx = people_html(sources, xposts or {})
+    extra = (f'<h2>Posts</h2><ol class="claims">{toc}</ol>' if toc else "") + \
+        ('<ol class="claims"><li><a href="#onx">On X</a></li></ol>' if onx else "")
+    main = (main + onx + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
             f'<p class="note">New sites are added in xbrief/config.py (SITES): an RSS feed or a sitemap.</p></section>')
     return shell("X brief · sites", rail("sites", live, extra, running=running), main)

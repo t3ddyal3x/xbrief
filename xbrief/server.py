@@ -210,7 +210,8 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/sites":
                 lv = live()
                 return self._html(page.sites_page(store.site_posts(), config.SITES, store.settings(), store.site_counts(),
-                                                  sites.running() or sites.just_started(), lv, lv["running"]))
+                                                  sites.running() or sites.just_started(), lv, lv["running"],
+                                                  sites.people_posts()))
             if path == "/api/health":
                 return self._json({"ok": True, "port": config.PORT, "running": runner.running(), **store.counts(),
                                    "schedule": store.settings()["schedule"]})

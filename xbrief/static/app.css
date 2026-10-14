@@ -8,13 +8,16 @@
 --f-head:"SF Pro Display",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
 --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
 --f-read:"Iowan Old Style","New York",Georgia,serif;
---f-num:"SF Mono",ui-monospace,Menlo,monospace;color-scheme:light}
+--f-num:"SF Mono",ui-monospace,Menlo,monospace;
+--lift:0 1px 1px rgba(31,35,53,.05),0 2px 6px rgba(31,35,53,.07);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;
 --ink:#a9b1d6;--ink2:#9aa5ce;--dim:#8188ad;--rule:#292e42;--mint:#73daca;--wash:#222c35;--tick:#565f89;--blue:#7aa2f7;
---warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;color-scheme:dark}}
+--warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;
+--lift:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.35);color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.62 var(--f-read);-webkit-font-smoothing:antialiased;
-text-rendering:optimizeLegibility}
+text-rendering:optimizeLegibility;font-variant-numeric:oldstyle-nums proportional-nums}  /* figures sit in the line */
+h1,h2,h3{text-wrap:balance}p,li{text-wrap:pretty}
 a{color:inherit;text-decoration-color:var(--tick);text-decoration-thickness:1px;text-underline-offset:3px}
 a:hover{text-decoration-color:currentColor}
 ::selection{background:color-mix(in srgb,var(--blue) 28%,transparent);color:var(--ink0)}
@@ -61,8 +64,8 @@ margin-right:.5rem;vertical-align:.08em;animation:beat 1.4s ease-in-out infinite
 
 /* ── an edition's masthead: the day, the window the read covered, how much ─────────────────────── */
 .mast{margin:0 0 3.2rem}
-.mast h1{font:700 2.9rem/1.05 var(--f-head);letter-spacing:-.025em;margin:0;color:var(--ink0)}
-.mast h1 span{font:italic 400 2.5rem/1 var(--f-read);letter-spacing:0;color:var(--dim);margin-left:.15em}
+.mast h1{font:600 3.2rem/1.06 var(--f-read);letter-spacing:-.012em;margin:0;color:var(--ink0)}
+.mast h1 span{font-style:italic;font-weight:400;letter-spacing:0;color:var(--dim);margin-left:.12em}
 .strip{margin:1.6rem 0 0}
 .strip svg{display:block;width:100%;height:35px}
 .strip rect{fill:var(--tick);opacity:.6}.strip rect.h{fill:var(--mint);opacity:1}
@@ -76,20 +79,22 @@ border-radius:0 8px 8px 0;margin:-1.6rem 0 3rem;color:var(--ink)}
 
 /* ── the brief ──────────────────────────────────────────────────────────────────────────────────── */
 section{margin:0 0 3.4rem}
-section>h2{font:650 1.45rem/1.2 var(--f-head);letter-spacing:-.012em;color:var(--ink0);margin:0 0 .7rem}
+section>h2{font:600 1.62rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .6rem}
+.nt{font-variant-caps:all-small-caps;letter-spacing:.05em;font-variant-numeric:lining-nums}  /* a section opens in small caps */
 section>p{margin:0 0 .6rem}
 .empty{color:var(--dim)}
 a.go{text-decoration:none;font:600 12px/1 var(--f-ui);color:var(--dim);padding:.1rem .3rem;margin-left:.05rem;
 border-radius:4px;background:var(--panel);vertical-align:.12em}
-a.go:hover{color:var(--ink);background:var(--rule)}
+a.go:hover{color:var(--ink0);background:var(--rule)}
+a.go .num,.sn{display:none}
 
 /* HYPE leads: the one band on the page, in the one accent */
-.hype{background:var(--wash);border-radius:14px;padding:1.6rem 1.9rem 1.4rem;margin:0 -1.9rem 3.6rem}
+.hype{background:var(--wash);border:1px solid color-mix(in srgb,var(--mint) 20%,transparent);box-shadow:var(--lift);border-radius:14px;padding:1.6rem 1.9rem 1.4rem;margin:0 -1.9rem 3.6rem}
 .hype>h2{font:700 12px/1 var(--f-ui);letter-spacing:.12em;color:var(--mint);margin:0 0 1rem}
 .hype summary,.hype .by,.hype .by a{color:var(--ink2)}
 .hype a.go{background:color-mix(in srgb,var(--mint) 14%,transparent);color:var(--mint)}
 .hype .thesis{margin:2rem 0 0;padding-top:1.6rem;border-top:1px solid color-mix(in srgb,var(--mint) 25%,transparent)}
-.hype .thesis h3{font:650 1.2rem/1.3 var(--f-head);letter-spacing:-.01em;margin:0 0 .3rem;color:var(--ink0);text-transform:none}
+.hype .thesis h3{font:600 1.3rem/1.28 var(--f-read);margin:0 0 .3rem;color:var(--ink0);text-transform:none}
 
 ol.theses{margin:0;padding:0;list-style:none;counter-reset:th}
 ol.theses li{margin:0 0 .85rem;line-height:1.45}
@@ -119,17 +124,20 @@ details[open]>summary::before{transform:rotate(45deg)}
 padding:.12rem .4rem;border-radius:5px}
 
 /* ── a thesis, and a site's post ────────────────────────────────────────────────────────────────── */
-.thesis h2{font:650 1.6rem/1.22 var(--f-head);letter-spacing:-.015em;color:var(--ink0);margin:0 0 .45rem}
+.thesis h2{font:600 1.8rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .45rem}
 .thesis p.by{margin:0 0 1.2rem}
 .thesis h3,.thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
 margin:1.5rem 0 .55rem}
 .thesis .steps{margin:0;padding-left:1.5rem}.thesis .steps li{margin:0 0 .35rem;padding-left:.2rem}
 .thesis .steps li::marker{font:12.5px var(--f-num);color:var(--dim)}
 .thesis p{margin:0 0 .6rem}
-.thesis .view{margin:1.4rem 0 .6rem;padding:.3rem 1.2rem .6rem;background:var(--panel);border-radius:12px}
+.thesis .view{margin:1.4rem 0 .6rem;padding:.3rem 1.2rem .6rem;background:var(--panel);border:1px solid var(--rule);box-shadow:var(--lift);border-radius:12px}
 .thesis .view b{font:600 14px var(--f-ui);margin-right:.3rem}
 .thesis:not(.hype .thesis){padding-bottom:2.6rem;margin-bottom:3rem;border-bottom:1px solid var(--rule)}
 .site h2 a{text-decoration:none}.site h2 a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
+#onx .person{margin:0 0 2.4rem}
+#onx .person h3{font:650 1.05rem/1.3 var(--f-ui);text-transform:none;letter-spacing:0;color:var(--ink0);margin:0 0 .8rem}
+#onx .person h3 a{color:inherit;text-decoration:none}#onx .person h3 .by{margin-left:.6rem}
 #list{margin-top:4.5rem}
 .note{font:13px/1.5 var(--f-ui);color:var(--dim);margin:0 0 .4rem}
 
@@ -167,3 +175,25 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 .search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
 .search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* ── wide screens: the posts behind a sentence sit in the margin beside it (Tufte's sidenotes) ────── */
+@media (min-width:1440px){
+.wrap{grid-template-columns:232px minmax(0,41rem) 280px}
+a.go{font:600 11px/1 var(--f-num);font-variant-numeric:lining-nums;padding:.12rem .3rem;vertical-align:.35em}
+a.go .num{display:inline}a.go .arr{display:none}
+.sn{display:block;float:right;clear:right;width:280px;margin:.35rem calc(-280px - 5.5rem) .9rem 0;
+font:12.5px/1.45 var(--f-ui);color:var(--ink2);text-wrap:pretty}
+.hype .sn{margin-right:calc(-280px - 5.5rem - 1.9rem - 1px)}
+.sn-by{display:block;color:var(--dim);margin-bottom:.15rem}
+.sn-by b{color:var(--ink0);font-weight:600}.sn-by a{color:var(--dim);text-decoration:none}.sn-by a:hover{color:var(--ink0)}
+.sn-n{font:600 10.5px var(--f-num);color:var(--dim);background:var(--panel);border-radius:4px;padding:.08rem .3rem;margin-right:.45rem}
+.hype .sn-n{color:var(--mint);background:color-mix(in srgb,var(--mint) 14%,transparent)}
+.sn-t{display:block;font:13.5px/1.45 var(--f-read);color:var(--ink2)}}
+
+/* the contents: a bar beside each story, its length the story's share, so the big ones stand out unread */
+.rail .toc li{display:grid;grid-template-columns:minmax(0,1fr) 34px 1.8rem;gap:.6rem;align-items:baseline}
+.rail .toc li .n{grid-column:3;text-align:right}
+.rail .toc .bar{grid-column:2;width:34px;height:3px;align-self:center}
+.rail .toc .bar rect{fill:var(--tick)}
+.rail .toc a[href="#hype"]+.bar rect{fill:var(--mint)}
+

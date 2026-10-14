@@ -149,3 +149,13 @@ type by role, headline, read-window strip and HYPE band stay. Small text holds 4
 HYPE band one step up the ladder to keep it). Review and ARCHITECTURE updated.
 **Checked**: offline tests; Brief, an open topic, Theses and History, dark and light, at 2000 px.
 **Next**: the operator looks.
+
+## 2026-10-14 (Capriole, and the people on X)
+**Changed**: Capriole added to the Sites list, read from its Substack feed (its site has no feed and says updates
+moved to Substack). A feed's own title now wins over the page's, and the writer is given the post's day; both
+faults showed on Capriole's first read, which was redone. Each source names its people's X handles (Fiskantes for
+Sigil, caprioleio for Capriole); the Sites page links them and shows their last week of posts from the store under
+On X, below the write-ups. No new read of X.
+**Checked**: offline tests (1 new); a live check (Capriole's "Institutions are Guzzling Bitcoin", 2026-05-05);
+the page at 2000 px light and dark through the write-refusing headless Brave.
+**Next**: the operator looks; Zee Prime's people, if any are followed.

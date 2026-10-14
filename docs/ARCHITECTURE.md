@@ -122,6 +122,17 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   once. Its own lock (`sites.lock`), so it runs beside an X read.
 - Checked live 2026-10-14: Sigil's sitemap lists 53 posts, the newest the Q2 2026 letter (24,949 characters read);
   Zee Prime's feed lists 10, the newest "Argonauts Journey".
+- **Capriole** (added 2026-10-14) is read from its Substack feed (caprioleio.substack.com), not capriole.com: the
+  site has no feed, its sitemap mixes posts with fixed pages under no common path, and update #70 (2026-05-05) says
+  the updates are moving to Substack. Both end at that post on 2026-10-14; the feed lists 8. A post's title is the
+  feed's own before its page's: a Substack page's first heading is the publication's name ("Charles Edwards"). The
+  writer is given the post's day: without it, it dated update #70 a month early from the text.
+- **The people behind a source** (operator, 2026-10-14: "tie the head figures with these people in terms of their
+  twitter"): a source's `x` names their handles (Sigil: Fiskantes; Capriole: caprioleio; Zee Prime: none followed).
+  The page links each handle in the post's byline and the list, and its On X section shows their posts from the
+  last `SITES_X_DAYS` days (at most `SITES_X_MAX` each) out of the store, which the Following tab's reads fill, with
+  a link to all of them in search. Their profiles are never opened: rule 1 reads the Following tab only, so a
+  post they made between reads, or one scrolled past, is missing here too.
 
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an

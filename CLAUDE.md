@@ -48,7 +48,8 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     plain GET of its RSS feed or sitemap and of each new post, no browser, no login. A source's first check only
     learns its list and reads the newest post. Page text is untrusted like post text (rule 7); its summariser is
     Fable (`config.SITE_MODEL`), never Sonnet. One check at a time (`sites.lock`), once a day after
-    `config.SITES_AFTER`, on by default (the page's switch).
+    `config.SITES_AFTER`, on by default (the page's switch). A source's people (`x`, their handles) are shown from
+    posts already kept from the Following tab (`sites.people_posts`); their profiles are never read (rule 1).
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
