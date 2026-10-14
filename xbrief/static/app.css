@@ -44,6 +44,26 @@ summary::before{content:"+ ";}details[open]>summary::before{content:"− "}
 .imgs .v{position:absolute;left:.4rem;bottom:.4rem;font:11px "SF Mono",ui-monospace,Menlo,monospace;
 background:#000a;color:#fff;padding:.1rem .35rem;border-radius:3px}
 .empty{color:var(--dim)}
+
+/* what matters first: HYPE, the theses, a post that stands out */
+a.go{text-decoration:none;font:12px "SF Mono",ui-monospace,Menlo,monospace;padding:0 .1rem}
+.hype>h2{color:var(--warn);border-bottom-color:var(--warn)}
+ol.theses{margin:0;padding:0 0 0 1.4rem;font-size:16.5px;line-height:1.45}
+ol.theses li{margin:0 0 .55rem}ol.theses a{color:var(--ink);text-decoration:none}ol.theses a:hover{color:var(--link)}
+.by{font-size:12px;color:var(--dim)}.by a{color:var(--dim)}
+.thesis h2{font:600 1.3rem/1.3 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--fg);margin:0 0 .3rem;
+padding:0;border:0}
+.hype .thesis{margin:2.2rem 0 0;padding-top:1.4rem;border-top:1px solid var(--rule)}
+.hype .thesis h3{font:600 1.15rem/1.3 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--fg);margin:0 0 .3rem}
+.thesis p.by{margin:0 0 1rem}
+.thesis h3,.thesis h4{font:11px "SF Mono",ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;
+color:var(--dim);margin:1.1rem 0 .3rem}
+.thesis .steps{margin:0;padding-left:1.4rem}.thesis .steps li{margin:0 0 .25rem}
+.thesis p{margin:0 0 .5rem}
+.thesis .view{margin:1rem 0 .4rem;padding:.2rem .9rem .4rem;background:var(--panel);border-left:3px solid var(--dim)}
+.thesis .view b{font-weight:600}
+.thesis:not(.hype .thesis){padding-bottom:1rem;border-bottom:1px solid var(--rule)}
+.rail .claims li a{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 @media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:1.5rem;padding:1.5rem 16px 4rem}
 .rail{position:static;max-height:none;overflow:visible}.rail ol{columns:2}}
 

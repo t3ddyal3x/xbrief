@@ -21,7 +21,7 @@ import re
 import sqlite3
 
 from . import config
-from .brief import Brief, Topic
+from .brief import Brief, Hype, Thesis, Topic
 from .parse import Post
 
 SCHEMA = """
@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS runs (
   label TEXT NOT NULL,
   started_ms INTEGER NOT NULL,
   meta TEXT NOT NULL,                 -- collect.Result.meta()
-  brief TEXT NOT NULL,                -- {topics: [{title, summary, posts}], other: [...], writer_error}
+  brief TEXT NOT NULL,                -- {hype, theses, topics: [{title, summary, posts}], other: [...], writer_error}
   threads TEXT NOT NULL,              -- [[post id, ...], ...]: conversations of three posts or more, in order
   n_posts INTEGER NOT NULL,
   n_topics INTEGER NOT NULL
@@ -138,7 +138,8 @@ def _index(con, p: Post) -> None:
 
 def save_run(name: str, label: str, meta: dict, b: Brief, posts: dict[str, Post], threads: list[list[str]]) -> int:
     """Store one run whole. Writing a run again (a rebrief) replaces it."""
-    doc = {"topics": [t.__dict__ for t in b.topics], "other": b.other, "writer_error": b.writer_error}
+    doc = {"hype": b.hype and b.hype.__dict__, "theses": [t.__dict__ for t in b.theses],
+           "topics": [t.__dict__ for t in b.topics], "other": b.other, "writer_error": b.writer_error}
     with db() as con:
         con.execute("DELETE FROM runs WHERE name = ?", (name,))
         cur = con.execute(
@@ -180,7 +181,8 @@ def load_run(name: str) -> dict | None:
     posts = {row["id"]: Post.from_dict(json.loads(row["doc"])) for row in rows}
     doc = json.loads(r["brief"])
     b = Brief(topics=[Topic(**t) for t in doc.get("topics") or []], other=doc.get("other") or [],
-              writer_error=doc.get("writer_error"))
+              writer_error=doc.get("writer_error"), hype=Hype(**doc["hype"]) if doc.get("hype") else None,
+              theses=[Thesis(**t) for t in doc.get("theses") or []])  # briefs before 2026-10-14 have neither
     thr: dict[str, list[Post]] = {}
     for ids in json.loads(r["threads"]):
         conv = [posts[i] for i in ids if i in posts]

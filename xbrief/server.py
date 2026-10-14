@@ -4,6 +4,7 @@
 
     /                   the newest brief
     /b/<name>           one brief (2026-10-12-0857-am)
+    /theses, /b/<name>/theses   the newest brief's theses, or one brief's
     /history            every brief, and the schedule
     /search?q=&since=&until=    every post kept: words, @accounts, dates
     /api/status         what a run is doing, or when the next one starts (the page asks every few seconds)
@@ -35,7 +36,7 @@ from . import config, page, runner, store
 
 STATIC = Path(__file__).resolve().parent / "static"
 FILES = {"/app.css": ("app.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8")}
-RUN_NAME = re.compile(r"^/b/(\d{4}-\d{2}-\d{2}-\d{4}-(?:am|pm))$")
+RUN_NAME = re.compile(r"^/b/(\d{4}-\d{2}-\d{2}-\d{4}-(?:am|pm))(/theses)?$")
 HHMM = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 MAX_POST = 4096
 TICK_S = 20
@@ -194,16 +195,20 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/health":
                 return self._json({"ok": True, "port": config.PORT, "running": runner.running(), **store.counts(),
                                    "schedule": store.settings()["schedule"]})
-            if path == "/" or RUN_NAME.match(path):
-                name = store.latest_name() if path == "/" else RUN_NAME.match(path).group(1)
+            m = RUN_NAME.match(path)
+            if path in ("/", "/theses") or m:
+                name = m.group(1) if m else store.latest_name()
+                tab = "theses" if path == "/theses" or (m and m.group(2)) else "brief"
                 lv = live(name)
                 if name is None:
-                    return self._html(page.empty_page(lv, lv["running"]))
+                    return self._html(page.empty_page(lv, lv["running"], tab))
                 run = store.load_run(name)
                 if run is None:
-                    return self._html(page.shell("X brief", page.rail("brief", lv, running=lv["running"]),
+                    return self._html(page.shell("X brief", page.rail(tab, lv, running=lv["running"]),
                                                  '<p class="empty">No brief by that name. <a href="/history">Every '
                                                  'brief</a>.</p>'), 404)
+                if tab == "theses":
+                    return self._html(page.theses_page(run, lv, lv["running"]))
                 return self._html(page.brief_page(run, store.runs(), lv, lv["running"]))
             if path == "/history":
                 lv = live()

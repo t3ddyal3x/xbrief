@@ -149,3 +149,93 @@ def test_publish_stores_the_run():
     assert (config.LOGS / "run.log").read_text().count("brief ") == 1
     cli.publish(pages, meta, "am", ask=lambda t: "{}")  # a rebrief replaces the run
     assert len(store.runs()) == 1
+
+
+# ── what matters first: HYPE, theses, links to the posts that stand out ─────────────────────────────
+
+
+def matters():
+    """A run with a long thesis, a short one, a HYPE thesis, HYPE news and a topic, and the writer's answer."""
+    ents = parse.entries(xw_page([
+        xw_item(xw_tweet(20, "hl_news", "Hyperliquid lists a new HIP-3 market")),
+        xw_item(xw_tweet(19, "essayist", "AI changes speculation in six phases. " + "Phase reasoning. " * 300 + "THE END")),
+        xw_item(xw_tweet(18, "quant", "Every time math accelerates it worsens fears about crypto security.")),
+        xw_item(xw_tweet(17, "hypebull", "HYPE buybacks outrun unlocks, so supply shrinks")),
+        xw_item(xw_tweet(16, "bob", "rates were cut")),
+    ]))[0]
+    posts = brief.unique_posts(ents)
+    i = {p.handle: p.id for p in posts.values()}
+    answer = json.dumps({
+        "hype": {"summary": f"@hl_news [[{i['hl_news']}]] says a HIP-3 market listed.", "posts": [i["hl_news"]]},
+        "theses": [
+            {"posts": [i["quant"]], "hype": False, "claim": "Faster math raises crypto security fears.",
+             "steps": ["Math speeds up."], "if_it_holds": "Weighs on old coins.", "weak_spots": "One anecdote.",
+             "wrong_if": "Prices ignore the next result."},
+            {"posts": [i["essayist"], i["bob"]], "hype": False, "claim": "AI changes speculation in six phases.",
+             "steps": ["Phase one.", "Phase two."], "if_it_holds": "Perp venues gain.", "weak_spots": "",
+             "wrong_if": ""},
+            {"posts": [i["hypebull"]], "hype": True, "claim": "HYPE supply shrinks.", "steps": ["Buybacks > unlocks."],
+             "if_it_holds": "HYPE up.", "weak_spots": "Unlocks may grow.", "wrong_if": "Supply rises."},
+            {"posts": ["999"], "claim": "a made-up id"},
+        ],
+        "topics": [{"title": "Rates", "summary": f"@bob [[{i['bob']}]] says rates were cut [[123]].",
+                    "posts": [i["bob"], i["quant"]]}],
+    })
+    return ents, posts, i, answer
+
+
+def test_the_writer_reads_every_post_whole():
+    _, posts, i, _ = matters()
+    assert "THE END" in brief.prompt(posts) and len(posts[i["essayist"]].text) > 4000
+
+
+def test_theses_come_first_long_ones_first_each_post_once():
+    _, posts, i, answer = matters()
+    b = brief.parse_answer(answer, posts)
+    assert [t.claim for t in b.theses] == ["AI changes speculation in six phases.",
+                                           "Faster math raises crypto security fears.", "HYPE supply shrinks."]
+    assert b.theses[0].posts == [i["essayist"], i["bob"]] and [t.hype for t in b.theses] == [False, False, True]
+    assert b.hype.posts == [i["hl_news"]]
+    assert b.topics == []  # its posts are in theses already: the topic has none left
+    assert i["bob"] not in b.other and set(b.other) == set()
+
+
+def test_hype_and_theses_on_the_page():
+    ents, posts, i, answer = matters()
+    b, posts = brief.write(ents, ask=lambda t: answer)
+    store.save_run("2025-10-12-0500-am", "am", META, b, posts, [])
+    run = store.load_run("2025-10-12-0500-am")
+    assert [t.claim for t in run["brief"].theses] == [t.claim for t in b.theses] and run["brief"].hype == b.hype
+    html = page.brief_page(run, store.runs(), {"text": ""})
+    main = html.split("<main>", 1)[1]
+    assert main.index('id="hype"') < main.index('id="theses"')
+    assert main.index("HYPE supply shrinks.") < main.index('id="theses"')  # a HYPE thesis sits in HYPE, written up
+    assert 'href="/b/2025-10-12-0500-am/theses#th0">AI changes speculation in six phases.</a>' in main
+    assert 'href="/b/2025-10-12-0500-am/theses#th1">Faster math' in main
+    assert f'class="go" href="https://x.com/hl_news/status/{i["hl_news"]}"' in main
+    assert "[[" not in main
+    th = page.theses_page(run, {"text": ""})
+    tmain = th.split("<main>", 1)[1]
+    assert tmain.index('id="th0"') < tmain.index('id="th1"') and "HYPE supply shrinks." not in tmain
+    assert "<h3>Claude's view</h3>" in tmain and "<b>Weak spots</b> One anecdote." in tmain
+    assert tmain.count("Claude's view") == 1  # the essay's write-up has no view, so no label
+    assert "1 more about HYPE" in tmain and 'aria-current=page>Theses' in th
+
+
+def test_a_link_is_built_from_the_post_never_the_writer():
+    ents, posts, i, _ = matters()
+    evil = json.dumps({"topics": [{"title": "T", "posts": [i["bob"]],
+                                   "summary": '@bob [[999]] [[javascript:alert(1)]] <a href="https://evil">x</a>'}]})
+    b, posts = brief.write(ents, ask=lambda t: evil)
+    main, _ = page.brief_main(b, posts, {}, META)
+    assert 'class="go"' not in main and 'href="https://evil"' not in main and "&lt;a href=" in main
+    assert 'href="javascript' not in main
+
+
+def test_an_old_brief_still_loads():
+    store.save_run("2025-10-12-0500-am", "am", META, brief.Brief(), {}, [])
+    with store.db() as con:
+        con.execute("UPDATE runs SET brief = ?", (json.dumps({"topics": [], "other": [], "writer_error": None}),))
+    run = store.load_run("2025-10-12-0500-am")
+    assert run["brief"].hype is None and run["brief"].theses == []
+    assert "No theses in this brief" in page.theses_page(run, {"text": ""})

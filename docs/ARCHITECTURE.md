@@ -93,6 +93,17 @@ end. Timed on the 390-post read of 2026-10-12, one run each:
 
 (Sonnet was also tried, 80 s, and left 24 such posts unsummarised; ruled out by the operator.)
 
+**What matters first** (2026-10-14, operator: "I just want my attention focused on stuff that matters"; "my attention
+is focused on HYPE"). Topics are ordered by how much was said, so an essay became one sentence: that morning's brief
+put @nic_carter's 5,400-character essay in topic 15 of 35, and the writer read only each post's first 2,000
+characters. Now the writer gets every post whole (+4% input on that read), and its answer has three parts, a post in
+one only: `hype` (one paragraph on HYPE and Hyperliquid), `theses` (any post that argues a claim, short ones too, no
+cap, sorted longest first by the page's own count; each with claim, steps, if_it_holds, and Claude's view in
+weak_spots and wrong_if, the one place for an opinion, labelled on the page), then `topics` as before. A HYPE thesis
+is written up in the HYPE part; the rest on the Theses tab, with a line each on the Brief. A summary points at a post
+that stands out with `[[post id]]`; the page links it to that post on X, built from the post, and drops an id not in
+the brief. The writer's timeout went from 15 to 30 minutes for the longer answer.
+
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an
   everyday profile, and the job must not touch the operator's open browser.
@@ -105,4 +116,4 @@ end. Timed on the 390-post read of 2026-10-12, one run each:
   needs SIP off. The 40 px stays.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
 - **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles, times and
-  controls in a mono, builds bylines from the data, and folds each topic's posts under its paragraph.
+  controls in a mono, builds bylines from the data, and folds each topic's and thesis's posts under its paragraph.

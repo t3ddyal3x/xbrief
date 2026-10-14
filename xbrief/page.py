@@ -1,4 +1,4 @@
-"""The app's pages, built on the server: a brief, the history of briefs, and search over every post kept.
+"""The app's pages, built on the server: a brief, its theses, the history of briefs, and search over every post kept.
 
 Every piece of post text is escaped, and every link and byline is built here from the posts, never from Claude's
 words. The one script is the app's own (static/app.js: the run button, its progress, the schedule form); the
@@ -13,13 +13,14 @@ import re
 import time
 from collections import Counter
 
-from .brief import Brief, Topic
+from .brief import Brief, Thesis, Topic
 from .parse import Post
 
 CSP = ("default-src 'none'; img-src https://pbs.twimg.com; style-src 'self'; script-src 'self'; connect-src 'self'; "
        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 LABELS = {"am": "morning", "pm": "evening"}
 HOURS = [("", "since last"), ("12", "last 12 h"), ("24", "last 24 h"), ("48", "last 48 h")]
+POST_REF = re.compile(r"\s*\[\[(\d{1,25})\]\]")  # the writer's pointer at a post that stands out
 
 
 def esc(s) -> str:
@@ -94,13 +95,53 @@ def topic_posts(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post
     return shown
 
 
-def topic_html(t: Topic, posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
-    shown = topic_posts(t.posts, posts, thr)
+def linked(text: str, posts: dict[str, Post]) -> str:
+    """A summary, escaped, each [[post id]] made a small link to that post on X; an id not in this brief is dropped.
+    The link is built from the post, never from the writer's words."""
+    def go(m: re.Match) -> str:
+        p = posts.get(m.group(1))
+        if not p:
+            return ""
+        return (f'&nbsp;<a class="go" href="{esc((p.retweet_of or p).url)}" rel="noreferrer" title="the post on X" '
+                f'aria-label="the post on X">↗</a>')
+    return POST_REF.sub(go, esc(text))
+
+
+def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
+    """The posts behind a paragraph, folded under a line that says how many and whose."""
+    shown = topic_posts([i for i in ids if i in posts], posts, thr)
+    if not shown:
+        return ""
     handles = list(dict.fromkeys((p.retweet_of or p).handle for p in shown))
     who = ", ".join(f"@{h}" for h in handles[:6]) + (f" and {len(handles) - 6} more" if len(handles) > 6 else "")
     label = f"{len(shown)} post{'s' if len(shown) != 1 else ''} · {who}"
-    return (f'<p>{esc(t.summary)}</p><details><summary>{esc(label)}</summary>'
-            f'{"".join(post_html(p) for p in shown)}</details>')
+    return f'<details><summary>{esc(label)}</summary>{"".join(post_html(p) for p in shown)}</details>'
+
+
+def topic_html(t: Topic, posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
+    return f'<p>{linked(t.summary, posts)}</p>{folded(t.posts, posts, thr)}'
+
+
+def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], sid: str, h: int = 2) -> str:
+    """One thesis: the claim, the argument as posted, what follows if it holds, then Claude's view under its own
+    label (the only opinion in a brief), and the post itself, folded."""
+    first = posts.get(t.posts[0]) if t.posts else None
+    shown = (first.retweet_of or first) if first else None
+    by = (f'<p class="by"><a href="{esc(shown.url)}" rel="noreferrer">@{esc(shown.handle)}</a> · '
+          f'{day(shown.created_ms)}</p>' if shown else "")
+    steps = "".join(f"<li>{esc(x)}</li>" for x in t.steps)
+    view = "".join(f"<p><b>{k}</b> {esc(v)}</p>" for k, v in (("Weak spots", t.weak_spots), ("Wrong if", t.wrong_if)) if v)
+    sub = f"h{h + 1}"
+    return (f'<section id="{sid}" class="thesis"><h{h}>{esc(t.claim)}</h{h}>{by}'
+            + (f'<{sub}>Argument</{sub}><ol class="steps">{steps}</ol>' if steps else "")
+            + (f'<{sub}>If it holds</{sub}><p>{esc(t.if_it_holds)}</p>' if t.if_it_holds else "")
+            + (f'<div class="view"><{sub}>Claude\'s view</{sub}>{view}</div>' if view else "")
+            + folded(t.posts, posts, thr) + "</section>")
+
+
+def author(t: Thesis, posts: dict[str, Post]) -> str:
+    p = posts.get(t.posts[0]) if t.posts else None
+    return f"@{(p.retweet_of or p).handle}" if p else ""
 
 
 def status_html(meta: dict, b: Brief, n_posts: int, n_accounts: int) -> str:
@@ -144,9 +185,12 @@ def live_html(live: dict) -> str:
     return f'<p class="live{cls}" id="live" aria-live="polite">{text}</p>'
 
 
-def rail(active: str, live: dict, extra: str = "", running: bool = False) -> str:
+def rail(active: str, live: dict, extra: str = "", running: bool = False, at: str = "") -> str:
+    """`at`: the brief on show, so Brief and Theses stay on it; elsewhere they open the newest."""
     tabs = "".join(f'<a href="{href}"{" aria-current=page" if key == active else ""}>{name}</a>'
-                   for key, href, name in (("brief", "/", "Brief"), ("history", "/history", "History")))
+                   for key, href, name in (("brief", f"/b/{esc(at)}" if at else "/", "Brief"),
+                                           ("theses", f"/b/{esc(at)}/theses" if at else "/theses", "Theses"),
+                                           ("history", "/history", "History")))
     opts = "".join(f'<option value="{v}">{esc(t)}</option>' for v, t in HOURS)
     return (f'<nav class="rail"><h1><a href="/">X brief</a></h1><p class="tabs">{tabs}</p>'
             + ("" if active == "search" else  # the search page has its own form
@@ -170,10 +214,26 @@ def shell(title: str, rail_html: str, main: str, at: str = "") -> str:
 # ── a brief ─────────────────────────────────────────────────────────────────────────────────────────
 
 
-def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], meta: dict) -> tuple[str, list[str]]:
-    """The brief's body and the rail's list of its topics."""
+def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], meta: dict,
+               name: str = "") -> tuple[str, list[str]]:
+    """The brief's body and the rail's list of its parts: HYPE, a line for each thesis (written up on the Theses
+    tab), the topics, everything else."""
     accounts = Counter(p.handle for p in posts.values())  # who I follow; a repost counts as the reposter
     sections, toc = [], []
+    on_hype = [t for t in b.theses if t.hype]
+    if b.hype or on_hype:
+        n = len(b.hype.posts if b.hype else []) + sum(len(t.posts) for t in on_hype)
+        toc.append(f'<li><a href="#hype">HYPE</a><span class="n">{n}</span></li>')
+        sections.append('<section id="hype" class="hype"><h2>HYPE</h2>'
+                        + (f'<p>{linked(b.hype.summary, posts)}</p>{folded(b.hype.posts, posts, thr)}' if b.hype else "")
+                        + "".join(thesis_html(t, posts, thr, f"h{i}", 3) for i, t in enumerate(on_hype)) + "</section>")
+    theses = [t for t in b.theses if not t.hype]
+    if theses:
+        base = f"/b/{esc(name)}/theses" if name else "/theses"
+        items = "".join(f'<li><a href="{base}#th{i}">{esc(t.claim)}</a> <span class="by">{esc(author(t, posts))}</span></li>'
+                        for i, t in enumerate(theses))
+        toc.append(f'<li><a href="#theses">Theses</a><span class="n">{len(theses)}</span></li>')
+        sections.append(f'<section id="theses"><h2>Theses</h2><ol class="theses">{items}</ol></section>')
     for i, t in enumerate(b.topics):
         sid = f"t{i}"
         toc.append(f'<li><a href="#{sid}">{esc(t.title)}</a><span class="n">{len(t.posts)}</span></li>')
@@ -192,20 +252,39 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
 def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False) -> str:
     meta = run["meta"]
     title = run_title(run["name"], run["label"], meta.get("started_ms") or 0)
-    main, toc = brief_main(run["brief"], run["posts"], run["threads"], meta)
+    main, toc = brief_main(run["brief"], run["posts"], run["threads"], meta, run["name"])
     others = [r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)][:10]  # older than this one
     arch = "".join(f'<li><a href="/b/{esc(r["name"])}">{esc(run_title(r["name"], r["label"], r["started_ms"]))}</a>'
                    f'<span class="n">{r["n_posts"]}</span></li>' for r in others)
     extra = (f'<h2>{esc(title)}</h2><p class="when">read {day(meta.get("started_ms") or 0)}</p>'
              f'<ol>{"".join(toc)}</ol>'
              + (f'<h2>Earlier</h2><ul>{arch}</ul><a class="more" href="/history">All briefs</a>' if arch else ""))
-    return shell(f"X brief · {title}", rail("brief", live, extra, running=running), main, at=run["name"])
+    return shell(f"X brief · {title}", rail("brief", live, extra, running=running, at=run["name"]), main, at=run["name"])
 
 
-def empty_page(live: dict, running: bool = False) -> str:
+def theses_page(run: dict, live: dict, running: bool = False) -> str:
+    """Every thesis of one brief written up, longest first; those about HYPE are on the Brief, in its HYPE part."""
+    meta, b = run["meta"], run["brief"]
+    title = run_title(run["name"], run["label"], meta.get("started_ms") or 0)
+    theses = [t for t in b.theses if not t.hype]
+    main = "".join(thesis_html(t, run["posts"], run["threads"], f"th{i}") for i, t in enumerate(theses))
+    if not theses:
+        main = '<p class="empty">No theses in this brief.</p>'
+    on_hype = sum(t.hype for t in b.theses)
+    if on_hype:
+        main += (f'<p class="note">{on_hype} more about HYPE: <a href="/b/{esc(run["name"])}#hype">the Brief\'s '
+                 f'HYPE part</a>.</p>')
+    toc = "".join(f'<li><a href="#th{i}">{esc(t.claim)}</a></li>' for i, t in enumerate(theses))
+    extra = (f'<h2>{esc(title)}</h2><p class="when">read {day(meta.get("started_ms") or 0)}</p>'
+             + (f'<ol class="claims">{toc}</ol>' if toc else ""))
+    return shell(f"X brief · theses · {title}", rail("theses", live, extra, running=running, at=run["name"]), main,
+                 at=run["name"])
+
+
+def empty_page(live: dict, running: bool = False, active: str = "brief") -> str:
     main = ('<p class="empty">No brief yet. <b>Brief now</b> reads your Following tab in the job\'s Brave and '
             'writes the first one; it takes a few minutes.</p>')
-    return shell("X brief", rail("brief", live, running=running), main)
+    return shell("X brief", rail(active, live, running=running), main)
 
 
 # ── history ─────────────────────────────────────────────────────────────────────────────────────────

@@ -54,7 +54,7 @@ def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude) -> 
     started = dt.datetime.fromtimestamp((meta.get("started_ms") or time.time() * 1000) / 1000)
     name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}"
     store.save_run(name, label, meta, b, posts, threads_of(ents, posts))
-    log(f"brief {name}: {len(posts)} posts, {len(b.topics)} topics"
+    log(f"brief {name}: {len(posts)} posts, {len(b.theses)} theses, {len(b.topics)} topics"
         + (f", writer failed: {b.writer_error}" if b.writer_error else ""))
     return name
 

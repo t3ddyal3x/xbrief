@@ -246,6 +246,9 @@ def test_pages(monkeypatch):
     code, _, html = call("GET", "/history")
     assert code == 200 and f'href="/b/{name}"' in html and 'id="sched"' in html
     assert call("GET", "/app.js")[0] == 200 and call("GET", "/app.css")[0] == 200
+    code, _, html = call("GET", "/theses")
+    assert code == 200 and "No theses in this brief" in html and f'href="/b/{name}/theses" aria-current' in html
+    assert call("GET", f"/b/{name}/theses")[0] == 200 and call("GET", "/b/2020-01-01-0000-am/theses")[0] == 404
 
 
 def test_run_button(monkeypatch):

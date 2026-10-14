@@ -3,12 +3,16 @@
 What the accounts you follow on X posted, twice a day or whenever you ask, so you never open X: **http://xbrief.localhost**
 
 Your own Brave reads your Following tab on a Brave profile kept for this job, in a window parked behind your others. It scrolls
-the way you would, and keeps the posts x.com itself loads. Claude then groups them by topic. Every item links to the
-original posts, threads are shown in full, and anything that fits no topic is listed at the end, never dropped.
+the way you would, and keeps the posts x.com itself loads. Claude reads each post whole and puts what matters first:
+everything said about HYPE and Hyperliquid, then every post that argues a claim (a thesis), longest first. The rest it
+groups by topic, with a small ↗ after a post that stands out. Every item links to the original posts, threads are
+shown in full, and anything that fits no topic is listed at the end, never dropped.
 Free: no X API, and the writing runs on your Claude subscription.
 
 ## The app
-- **Brief** shows the newest brief. **Brief now** reads your Following tab right away: since the last brief, or
+- **Brief** shows the newest brief: HYPE, one line a thesis, then the topics.
+- **Theses** writes each thesis up: the claim, the argument step by step, what follows if it holds, and Claude's
+  own view (weak spots, what would prove it wrong), labelled as Claude's. A thesis about HYPE is on the Brief instead. **Brief now** reads your Following tab right away: since the last brief, or
   the last 12, 24 or 48 hours. The line under it says what the run is doing, then offers the new brief.
 - **History** lists every brief, and sets the **schedule**: two briefs a day, each starting at a random minute
   inside its window (morning 05:30–07:30, evening 17:00–20:00 to begin with). It starts off; tick it and save.
