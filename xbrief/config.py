@@ -25,7 +25,7 @@ MODEL = os.environ.get("XBRIEF_MODEL") or "claude-opus-5-5"  # the writer: Opus 
 # The sites tab (sites.py): public pages read once a day, direct, each new post summarised. A source lists its posts
 # in an RSS feed or a sitemap (`match`: the part of a post's address that marks it as a post).
 # `x`: the people behind a source, by X handle (accounts the operator follows); the Sites page shows their posts
-# from the Following tab's reads beside the source's own, and never reads their profiles
+# from the Following tab's reads beside the source's write-ups, and never reads their profiles
 SITES = [
     {"key": "sigil", "name": "Sigil Fund", "home": "https://www.sigilfund.com/insights",
      "list": "https://www.sigilfund.com/sitemap.xml", "kind": "sitemap", "match": "/blog/", "x": ["Fiskantes"]},
@@ -37,8 +37,7 @@ SITES = [
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-fable-5-1"  # Fable for summaries (operator, 2026-10-12)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
-SITES_X_DAYS = 7  # the Sites page shows each source's people's posts from this many days back
-SITES_X_MAX = 5  # at most this many a person
+SITES_X_MAX = 120  # the Sites page's right-hand column: at most this many of the people's posts
 SITES_AFTER = "07:00"  # the daily check runs at the first look after this, local time, once a day
 
 RAW_KEEP_DAYS = 30

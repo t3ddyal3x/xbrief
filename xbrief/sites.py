@@ -210,15 +210,42 @@ def summarise(title: str, url: str, text: str, ask=None, published_ms: int | Non
 # ── the people behind a source ──────────────────────────────────────────────────────────────────────
 
 
-def people_posts(sources: list[dict] | None = None, now_ms: int | None = None) -> dict:
-    """Each source's people's posts already kept from the Following tab's reads (never a read of their profile):
-    the last `config.SITES_X_DAYS` days, newest first, at most `config.SITES_X_MAX` a person."""
-    since = (now_ms or int(time.time() * 1000)) - config.SITES_X_DAYS * 86_400_000
-    out = {}
-    for src in sources or config.SITES:
-        for h in src.get("x") or []:
-            hits, _ = store.search("@" + h, limit=config.SITES_X_MAX * 4)
-            out[h] = [p for p, _ in hits if p.created_ms >= since and p.handle.lower() == h.lower()][:config.SITES_X_MAX]
+def people_posts(sources: list[dict] | None = None, words: list[str] | None = None) -> list:
+    """The posts by the sources' people already kept from the Following tab's reads (never a read of their
+    profile), newest first, holding every word searched; at most `config.SITES_X_MAX`."""
+    handles = [h for src in sources or config.SITES for h in src.get("x") or []]
+    if not handles:
+        return []
+    hits, _ = store.search(" ".join(["@" + h for h in handles] + list(words or [])), limit=config.SITES_X_MAX)
+    own = {h.lower() for h in handles}
+    return [p for p, _ in hits if p.handle.lower() in own]  # theirs, or a repost they made; not another's repost of theirs
+
+
+def _word(w: str) -> re.Pattern:
+    return re.compile(r"(?<!\w)" + re.escape(w), re.I)  # a word that begins with it, as the search matches
+
+
+def matches(doc: dict, words: list[str]) -> bool:
+    """Whether a write-up holds every word: in its title, its summary or the article's text."""
+    s = doc.get("summary") or {}
+    blob = "\n".join([doc.get("title") or "", s.get("gist") or "", *(s.get("points") or []), *(s.get("calls") or []),
+                      s.get("view") or "", doc.get("text") or ""])
+    return all(_word(w).search(blob) for w in words)
+
+
+def found_lines(text: str, words: list[str], most: int = 8, width: int = 360) -> list[str]:
+    """The article's lines that hold any of the words, each cut to `width` characters around the first."""
+    pats, out = [_word(w) for w in words], []
+    for ln in (text or "").split("\n"):
+        m = min((m for m in (p.search(ln) for p in pats) if m), key=lambda m: m.start(), default=None)
+        if not m:
+            continue
+        if len(ln) > width:
+            a = max(0, min(m.start() - width // 3, len(ln) - width))
+            ln = ("…" if a else "") + ln[a:a + width].strip() + ("…" if a + width < len(ln) else "")
+        out.append(ln.lstrip("#- ").strip())
+        if len(out) >= most:
+            break
     return out
 
 
@@ -245,6 +272,7 @@ def read_post(item: dict, src: dict, get=fetch, ask=None) -> dict:
         doc["published_ms"] = page["published_ms"] or doc["published_ms"]
         text = text_of(item["html"]) if item.get("html") else page["text"]
         doc["chars"] = len(text)
+        doc["text"] = text[:MAX_TEXT]  # kept, so the Sites tab can search the article itself
         if len(text) < 200:
             raise ValueError("the page had almost no text")
         doc["summary"] = summarise(doc["title"], item["url"], text, ask, doc["published_ms"])

@@ -159,3 +159,13 @@ On X, below the write-ups. No new read of X.
 **Checked**: offline tests (1 new); a live check (Capriole's "Institutions are Guzzling Bitcoin", 2026-05-05);
 the page at 2000 px light and dark through the write-refusing headless Brave.
 **Next**: the operator looks; Zee Prime's people, if any are followed.
+
+## 2026-10-14 (Sites: one place per source and topic)
+**Changed**: the Sites page is now the write-ups in the middle and their people's X posts on the right (as the
+brief's margin), with a mark where each write-up falls in their timeline; Sources in the side panel narrow it to
+one; a search box narrows both to words, and a write-up then shows the article's lines that hold them. Write-ups
+keep their article's text (the three existing ones fetched again once). The 7-day On X block is gone.
+**Checked**: offline tests (2 new); "zro" finds Sigil's line "Sigil is long ZRO into the event — our most
+contrarian position"; no Fiskantes post in the store says ZRO yet (the store starts 2026-10-12). The page at
+2000 px light and dark.
+**Next**: the operator looks.

@@ -19,8 +19,10 @@ Free: no X API, and the writing runs on your Claude subscription.
 - **Sites** reads the websites on its list once a day (after 07:00; now Sigil Fund, Zee Prime and Capriole) and writes up
   each new post: the gist, its points, every position or call it makes, and Claude's own view, labelled. **Check
   now** reads them at once. A site's first check reads only its newest post. New sites go in `xbrief/config.py`
-  (`SITES`): any site with an RSS feed or a sitemap. Below the write-ups, **On X** shows the last week's posts by the
-  people behind each site (Fiskantes for Sigil, Charles Edwards for Capriole), from what the briefs already read.
+  (`SITES`): any site with an RSS feed or a sitemap. Beside the write-ups, on the right, are the posts on X by
+  the people behind each site (Fiskantes for Sigil, Charles Edwards for Capriole), from what the briefs already
+  read, with a mark where each write-up falls. Pick a source on the left to see only it; search (say "zro") to see
+  the write-ups that mention it, with the article's own lines, and their posts that do.
 - **Search** looks through every post a brief has held: words (each must appear), `@name` for an account, and dates.
   Each post links to the brief that had it. Posts are kept for good; the raw reads they came from, 30 days.
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 import html
 import re
 import time
-from urllib.parse import quote
+from urllib.parse import quote, urlencode
 
 from . import config
 from .brief import Brief, Thesis, Topic
@@ -307,13 +307,13 @@ def rail(active: str, live: dict, extra: str = "", running: bool = False, at: st
             f'{live_html(live)}{extra}</nav>')
 
 
-def shell(title: str, rail_html: str, main: str, at: str = "") -> str:
-    """`at`: the brief this page shows, so the rail does not offer it as new."""
+def shell(title: str, rail_html: str, main: str, at: str = "", side: str = "") -> str:
+    """`at`: the brief this page shows, so the rail does not offer it as new; `side`: a right-hand column."""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>{esc(title)}</title>
 <link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script></head>
-<body{f' data-at="{esc(at)}"' if at else ""}><div class="wrap">{rail_html}<main>{main}</main></div></body></html>
+<body{f' data-at="{esc(at)}"' if at else ""}><div class="wrap{" has-side" if side else ""}">{rail_html}<main>{main}</main>{side}</div></body></html>
 """
 
 
@@ -498,22 +498,16 @@ def x_links(handles: list[str]) -> str:
     return " ".join(f'<a href="https://x.com/{esc(h)}" rel="noreferrer">@{esc(h)}</a>' for h in handles)
 
 
-def people_html(sources: list[dict], xposts: dict[str, list[Post]]) -> str:
-    """The people behind each source, on X: their posts from the Following tab's reads in the last
-    `config.SITES_X_DAYS` days, and a link to all of them in search."""
-    out = []
-    for s in sources:
-        for h in s.get("x") or []:
-            got = xposts.get(h) or []
-            body = "".join(post_html(x) for x in got) or f'<p class="empty">Nothing in the last {config.SITES_X_DAYS} days.</p>'
-            out.append(f'<div class="person"><h3>{x_links([h])}<span class="by">{esc(s["name"])}</span></h3>{body}'
-                       f'<p class="by"><a href="/search?q={esc(quote("@" + h))}">Every post kept</a></p></div>')
-    return f'<section id="onx" class="thesis site"><h2>On X</h2>{"".join(out)}</section>' if out else ""
+def sites_href(key: str = "", q: str = "") -> str:
+    args = urlencode([(k, v) for k, v in (("s", key), ("q", q)) if v])
+    return "/sites" + ("?" + args if args else "")
 
 
-def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, list[str]] | None = None) -> str:
+def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, list[str]] | None = None,
+                   words: list[str] | None = None, lines: list[str] | None = None) -> str:
     """One post from a site: its title linked to the page, the gist, the points, the calls it makes, and Claude's
-    view under its own label. The link is the stored address, and only an http(s) one."""
+    view under its own label; with a search, the article's lines that hold the words. The link is the stored
+    address, and only an http(s) one."""
     url = safe_url(d.get("url"))
     title = esc(d.get("title") or d.get("url"))
     head = f'<a href="{esc(url)}" rel="noreferrer">{title}</a>' if url else title
@@ -522,30 +516,62 @@ def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, lis
     by = (f'<p class="by">{esc(names.get(d.get("source"), d.get("source")))} · '
           + (x_links(who) + " · " if who else "") +
           f'{time.strftime("%a %-d %b %Y", time.localtime(when / 1000))}</p>')
+    found = "".join(f"<li>{marked(esc(x), words or [])}</li>" for x in lines or [])
+    found = f'<h3>In the article</h3><ul class="steps found">{found}</ul>' if found else ""
     s = d.get("summary") or {}
     if d.get("error") or not s:
-        return (f'<section id="s{i}" class="thesis site"><h2>{head}</h2>{by}'
+        return (f'<section id="s{i}" class="thesis site"><h2>{head}</h2>{by}{found}'
                 f'<p class="empty">No summary ({esc(d.get("error") or "nothing came back")}). Open the post to read it.</p></section>')
     points = "".join(f"<li>{esc(x)}</li>" for x in s.get("points") or [])
     calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
     return (f'<section id="s{i}" class="thesis site"><h2>{head}</h2>{by}'
-            + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "")
+            + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "") + found
             + (f'<h3>Points</h3><ol class="steps">{points}</ol>' if points else "")
             + (f'<h3>Calls</h3><ul class="steps">{calls}</ul>' if calls else "")
             + (f'<div class="view"><h3>Claude\'s view</h3><p>{esc(s["view"])}</p></div>' if s.get("view") else "")
             + "</section>")
 
 
+def side_html(xposts: list[Post], posts: list[dict], handles: list[str], q: str, words: list[str]) -> str:
+    """The right-hand column: the people's posts on X, newest first, with a mark where each write-up falls among
+    them, so what they said before and after it reads in order."""
+    if not handles:
+        return ('<aside class="side"><h2>On X</h2><p class="empty">No one from this source is followed on X.</p>'
+                '</aside>')
+    items = [(p.created_ms, 1, post_html(p, words=words)) for p in xposts]
+    for i, d in enumerate(posts):
+        when = d.get("published_ms") or d.get("seen_ms") or 0
+        items.append((when, 0, f'<p class="mk"><a href="#s{i}">{esc(d.get("title") or d.get("url"))}</a>'
+                               f'<span>{time.strftime("%-d %b %Y", time.localtime(when / 1000))}</span></p>'))
+    items.sort(key=lambda t: (t[0], t[1]), reverse=True)
+    find = " ".join(["@" + h for h in handles] + ([q] if q else []))
+    empty = (f'<p class="empty">Nothing by them{" with these words" if words else ""} in what the briefs have '
+             f'read.</p>' if not xposts else "")
+    return (f'<aside class="side"><h2>On X</h2><p class="by">{x_links(handles)} · '
+            f'<a href="/search?q={esc(quote(find))}">Every post kept</a></p>{empty}{"".join(h for _, _, h in items)}'
+            f'</aside>')
+
+
 def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[str, int], checking: bool,
-               live: dict, running: bool = False, xposts: dict[str, list[Post]] | None = None) -> str:
-    """Every post read from the sites on the list, newest first; the list itself, when each was last checked, and
-    the daily check's switch."""
+               live: dict, running: bool = False, xposts: list[Post] | None = None, key: str = "", q: str = "",
+               words: list[str] | None = None, lines: dict[str, list[str]] | None = None) -> str:
+    """The write-ups in the middle, newest first, and their people's posts on X on the right; narrowed to one
+    source (`key`) and to the words searched (`q`), the write-ups showing the article's lines that hold them. Below,
+    the list itself, when each was last checked, and the daily check's switch."""
+    words, lines = words or [], lines or {}
     names = {s["key"]: s["name"] for s in sources}
+    shown = [s for s in sources if not key or s["key"] == key]
+    handles = [h for s in shown for h in s.get("x") or []]
     state = sett.get("sites_state") or {}
     people = {s["key"]: s.get("x") or [] for s in sources}
-    main = "".join(site_post_html(d, names, i, people) for i, d in enumerate(posts))
+    find = (f'<form class="find ctl sitefind" action="/sites" method="get" role="search">'
+            + (f'<input type="hidden" name="s" value="{esc(key)}">' if key else "")
+            + f'<input type="search" name="q" value="{esc(q)}" placeholder="Search {esc(names[key]) if key else "the sites"}'
+            f' and their people on X" aria-label="Search the sites"></form>')
+    main = "".join(site_post_html(d, names, i, people, words, lines.get(d["url"])) for i, d in enumerate(posts))
     if not posts:
-        main = '<p class="empty">Nothing read yet. <b>Check now</b> reads each site\'s list and its newest post.</p>'
+        main = ('<p class="empty">No write-up holds these words.</p>' if words else
+                '<p class="empty">Nothing read yet. <b>Check now</b> reads each site\'s list and its newest post.</p>')
     rows = []
     for s in sources:
         st = state.get(s["key"]) or {}
@@ -565,10 +591,11 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
            f'<div class="w2"><button type="submit" name="act" value="save">Save</button>'
            f'<button type="button" id="sites-now"{" disabled" if checking else ""}>Check now</button></div></form>'
            f'<p class="note" id="sites-msg"{" data-checking=1" if checking else ""}>{esc(line)}</p>')
+    pick = "".join(f'<li><a href="{esc(sites_href(k, q))}"{" aria-current=page" if k == key else ""}>{esc(n)}</a></li>'
+                   for k, n in [("", "All")] + [(s["key"], s["name"]) for s in sources])
     toc = "".join(f'<li><a href="#s{i}">{esc(d.get("title") or d.get("url"))}</a></li>' for i, d in enumerate(posts[:40]))
-    onx = people_html(sources, xposts or {})
-    extra = (f'<h2>Posts</h2><ol class="claims">{toc}</ol>' if toc else "") + \
-        ('<ol class="claims"><li><a href="#onx">On X</a></li></ol>' if onx else "")
-    main = (main + onx + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
+    extra = f'<h2>Sources</h2><ol class="claims pick">{pick}</ol>' + (f'<h2>Posts</h2><ol class="claims">{toc}</ol>' if toc else "")
+    main = (find + main + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
             f'<p class="note">New sites are added in xbrief/config.py (SITES): an RSS feed or a sitemap.</p></section>')
-    return shell("X brief · sites", rail("sites", live, extra, running=running), main)
+    return shell("X brief · sites", rail("sites", live, extra, running=running), main,
+                 side=side_html(xposts or [], posts, handles, q, words))

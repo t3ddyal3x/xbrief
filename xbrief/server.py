@@ -209,9 +209,15 @@ class Handler(BaseHTTPRequestHandler):
                                    "checked_ms": store.settings().get("sites_checked_ms")})
             if path == "/sites":
                 lv = live()
-                return self._html(page.sites_page(store.site_posts(), config.SITES, store.settings(), store.site_counts(),
+                key = q.get("s", "") if q.get("s") in {s["key"] for s in config.SITES} else ""
+                text = q.get("q", "")[:200]
+                words = store.parse_query(text)[1]
+                shown = [s for s in config.SITES if not key or s["key"] == key]
+                docs = [d for d in store.site_posts() if d["source"] in {s["key"] for s in shown} and sites.matches(d, words)]
+                lines = {d["url"]: sites.found_lines(d.get("text") or "", words) for d in docs} if words else {}
+                return self._html(page.sites_page(docs, config.SITES, store.settings(), store.site_counts(),
                                                   sites.running() or sites.just_started(), lv, lv["running"],
-                                                  sites.people_posts()))
+                                                  sites.people_posts(shown, words), key, text, words, lines))
             if path == "/api/health":
                 return self._json({"ok": True, "port": config.PORT, "running": runner.running(), **store.counts(),
                                    "schedule": store.settings()["schedule"]})

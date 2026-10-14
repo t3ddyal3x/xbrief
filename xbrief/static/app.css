@@ -135,9 +135,23 @@ margin:1.5rem 0 .55rem}
 .thesis .view b{font:600 14px var(--f-ui);margin-right:.3rem}
 .thesis:not(.hype .thesis){padding-bottom:2.6rem;margin-bottom:3rem;border-bottom:1px solid var(--rule)}
 .site h2 a{text-decoration:none}.site h2 a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
-#onx .person{margin:0 0 2.4rem}
-#onx .person h3{font:650 1.05rem/1.3 var(--f-ui);text-transform:none;letter-spacing:0;color:var(--ink0);margin:0 0 .8rem}
-#onx .person h3 a{color:inherit;text-decoration:none}#onx .person h3 .by{margin-left:.6rem}
+/* the Sites tab: the write-ups in the middle, their people's posts on X on the right */
+.sitefind{margin:0 0 2.6rem}
+.rail .pick a[aria-current]{color:var(--ink0);font-weight:600}
+.thesis .found li{font-size:15px;color:var(--ink2)}
+.side{font-size:15px}
+.side h2{font:650 1.05rem/1.3 var(--f-ui);color:var(--ink0);margin:0 0 .2rem}
+.side>.by{margin:0 0 .4rem}
+.side .post{font-size:14.5px;line-height:1.5;margin-top:.9rem}.side .post .q{font-size:13.5px}
+.side .imgs img{max-height:180px}
+.side .mk{display:flex;justify-content:space-between;gap:.8rem;margin:1.1rem 0 0;padding:.45rem .7rem;
+background:var(--panel);border-radius:8px;font:600 12.5px/1.35 var(--f-ui)}
+.side .mk a{color:var(--ink0);text-decoration:none}.side .mk a:hover{text-decoration:underline}
+.side .mk span{color:var(--dim);font-weight:400;white-space:nowrap}
+@media (min-width:861px) and (max-width:1439px){.wrap>.side{grid-column:2}}
+@media (min-width:1440px){.wrap.has-side{grid-template-columns:232px minmax(0,41rem) 360px;gap:4rem}
+.wrap>.side{position:sticky;top:3.2rem;align-self:start;max-height:calc(100vh - 4.4rem);overflow-y:auto;
+padding-right:.4rem;scrollbar-width:thin}}
 #list{margin-top:4.5rem}
 .note{font:13px/1.5 var(--f-ui);color:var(--dim);margin:0 0 .4rem}
 

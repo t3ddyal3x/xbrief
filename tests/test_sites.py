@@ -169,15 +169,41 @@ def test_the_real_list_is_well_formed():
 
 
 def test_the_people_behind_a_source():
-    from test_app import publish
     from builders import xw_tweet
-    publish([xw_tweet(1, "Fiskantes", "Zero mainnet is close"), xw_tweet(2, "bob", "RT", retweet=xw_tweet(-5, "Fiskantes", "a repost of theirs"))])
+    from test_app import publish
+    publish([xw_tweet(1, "Fiskantes", "Zero mainnet is close, long ZRO"), xw_tweet(3, "Fiskantes", "HYPE looks fine"),
+             xw_tweet(2, "bob", "RT", retweet=xw_tweet(-5, "Fiskantes", "a ZRO post of theirs"))])
     src = dict(SIGIL, x=["Fiskantes"])
-    newest = max(p.created_ms for p, _ in store.search("@Fiskantes")[0])
-    got = sites.people_posts([src], now_ms=newest + 1)
-    assert [p.text for p in got["Fiskantes"]] == ["Zero mainnet is close"]  # their own posts, not another's repost of one
-    assert sites.people_posts([src], now_ms=newest + (config.SITES_X_DAYS + 1) * 86_400_000) == {"Fiskantes": []}
-    store.save_site_post({"source": "sigil", "url": "https://www.sigilfund.com/blog/q2-letter", "title": "Q2", "error": "E"}, 1)
-    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""}, xposts=got)
-    assert html.count('href="https://x.com/Fiskantes"') == 3  # On X, the post's byline, the list
-    assert "Zero mainnet is close" in html and 'href="/search?q=%40Fiskantes"' in html
+    assert [p.text for p in sites.people_posts([src])] == ["HYPE looks fine", "Zero mainnet is close, long ZRO"]  # not bob's repost
+    assert [p.text for p in sites.people_posts([src], ["zro"])] == ["Zero mainnet is close, long ZRO"]
+    assert sites.people_posts([ZEE]) == []
+    # a write-up is found by the words in its article, and shows the lines that hold them
+    doc = {"source": "sigil", "url": "https://www.sigilfund.com/blog/q2-letter", "title": "Q2", "published_ms": 5,
+           "summary": json.loads(ANSWER), "text": "## Core\nWe trimmed HYPE.\n" + "x " * 300 + "then ZRO. " + "y " * 300}
+    assert sites.matches(doc, ["zro"]) and sites.matches(doc, ["hype", "trimmed"]) and not sites.matches(doc, ["sol"])
+    assert not sites.matches(doc, ["ro"])  # a word that begins with it, not any part of one
+    lines = sites.found_lines(doc["text"], ["zro"])
+    assert len(lines) == 1 and "then ZRO." in lines[0] and lines[0].startswith("…") and len(lines[0]) < 370
+    store.save_site_post(dict(doc), 1)
+    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""},
+                           xposts=sites.people_posts([src], ["zro"]), key="sigil", q="zro", words=["zro"],
+                           lines={doc["url"]: lines})
+    side = html[html.index('<aside class="side">'):]
+    assert "long <mark>ZRO</mark>" in side and 'href="#s0"' in side  # their post, and where the write-up falls
+    assert "In the article" in html and "then <mark>ZRO</mark>." in html
+    assert 'href="/sites?s=sigil&amp;q=zro" aria-current=page' in html and 'href="/sites?q=zro"' in html
+    assert 'value="zro"' in html and 'name="s" value="sigil"' in html
+    assert "No one from this source is followed" in page.sites_page([], [ZEE], {}, {}, False, {"text": ""}, key="zeeprime")
+
+
+def test_the_sites_route_narrows(monkeypatch):
+    monkeypatch.setattr(config, "SITES", [dict(SIGIL, x=["Fiskantes"]), ZEE])
+    store.save_site_post({"source": "sigil", "url": "https://www.sigilfund.com/blog/a", "title": "About ZRO",
+                          "summary": json.loads(ANSWER), "text": "Long ZRO."}, 1)
+    store.save_site_post({"source": "zeeprime", "url": "https://zeeprime.capital/b/", "title": "Argonauts",
+                          "summary": json.loads(ANSWER), "text": "Fusion."}, 2)
+    html = call("GET", "/sites?q=fusion")[2]
+    assert "Argonauts" in html and "About ZRO" not in html
+    html = call("GET", "/sites?s=sigil")[2]
+    assert "About ZRO" in html and "Argonauts</a></h2>" not in html
+    assert call("GET", "/sites?s=nope")[0] == 200  # an unknown source shows them all

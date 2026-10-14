@@ -128,11 +128,16 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   feed's own before its page's: a Substack page's first heading is the publication's name ("Charles Edwards"). The
   writer is given the post's day: without it, it dated update #70 a month early from the text.
 - **The people behind a source** (operator, 2026-10-14: "tie the head figures with these people in terms of their
-  twitter"): a source's `x` names their handles (Sigil: Fiskantes; Capriole: caprioleio; Zee Prime: none followed).
-  The page links each handle in the post's byline and the list, and its On X section shows their posts from the
-  last `SITES_X_DAYS` days (at most `SITES_X_MAX` each) out of the store, which the Following tab's reads fill, with
-  a link to all of them in search. Their profiles are never opened: rule 1 reads the Following tab only, so a
-  post they made between reads, or one scrolled past, is missing here too.
+  twitter"; "I just want it tied together as one place"; "the article in the middle and the twitter stuff on the
+  right like we have for the brief"): a source's `x` names their handles (Sigil: Fiskantes; Capriole: caprioleio;
+  Zee Prime: none followed). The Sites page sets the write-ups in the middle and their people's posts in a right-hand
+  column (sticky, its own scroll, at 1440 px and wider; under the write-ups below that), newest first, with a mark
+  where each write-up falls among them, so what they said before and after a letter reads in order. The side panel
+  narrows it to one source; the search box narrows both columns to the words (the example: "zro" finds Sigil's Q2
+  letter, with the article's own lines that hold it, and Fiskantes's posts that say it). A write-up keeps its
+  article's text for this; the three read before 2026-10-14 15:00 had theirs fetched again once. The posts come
+  from the store, which the Following tab's reads fill: their profiles are never opened (rule 1), so the column
+  starts 2026-10-12, when xbrief began, and a post scrolled past between reads is missing.
 
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an

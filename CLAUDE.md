@@ -50,6 +50,7 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     Fable (`config.SITE_MODEL`), never Sonnet. One check at a time (`sites.lock`), once a day after
     `config.SITES_AFTER`, on by default (the page's switch). A source's people (`x`, their handles) are shown from
     posts already kept from the Following tab (`sites.people_posts`); their profiles are never read (rule 1).
+    Each write-up keeps its article's text (`text`), so the tab's search reaches the article, not only the summary.
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
