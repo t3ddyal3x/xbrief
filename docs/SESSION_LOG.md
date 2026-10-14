@@ -180,3 +180,9 @@ looking**: old-style figures (the 0 in @0xNairolf read as an o) and small-caps o
 **Checked**: offline tests (1 new for the margin notes; the strip test no longer has a HYPE colour); 2000 px dark
 and light, 1280 px (no margin, ↗ kept), phone, through the write-refusing headless Brave.
 **Next**: the operator looks.
+
+## 2026-10-14 (margin notes aligned)
+**Fixed** the operator's "seems misaligned": each margin note's first line was within 1.5 px of its marker's baseline, but
+its lines ran on 19.6 px against the text's 28.35 px and drifted. Now the byline sits on the marker line's baseline
+(measured 0 px) and the note runs three lines to two of the text (18.9 px); the notes sit 42 px from the text (was
+88). Scoped to the brief, so the Sites page keeps its own layout.
