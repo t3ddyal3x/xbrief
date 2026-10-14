@@ -11,7 +11,6 @@ from __future__ import annotations
 import html
 import re
 import time
-from collections import Counter
 
 from . import config
 from .brief import Brief, Thesis, Topic
@@ -64,8 +63,19 @@ def imgs(p: Post) -> str:
     return f'<div class="imgs">{"".join(out)}</div>' if out else ""
 
 
-def post_html(p: Post, also: str = "") -> str:
-    """One post; `also` is a piece of markup added at the end of its byline (search: the brief it came from)."""
+def marked(text: str, words: list[str]) -> str:
+    """Escaped post text with each searched word marked where a word begins with it, as the search matches; never
+    inside a link's markup or an escape."""
+    ws = [w for w in (re.sub(r"\W+", "", w) for w in words) if w]
+    if not ws:
+        return text
+    pat = re.compile(r"(<[^>]*>|&#?\w+;)|(?<!\w)(" + "|".join(re.escape(esc(w)) for w in ws) + ")", re.I)
+    return pat.sub(lambda m: m.group(1) or f"<mark>{m.group(2)}</mark>", text)
+
+
+def post_html(p: Post, also: str = "", words: list[str] | None = None) -> str:
+    """One post; `also` is a piece of markup added at the end of its byline (search: the brief it came from), and
+    `words` the searched words, marked in its text."""
     if p.unreadable:
         return (f'<div class="post"><div class="meta"><a href="{esc(p.url)}" rel="noreferrer">a post X would not show '
                 f'({esc(p.unreadable)})</a>{also}</div></div>')
@@ -74,14 +84,16 @@ def post_html(p: Post, also: str = "") -> str:
         shown = p.retweet_of
         lead = f'<span>reposted by @{esc(p.handle)}</span>'
     reply = f'<span>replying to @{esc(shown.reply_to_handle)}</span>' if shown.reply_to_handle else ""
+    words = words or []
     quote = ""
     if shown.quote and not shown.quote.unreadable:
         q = shown.quote
         quote = (f'<div class="q"><div class="meta"><a href="{esc(q.url)}" rel="noreferrer">@{esc(q.handle)}</a>'
-                 f'<span>{day(q.created_ms)}</span></div><div class="t">{rich_text(q)}</div>{imgs(q)}</div>')
-    return (f'<div class="post"><div class="meta"><a href="{esc(shown.url)}" rel="noreferrer">@{esc(shown.handle)}</a>'
-            f'<span>{esc(shown.name)}</span><span>{day(shown.created_ms)}</span>{lead}{reply}{also}</div>'
-            f'<div class="t">{rich_text(shown)}</div>{imgs(shown)}{quote}</div>')
+                 f'<span>{day(q.created_ms)}</span></div><div class="t">{marked(rich_text(q), words)}</div>{imgs(q)}</div>')
+    name = f'<b>{esc(shown.name)}</b>' if shown.name and shown.name != shown.handle else ""
+    return (f'<div class="post"><div class="meta">{name}<a href="{esc(shown.url)}" rel="noreferrer">@{esc(shown.handle)}</a>'
+            f'<span>{day(shown.created_ms)}</span>{lead}{reply}{also}</div>'
+            f'<div class="t">{marked(rich_text(shown), words)}</div>{imgs(shown)}{quote}</div>')
 
 
 def topic_posts(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> list[Post]:
@@ -145,7 +157,24 @@ def author(t: Thesis, posts: dict[str, Post]) -> str:
     return f"@{(p.retweet_of or p).handle}" if p else ""
 
 
-def status_html(meta: dict, b: Brief, n_posts: int, n_accounts: int) -> str:
+def masthead(title: str, dek: str) -> str:
+    return f'<header class="mast"><h1>{title}</h1><p class="dek">{dek}</p></header>'
+
+
+def run_dek(meta: dict, n_posts: int, n_accounts: int) -> str:
+    """What the run read, in one line: from when, how much, and when it was read."""
+    from .parse import snowflake_ms
+
+    since = f"since {day(snowflake_ms(meta['boundary_id']))} · " if meta.get("boundary_id") else ""
+    dek = (f"{since}{n_posts} posts from {n_accounts} accounts · "
+           f"read {hhmm(meta.get('started_ms') or 0)}–{hhmm(meta.get('finished_ms') or 0)}")
+    if meta.get("reread_site"):
+        dek += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"
+    return dek
+
+
+def status_html(meta: dict, b: Brief) -> str:
+    """Said only when something went wrong: how the read ended, a gap, the order, a missing summary."""
     lines = []
     if not meta.get("normal"):
         lines.append(f"<b>The read stopped early:</b> {esc(meta.get('stop'))}.")
@@ -156,17 +185,10 @@ def status_html(meta: dict, b: Brief, n_posts: int, n_accounts: int) -> str:
                      "Set it to Recent to get every post.")
     if b.writer_error:
         lines.append(f"<b>No summary this time</b> ({esc(b.writer_error)}). Every post is listed below as read.")
-    from .parse import snowflake_ms
-
-    since = f"since {day(snowflake_ms(meta['boundary_id']))} · " if meta.get("boundary_id") else ""
-    head = (f"{since}{esc(meta.get('stop') or 'read')} · {n_posts} posts from {n_accounts} accounts · "
-            f"read {hhmm(meta.get('started_ms') or 0)}–{hhmm(meta.get('finished_ms') or 0)}")
-    if meta.get("reread_site"):
-        head += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"
     if not lines:
-        return f'<div class="status quiet">{head}</div>'
+        return ""
     cls = "bad" if not meta.get("page_count") else "warn"
-    return f'<div class="status {cls}">{"<br>".join(lines)}<br><span class="mono">{head}</span></div>'
+    return f'<div class="status {cls}" role="status">{"<br>".join(lines)}</div>'
 
 
 
@@ -176,6 +198,17 @@ def status_html(meta: dict, b: Brief, n_posts: int, n_accounts: int) -> str:
 
 def run_title(name: str, label: str, started_ms: int) -> str:
     return f"{time.strftime('%a %-d %b', time.localtime(started_ms / 1000))} · {LABELS.get(label, label)}"
+
+
+def run_when(started_ms: int) -> str:
+    """A run in a list: its day and the minute it started, which tells two runs of one morning apart."""
+    return time.strftime("%a %-d %b %H:%M", time.localtime(started_ms / 1000))
+
+
+def run_head(label: str, started_ms: int) -> str:
+    """A brief's headline: the day in full and the part of it."""
+    return (f"{time.strftime('%A %-d %B', time.localtime(started_ms / 1000))} "
+            f"<span>{esc(LABELS.get(label, label))}</span>")
 
 
 def live_html(live: dict) -> str:
@@ -194,7 +227,7 @@ def rail(active: str, live: dict, extra: str = "", running: bool = False, at: st
                                            ("sites", "/sites", "Sites"),
                                            ("history", "/history", "History")))
     opts = "".join(f'<option value="{v}">{esc(t)}</option>' for v, t in HOURS)
-    return (f'<nav class="rail"><h1><a href="/">X brief</a></h1><p class="tabs">{tabs}</p>'
+    return (f'<nav class="rail"><p class="brand"><a href="/">X brief</a></p><p class="tabs">{tabs}</p>'
             + ("" if active == "search" else  # the search page has its own form
                f'<form class="find ctl" action="/search" method="get" role="search">'
                f'<input type="search" name="q" placeholder="Search posts" aria-label="Search posts"></form>')
@@ -220,7 +253,6 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
                name: str = "") -> tuple[str, list[str]]:
     """The brief's body and the rail's list of its parts: HYPE, a line for each thesis (written up on the Theses
     tab), the topics, everything else."""
-    accounts = Counter(p.handle for p in posts.values())  # who I follow; a repost counts as the reposter
     sections, toc = [], []
     on_hype = [t for t in b.theses if t.hype]
     if b.hype or on_hype:
@@ -248,18 +280,21 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
                         f'<details><summary>{len(rest)} posts</summary>{"".join(post_html(p) for p in rest)}</details></section>')
     if not posts:
         sections.append('<p class="empty">Nothing new from the accounts you follow since the last brief.</p>')
-    return status_html(meta, b, len(posts), len(accounts)) + "".join(sections), toc
+    return status_html(meta, b) + "".join(sections), toc
 
 
 def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False) -> str:
     meta = run["meta"]
     title = run_title(run["name"], run["label"], meta.get("started_ms") or 0)
     main, toc = brief_main(run["brief"], run["posts"], run["threads"], meta, run["name"])
-    others = [r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)][:10]  # older than this one
-    arch = "".join(f'<li><a href="/b/{esc(r["name"])}">{esc(run_title(r["name"], r["label"], r["started_ms"]))}</a>'
+    accounts = len({p.handle for p in run["posts"].values()})  # who I follow; a repost counts as the reposter
+    main = masthead(run_head(run["label"], meta.get("started_ms") or 0), run_dek(meta, len(run["posts"]), accounts)) + main
+    # older than this one, and briefs only: a run that read nothing is on History with what stopped it
+    others = [r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)
+              and ending(r["meta"], r.get("writer_error"))[1] != "bad"][:10]
+    arch = "".join(f'<li><a href="/b/{esc(r["name"])}">{esc(run_when(r["started_ms"]))}</a>'
                    f'<span class="n">{r["n_posts"]}</span></li>' for r in others)
-    extra = (f'<h2>{esc(title)}</h2><p class="when">read {day(meta.get("started_ms") or 0)}</p>'
-             f'<ol>{"".join(toc)}</ol>'
+    extra = (f'<ol class="toc">{"".join(toc)}</ol>'
              + (f'<h2>Earlier</h2><ul>{arch}</ul><a class="more" href="/history">All briefs</a>' if arch else ""))
     return shell(f"X brief · {title}", rail("brief", live, extra, running=running, at=run["name"]), main, at=run["name"])
 
@@ -276,9 +311,10 @@ def theses_page(run: dict, live: dict, running: bool = False) -> str:
     if on_hype:
         main += (f'<p class="note">{on_hype} more about HYPE: <a href="/b/{esc(run["name"])}#hype">the Brief\'s '
                  f'HYPE part</a>.</p>')
+    n = f"{len(theses)} thes{'is' if len(theses) == 1 else 'es'}" if theses else "none"
+    main = masthead(f'Theses <span>{esc(title)}</span>', f'{n} · longest first') + main
     toc = "".join(f'<li><a href="#th{i}">{esc(t.claim)}</a></li>' for i, t in enumerate(theses))
-    extra = (f'<h2>{esc(title)}</h2><p class="when">read {day(meta.get("started_ms") or 0)}</p>'
-             + (f'<ol class="claims">{toc}</ol>' if toc else ""))
+    extra = f'<ol class="claims toc">{toc}</ol>' if toc else ""
     return shell(f"X brief · theses · {title}", rail("theses", live, extra, running=running, at=run["name"]), main,
                  at=run["name"])
 
@@ -303,7 +339,7 @@ def ending(meta: dict, writer_error: str | None) -> tuple[str, str]:
         bits.append("no summary")
     if bits:
         return " · ".join(bits), "warn"
-    return meta.get("stop") or "", ""
+    return "", ""
 
 
 def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running: bool = False) -> str:
@@ -311,9 +347,11 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
     for r in runs:
         end, cls = ending(r["meta"], r.get("writer_error"))
         n = f'{r["n_posts"]} posts · {r["n_topics"]} topics'
-        rows.append(f'<li><a href="/b/{esc(r["name"])}">{esc(run_title(r["name"], r["label"], r["started_ms"]))}'
-                    f' {hhmm(r["started_ms"])}</a><span class="n">{n}</span>'
-                    f'<span class="end {cls}">{esc(end)}</span></li>')
+        if cls == "bad":
+            n = "read nothing"
+        rows.append(f'<li class="{cls}"><a href="/b/{esc(r["name"])}">{esc(run_when(r["started_ms"]))}</a>'
+                    f'<span class="lb">{esc(LABELS.get(r["label"], r["label"]))}</span><span class="n">{n}</span>'
+                    + (f'<span class="end {cls}">{esc(end)}</span>' if end else "") + '</li>')
     w = sett["windows"]
     win = "".join(f'<div class="w"><span>{LABELS[k]}</span><input type="time" name="{k}0" value="{esc(w[k][0])}" '
                   f'aria-label="{LABELS[k]} from" required><span>to</span><input type="time" name="{k}1" '
@@ -330,18 +368,24 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
         else:
             slots.append(f"{LABELS[k]} started {hhmm(s['fired_ms'])}")
     today_line = f'<p class="note">Today: {esc(" · ".join(slots))}.</p>' if slots and sett["schedule"] else ""
-    main = (f'<section id="schedule"><h2>Schedule</h2>'
+    briefs = ('<section><h2>Briefs</h2>'
+              + (f'<ol class="runs">{"".join(rows)}</ol>' if rows else '<p class="empty">No brief yet.</p>')
+              + '</section>')
+    main = (briefs + f'<section id="schedule"><h2>Schedule</h2>'
             f'<form class="sched ctl" id="sched"><label><input type="checkbox" name="on"'
             f'{" checked" if sett["schedule"] else ""}> Two briefs a day</label>{win}'
             f'<button type="submit">Save</button></form>'
-            f'<p class="note" id="sched-msg">Each run starts at a random minute inside its window.</p>{today_line}</section>'
-            f'<section><h2>Briefs</h2>'
-            + (f'<ol class="runs">{"".join(rows)}</ol>' if rows else '<p class="empty">No brief yet.</p>')
-            + '</section>')
+            f'<p class="note" id="sched-msg">Each run starts at a random minute inside its window.</p>{today_line}</section>')
     return shell("X brief · history", rail("history", live, running=running), main)
 
 
 # ── search ──────────────────────────────────────────────────────────────────────────────────────────
+
+
+def store_words(q: str) -> list[str]:
+    from .store import parse_query
+
+    return parse_query(q)[1]
 
 
 def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | None]], cut: bool, kept: dict,
@@ -364,7 +408,7 @@ def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | Non
                 out.append(f'<h3 class="day">{esc(d)}</h3>')
                 last_day = d
             also = (f'<a class="from" href="/b/{esc(run)}">{esc(titles.get(run, run))}</a>' if run else "")
-            out.append(post_html(p, also))
+            out.append(post_html(p, also, store_words(q)))
         n = f"{len(hits)} post{'s' if len(hits) != 1 else ''}" + (", the newest shown; narrow the search for the rest" if cut else "")
         body = f'<p class="hits">{esc(n)}</p>' + "".join(out)
     return shell(f"X brief · {q or 'search'}", rail("search", live, running=running), form + body)

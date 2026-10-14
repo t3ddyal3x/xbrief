@@ -117,3 +117,14 @@ post. The app starts `xbrief sites` once a day after 07:00 (switch and Check now
 53 posts, the Q2 2026 letter read (24,949 characters); Zee Prime's feed 10, "Argonauts Journey" read; both
 summaries right. The page at 2000 px, light and dark, through a headless Brave with a write guard.
 **Next**: the operator looks at /sites. Open: adding a site from the page instead of config.py.
+
+## 2026-10-14 (design pass)
+**Changed** how every page looks, not what it does (decided in ARCHITECTURE, Decisions, The page): a headline on
+each brief and on Theses; warnings only when something went wrong; light-theme colours readable (small grey text
+was 3.6:1, links 3.1:1, now 5:1 or better); HYPE in its own teal instead of the warning orange; Earlier and History
+list runs by day and minute (three "Wed 14 Oct · morning" runs were indistinguishable), the 0-post failed run off
+Earlier; History opens on the briefs, schedule below; Brief now quieter than the reading; X's byline order (name,
+then @handle); search marks the matched words, never inside a link or an escape; narrow widths drop the rail's lists.
+**Checked**: offline tests (2 new); every page at 2000 px light and dark, 800 px and phone, through a headless Brave
+that refuses writes and form submits; a warning state drawn from made-up data.
+**Next**: the operator looks.

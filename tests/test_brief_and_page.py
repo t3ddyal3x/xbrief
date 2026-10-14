@@ -109,7 +109,8 @@ def test_page_layout():
     store.save_run("2025-10-12-1800-pm", "pm", {**META, "started_ms": META["started_ms"] + 3_600_000}, brief.Brief(), {}, [])
     again = page.brief_page(store.load_run("2025-10-12-0500-am"), store.runs(), {"text": ""})
     assert "2025-10-12-1800-pm" not in again  # a later brief is not "earlier"
-    assert 'class="status quiet"' in html and "6 posts from 4 accounts" in html and "since " in html
+    assert 'class="status' not in html and "6 posts from 4 accounts" in html and "since " in html  # a clean read: no box
+    assert html.count("<h1>") == 1 and '<header class="mast"><h1>' in html  # the masthead is the page's one heading
     assert 'data-at="2025-10-12-0500-am"' in html
 
 
@@ -239,3 +240,23 @@ def test_an_old_brief_still_loads():
     run = store.load_run("2025-10-12-0500-am")
     assert run["brief"].hype is None and run["brief"].theses == []
     assert "No theses in this brief" in page.theses_page(run, {"text": ""})
+
+
+def test_a_run_that_read_nothing_is_not_an_earlier_brief():
+    store.save_run("2025-10-12-0400-am", "am", {**META, "started_ms": META["started_ms"] - 60_000, "normal": False,
+                                                "page_count": 0, "stop": "the feed request failed"}, brief.Brief(), {}, [])
+    html = render()
+    assert 'href="/b/2025-10-11-1800-pm"' in html and 'href="/b/2025-10-12-0400-am"' not in html
+    hist = page.history_page(store.runs(), store.settings(), {}, {"text": ""})
+    assert "the feed request failed" in hist and "read nothing" in hist  # History keeps it, with what stopped it
+    assert "caught up" not in hist  # a plain ending is not said on every row
+
+
+def test_search_marks_words_and_never_inside_a_link():
+    p = brief.unique_posts(entries())
+    bob = next(x for x in p.values() if x.handle == "bob")
+    html = page.post_html(bob, words=["example", "rates"])
+    assert "<mark>rates</mark> cut" in html
+    assert 'href="https://example.com/a?x=1&amp;y=2"' in html  # the address is left alone
+    assert ">example.com/a</a>" not in html and "<mark>example</mark>.com/a</a>" in html
+    assert page.marked("a &lt;b&gt;", ["lt"]) == "a &lt;b&gt;"  # never inside an escape
