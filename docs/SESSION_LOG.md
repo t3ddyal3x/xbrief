@@ -128,3 +128,15 @@ then @handle); search marks the matched words, never inside a link or an escape;
 **Checked**: offline tests (2 new); every page at 2000 px light and dark, 800 px and phone, through a headless Brave
 that refuses writes and form submits; a warning state drawn from made-up data.
 **Next**: the operator looks.
+
+## 2026-10-14 (redesign)
+**Why**: the operator found the first pass still looked bad ("did you load our design review skill"). The skill had
+been loaded but not followed: no review, and no question of whether the look itself was right. Done properly:
+`docs/REVIEW_2026-10-14.md`.
+**Changed**: Tokyo Day replaced by a paper/ink surface with Hyperliquid's mint for HYPE only; type by role (SF Pro
+for headlines and controls, Iowan for reading, mono for numbers and times); a strip under the day's headline with
+a tick per post across the read window, HYPE's in mint; HYPE as the lead band; rules replaced by space. Decision
+recorded in ARCHITECTURE (Decisions, The page).
+**Checked**: offline tests (1 new, for the strip); every page at 2000 px light and dark, an open topic, and phone,
+through the write-refusing headless Brave.
+**Next**: the operator looks.

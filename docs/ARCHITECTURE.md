@@ -134,13 +134,14 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   x.com; the Dock assigns a desktop per app (it would move the operator's own Brave too), and moving one window
   needs SIP off. The 40 px stays.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
-- **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles, times and
-  controls in a mono, builds bylines from the data, and folds each topic's and thesis's posts under its paragraph.
-  Design pass 2026-10-14: a brief opens on its own headline (the day in full, the part of it in italic, one line
-  of what the read covered); the rail no longer repeats it, and a warning box appears only when something went
-  wrong. Tokyo Day's hues were darkened until small text reads at 4.5:1 on the panel (grey 3.6, link 3.1, red 3.0
-  before); grey is slate so blue means a heading or a link. HYPE has its own colour (Tokyo's teal) and orange means
-  a problem only. Lists of runs show day and minute, since three runs of one morning shared one title; a run that
-  read nothing is on History, not under Earlier; a plain ending is not said on every row. Search marks the words it
-  matched. Narrow (under 860 px) the rail keeps its controls and drops its lists, so the brief is not pushed a
-  screen and a half down.
+- **The page** is a private morning edition, with its own look rather than an editor theme (redesigned
+  2026-10-14, review in `docs/REVIEW_2026-10-14.md`; it had followed Tokyo Night / Day, which only macro shares).
+  Paper and ink, and one accent, Hyperliquid's mint, which marks HYPE and nothing else. Orange and red mark a
+  problem only. SF Pro is for headlines and everything you operate, Iowan Old Style for what you read, and a mono
+  only for numbers and times. A brief opens on the day as a headline, then a strip with a tick for every post
+  across the window the read covered (HYPE's in mint, drawn on the server), then HYPE as the one band on the page.
+  Sections are set apart by space, not rules. Small text reads at 4.5:1 or better on every surface, in both themes.
+  A warning box appears only when something went wrong. Runs are listed by day and minute, and a run that read
+  nothing is on History, not under Earlier. Search marks the words it matched. Under 860 px the rail keeps its
+  controls and drops its lists. Bylines are built from the data, and each topic's and thesis's posts fold under
+  its paragraph.

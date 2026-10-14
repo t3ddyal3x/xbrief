@@ -1,132 +1,165 @@
-/* xbrief's one sheet: Tokyo Night / Tokyo Day like the other local pages; Iowan Old Style to read, a mono for
-   handles, times and the controls. */
-/* Tokyo Day's hues, darkened until small text reads at 4.5:1 or better on the panel; grey is slate, not blue, so
-   blue means a heading or a link. --hype is Tokyo's teal and marks HYPE only; --warn marks a problem only. */
-:root{--bg:#e1e2e7;--panel:#d5d6db;--fg:#3257ad;--ink:#343b58;--dim:#50587a;--rule:#c4c8da;
---link:#1359b7;--warn:#8d4900;--bad:#b8093c;--ok:#4a6230;--hype:#32645d;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#1a1b26;--panel:#16161e;--fg:#7aa2f7;
---ink:#c0caf5;--dim:#8188ad;--rule:#292e42;--link:#7dcfff;--warn:#ff9e64;--bad:#f7768e;--ok:#9ece6a;--hype:#73daca;
-color-scheme:dark}}
+/* xbrief's one sheet. A private morning edition: paper, ink, and one accent, Hyperliquid's mint, which marks HYPE
+   and nothing else. SF Pro for headlines and everything you operate, Iowan Old Style for what you read, a mono only
+   for numbers and times. Sections are set apart by space, not rules. docs/REVIEW_2026-10-14.md has the why. */
+:root{--paper:#fbfbfa;--panel:#f1f2f1;--ink:#16181b;--ink2:#3f444b;--dim:#646a72;--rule:#e2e4e3;
+--mint:#0b7a67;--wash:#e4f5f0;--tick:#9aa0a6;--warn:#93560a;--bad:#b3261e;--ok:#2f7d4f;
+--f-head:"SF Pro Display",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+--f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+--f-read:"Iowan Old Style","New York",Georgia,serif;
+--f-num:"SF Mono",ui-monospace,Menlo,monospace;color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#111213;--panel:#1a1c1e;--ink:#ebebe8;
+--ink2:#b9bcc0;--dim:#8d9298;--rule:#2a2d30;--mint:#97fce4;--wash:#132a24;--tick:#5d6268;--warn:#eea54d;--bad:#ff8a80;
+--ok:#7fd49b;color-scheme:dark}}
 *{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--ink);font:17px/1.55 "Iowan Old Style","New York",ui-serif,Georgia,serif;
--webkit-font-smoothing:antialiased}
-a{color:var(--link);text-decoration-thickness:1px;text-underline-offset:2px}
-a:focus-visible,summary:focus-visible{outline:2px solid var(--link);outline-offset:2px}
-.rail,.by,.meta,.status,summary,.ctl,.runs,.day,.hits,.dek{font-family:"SF Mono",ui-monospace,Menlo,monospace}
-.wrap{display:grid;grid-template-columns:minmax(200px,260px) minmax(0,46rem);gap:4rem;justify-content:center;
-padding:3rem 2rem 6rem}
-.rail{position:sticky;top:2rem;align-self:start;font-size:12.5px;line-height:1.5;color:var(--dim);
-max-height:calc(100vh - 4rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;
-padding:3px;margin:-3px}  /* a long brief's topics scroll inside the rail; the padding keeps focus rings */
-.rail .brand{font-weight:600;font-size:13px;line-height:1.3;color:var(--fg);margin:0 0 .2rem;letter-spacing:.02em}
-.rail ol,.rail ul{list-style:none;margin:0 0 1.8rem;padding:0}
-.rail li{display:flex;justify-content:space-between;gap:1rem;padding:.12rem 0}
-.rail li a{color:var(--ink);text-decoration:none}.rail li a:hover{color:var(--link)}
-.rail .n{color:var(--dim)}
-.rail h2{font:inherit;text-transform:uppercase;letter-spacing:.08em;font-size:11px;margin:0 0 .5rem;color:var(--dim)}
-/* a brief's masthead: the day in full, the part of it in italic, and what the read covered */
-.mast{margin:0 0 2.8rem}
-.mast h1{font:600 2.25rem/1.15 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--ink);margin:0;
-letter-spacing:-.005em}
-.mast h1 span{font-weight:400;font-style:italic;color:var(--dim)}
-.dek{font-size:12.5px;line-height:1.5;color:var(--dim);margin:.55rem 0 0}
-.status{font-size:13px;padding:.7rem .9rem;border-left:3px solid var(--warn);background:var(--panel);margin:-1.2rem 0 2.8rem;color:var(--ink)}
-.status.bad{border-color:var(--bad)}
-.status b{color:var(--warn)}.status.bad b{color:var(--bad)}
-section{margin:0 0 3rem}
-section>h2{font:600 1.45rem/1.25 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--fg);margin:0 0 1.1rem;
-padding-bottom:.4rem;border-bottom:1px solid var(--rule)}
-section>p{margin:0 0 .5rem;font-size:17.5px;line-height:1.6}
-details{margin-top:.35rem}
-summary{cursor:pointer;font-size:12px;color:var(--dim);list-style:none}
-summary::-webkit-details-marker{display:none}
-summary::before{content:"+ ";}details[open]>summary::before{content:"− "}
-.post{border-left:1px solid var(--rule);padding:.5rem 0 .5rem 1rem;margin:.6rem 0 0;font-size:15px}
-.post .meta{font-size:12px;color:var(--dim);display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.15rem}
-.post .meta a{color:var(--dim)}.post .meta b{color:var(--ink);font-weight:600}
-.post .t{white-space:pre-wrap;overflow-wrap:anywhere}
-.post .q{margin:.5rem 0 0;padding:.4rem .8rem;background:var(--panel);border-radius:4px;font-size:14.5px}
-.imgs{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.5rem}
-.imgs a{position:relative;display:block}
-.imgs img{display:block;max-height:240px;max-width:100%;border-radius:4px;background:var(--panel)}
-.imgs .v{position:absolute;left:.4rem;bottom:.4rem;font:11px "SF Mono",ui-monospace,Menlo,monospace;
-background:#000a;color:#fff;padding:.1rem .35rem;border-radius:3px}
-.empty{color:var(--dim)}
+body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.62 var(--f-read);-webkit-font-smoothing:antialiased;
+text-rendering:optimizeLegibility}
+a{color:inherit;text-decoration-color:var(--tick);text-decoration-thickness:1px;text-underline-offset:3px}
+a:hover{text-decoration-color:currentColor}
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+.wrap{display:grid;grid-template-columns:232px minmax(0,44rem);gap:5.5rem;justify-content:center;padding:3.2rem 2rem 7rem}
 
-/* what matters first: HYPE, the theses, a post that stands out */
-a.go{text-decoration:none;font:12px "SF Mono",ui-monospace,Menlo,monospace;padding:0 .1rem}
-.hype>h2{color:var(--hype);border-bottom-color:var(--hype)}
-.rail .toc a[href="#hype"]{color:var(--hype)}
-ol.theses{margin:0;padding:0 0 0 1.4rem;font-size:16.5px;line-height:1.45}
-ol.theses li{margin:0 0 .55rem}ol.theses a{color:var(--ink);text-decoration:none}ol.theses a:hover{color:var(--link)}
-.by{font-size:12px;color:var(--dim)}.by a{color:var(--dim)}
-.thesis h2{font:600 1.3rem/1.3 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--fg);margin:0 0 .3rem;
-padding:0;border:0}
-.hype .thesis{margin:2.2rem 0 0;padding-top:1.4rem;border-top:1px solid var(--rule)}
-.hype .thesis h3{font:600 1.15rem/1.3 "Iowan Old Style","New York",ui-serif,Georgia,serif;color:var(--fg);margin:0 0 .3rem}
-.thesis p.by{margin:0 0 1rem}
-.thesis h3,.thesis h4{font:11px "SF Mono",ui-monospace,Menlo,monospace;text-transform:uppercase;letter-spacing:.08em;
-color:var(--dim);margin:1.1rem 0 .3rem}
-.thesis .steps{margin:0;padding-left:1.4rem}.thesis .steps li{margin:0 0 .25rem}
-.thesis p{margin:0 0 .5rem}
-.thesis .view{margin:1rem 0 .4rem;padding:.2rem .9rem .4rem;background:var(--panel);border-left:3px solid var(--dim)}
-.thesis .view b{font-weight:600}
-.thesis:not(.hype .thesis){padding-bottom:1rem;border-bottom:1px solid var(--rule)}
-.rail .claims li a{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:1.5rem;padding:1.5rem 16px 4rem}
-.rail{position:static;max-height:none;overflow:visible}  /* narrow: the controls stay, the lists go; the page is the list */
-.rail ol,.rail ul,.rail h2{display:none}.live{margin-bottom:0}.mast h1{font-size:1.8rem}}
-
-
-/* ── the app: the rail's controls, history, search ─────────────────────────────────────────────── */
-.rail .brand a{color:inherit;text-decoration:none}
-.tabs{display:flex;gap:1.1rem;margin:.9rem 0 1.2rem;font-size:12.5px}
-.tabs a{color:var(--dim);text-decoration:none;padding-bottom:2px;border-bottom:1px solid transparent}
+/* ── the rail ───────────────────────────────────────────────────────────────────────────────────── */
+.rail{position:sticky;top:3.2rem;align-self:start;font:13.5px/1.45 var(--f-ui);color:var(--ink2);
+max-height:calc(100vh - 6.4rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;padding:3px;margin:-3px}
+.rail .brand{font:700 17px/1.2 var(--f-head);letter-spacing:-.01em;margin:0}
+.rail .brand a{text-decoration:none;color:var(--ink)}
+.tabs{display:flex;gap:1.15rem;margin:1.1rem 0 1.4rem;font-size:14px}
+.tabs a{color:var(--dim);text-decoration:none;padding-bottom:3px;border-bottom:2px solid transparent}
 .tabs a:hover{color:var(--ink)}
-.tabs a[aria-current]{color:var(--ink);border-bottom-color:var(--fg)}
-.ctl input,.ctl select,.ctl button{font:12.5px/1.2 "SF Mono",ui-monospace,Menlo,monospace;color:var(--ink);
-background:var(--panel);border:1px solid var(--rule);border-radius:4px;padding:.42rem .55rem;min-width:0}
-.ctl input:focus-visible,.ctl select:focus-visible,.ctl button:focus-visible{outline:2px solid var(--link);outline-offset:1px}
-.ctl button{cursor:pointer;color:var(--fg);border-color:var(--fg);background:none}
-.run button{color:var(--ink);border-color:var(--rule);background:var(--panel)}  /* a run is occasional; reading is the page */
-.run button:hover:not(:disabled){border-color:var(--fg)}
-.ctl button:hover:not(:disabled){background:var(--fg);color:var(--bg)}
-.ctl button:disabled{cursor:default;color:var(--dim);border-color:var(--rule)}
-.find{margin:0 0 .7rem}.find input{width:100%}
-.run{display:flex;gap:.4rem;margin:0}.run select{flex:1}
-.live{margin:.55rem 0 1.8rem;min-height:1.5em;font-size:12px;color:var(--dim)}
-.live a{color:var(--link)}
+.tabs a[aria-current]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.rail ol,.rail ul{list-style:none;margin:0 0 2rem;padding:0}
+.rail li{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.2rem 0}
+.rail li a{text-decoration:none;color:var(--ink2)}.rail li a:hover{color:var(--ink)}
+.rail .n{font:11.5px var(--f-num);color:var(--dim);font-variant-numeric:tabular-nums}
+.rail .toc a[href="#hype"]{color:var(--mint);font-weight:600}
+.rail h2{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:0 0 .7rem}
+.rail .claims li a{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.rail .more{display:block;margin-top:-1.3rem;color:var(--dim);font-size:13px}
+
+/* controls: quiet until used */
+.ctl input,.ctl select,.ctl button{font:13.5px/1.2 var(--f-ui);color:var(--ink);background:var(--panel);border:1px solid transparent;
+border-radius:8px;padding:.5rem .65rem;min-width:0}
+.ctl input::placeholder{color:var(--dim)}
+.ctl input:focus-visible,.ctl select:focus-visible,.ctl button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
+.ctl button{cursor:pointer;font-weight:600;background:var(--ink);color:var(--paper)}
+.ctl button:hover:not(:disabled){opacity:.85}
+.ctl button:disabled{cursor:default;background:var(--panel);color:var(--dim)}
+.find{margin:0 0 .5rem}.find input{width:100%}
+.run{display:flex;gap:.45rem;margin:0}.run select{flex:1}
+.run button{background:var(--panel);color:var(--ink);font-weight:500}  /* a run is occasional; reading is the page */
+.run button:hover:not(:disabled){background:var(--rule);opacity:1}
+.live{margin:.6rem 0 2.2rem;min-height:1.45em;font-size:12.5px;color:var(--dim)}
+.live a{color:var(--ink);font-weight:600}
 .live.on{color:var(--ink)}
 .live.on::before{content:"";display:inline-block;width:.45rem;height:.45rem;border-radius:50%;background:var(--ok);
 margin-right:.5rem;vertical-align:.08em;animation:beat 1.4s ease-in-out infinite}
 .live.bad{color:var(--bad)}
 @keyframes beat{50%{opacity:.25}}
-.rail .more{display:block;margin-top:-1.2rem;color:var(--dim)}
 
-.runs{list-style:none;margin:0 0 3rem;padding:0;font-size:13px}
-.runs li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.2rem 1.2rem;padding:.55rem 0;border-bottom:1px solid var(--rule)}
-.runs .lb{color:var(--dim)}.runs li.bad a{color:var(--dim);font-weight:400}
-.runs li a{color:var(--ink);text-decoration:none;font-weight:600}.runs li a:hover{color:var(--link)}
-.runs .n{color:var(--dim);text-align:right}
-.runs .end{grid-column:1/-1;color:var(--dim);font-size:12px}
+/* ── an edition's masthead: the day, the window the read covered, how much ─────────────────────── */
+.mast{margin:0 0 3.2rem}
+.mast h1{font:700 2.9rem/1.05 var(--f-head);letter-spacing:-.025em;margin:0;color:var(--ink)}
+.mast h1 span{font:italic 400 2.5rem/1 var(--f-read);letter-spacing:0;color:var(--dim);margin-left:.15em}
+.strip{margin:1.6rem 0 0}
+.strip svg{display:block;width:100%;height:35px}
+.strip rect{fill:var(--tick);opacity:.6}.strip rect.h{fill:var(--mint);opacity:1}
+.strip rect.base{fill:var(--rule);opacity:1}.strip rect.hr{fill:var(--tick);opacity:.7}
+.strip figcaption{display:flex;justify-content:space-between;font:11.5px/1 var(--f-num);color:var(--dim);margin-top:.45rem}
+.dek{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:.9rem 0 0}
+.status{font:13.5px/1.55 var(--f-ui);padding:.8rem 1rem;border-left:3px solid var(--warn);background:var(--panel);
+border-radius:0 8px 8px 0;margin:-1.6rem 0 3rem;color:var(--ink)}
+.status.bad{border-color:var(--bad)}
+.status b{color:var(--warn)}.status.bad b{color:var(--bad)}
+
+/* ── the brief ──────────────────────────────────────────────────────────────────────────────────── */
+section{margin:0 0 3.4rem}
+section>h2{font:650 1.45rem/1.2 var(--f-head);letter-spacing:-.012em;color:var(--ink);margin:0 0 .7rem}
+section>p{margin:0 0 .6rem}
+.empty{color:var(--dim)}
+a.go{text-decoration:none;font:600 12px/1 var(--f-ui);color:var(--dim);padding:.1rem .3rem;margin-left:.05rem;
+border-radius:4px;background:var(--panel);vertical-align:.12em}
+a.go:hover{color:var(--ink);background:var(--rule)}
+
+/* HYPE leads: the one band on the page, in the one accent */
+.hype{background:var(--wash);border-radius:14px;padding:1.6rem 1.9rem 1.4rem;margin:0 -1.9rem 3.6rem}
+.hype>h2{font:700 12px/1 var(--f-ui);letter-spacing:.12em;color:var(--mint);margin:0 0 1rem}
+.hype a.go{background:color-mix(in srgb,var(--mint) 14%,transparent);color:var(--mint)}
+.hype .thesis{margin:2rem 0 0;padding-top:1.6rem;border-top:1px solid color-mix(in srgb,var(--mint) 25%,transparent)}
+.hype .thesis h3{font:650 1.2rem/1.3 var(--f-head);letter-spacing:-.01em;margin:0 0 .3rem;color:var(--ink);text-transform:none}
+
+ol.theses{margin:0;padding:0;list-style:none;counter-reset:th}
+ol.theses li{margin:0 0 .85rem;line-height:1.45}
+ol.theses a{text-decoration:none}ol.theses a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
+.by{font:13px/1.4 var(--f-ui);color:var(--dim)}.by a{color:var(--dim)}
+ol.theses .by{margin-left:.35rem;white-space:nowrap}
+
+/* the posts behind a paragraph, folded */
+details{margin-top:.5rem}
+summary{cursor:pointer;font:13px/1.4 var(--f-ui);color:var(--dim);list-style:none;display:inline-block;padding:.15rem 0}
+summary:hover{color:var(--ink)}
+summary::-webkit-details-marker{display:none}
+summary::before{content:"";display:inline-block;width:.38rem;height:.38rem;border-right:1.5px solid currentColor;
+border-bottom:1.5px solid currentColor;transform:rotate(-45deg);margin:0 .55rem .1rem .1rem;transition:transform .15s}
+details[open]>summary::before{transform:rotate(45deg)}
+.post{border-left:2px solid var(--rule);padding:.2rem 0 .2rem 1.1rem;margin:1rem 0 0;font-size:16px;line-height:1.55}
+.post .meta{font:13px/1.4 var(--f-ui);color:var(--dim);display:flex;gap:.25rem .7rem;flex-wrap:wrap;margin-bottom:.25rem}
+.post .meta a{color:var(--dim);text-decoration:none}.post .meta a:hover{color:var(--ink)}
+.post .meta b{color:var(--ink);font-weight:600}
+.post .t{white-space:pre-wrap;overflow-wrap:anywhere}
+.post .t a{text-decoration-color:var(--tick)}
+.post .q{margin:.6rem 0 0;padding:.6rem .9rem;background:var(--panel);border-radius:10px;font-size:15px}
+.imgs{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.6rem}
+.imgs a{position:relative;display:block}
+.imgs img{display:block;max-height:260px;max-width:100%;border-radius:10px;background:var(--panel)}
+.imgs .v{position:absolute;left:.45rem;bottom:.45rem;font:600 11px var(--f-ui);background:#000b;color:#fff;
+padding:.12rem .4rem;border-radius:5px}
+
+/* ── a thesis, and a site's post ────────────────────────────────────────────────────────────────── */
+.thesis h2{font:650 1.6rem/1.22 var(--f-head);letter-spacing:-.015em;color:var(--ink);margin:0 0 .45rem}
+.thesis p.by{margin:0 0 1.2rem}
+.thesis h3,.thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
+margin:1.5rem 0 .55rem}
+.thesis .steps{margin:0;padding-left:1.5rem}.thesis .steps li{margin:0 0 .35rem;padding-left:.2rem}
+.thesis .steps li::marker{font:12.5px var(--f-num);color:var(--dim)}
+.thesis p{margin:0 0 .6rem}
+.thesis .view{margin:1.4rem 0 .6rem;padding:.3rem 1.2rem .6rem;background:var(--panel);border-radius:12px}
+.thesis .view b{font:600 14px var(--f-ui);margin-right:.3rem}
+.thesis:not(.hype .thesis){padding-bottom:2.6rem;margin-bottom:3rem;border-bottom:1px solid var(--rule)}
+.site h2 a{text-decoration:none}.site h2 a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
+#list{margin-top:4.5rem}
+.note{font:13px/1.5 var(--f-ui);color:var(--dim);margin:0 0 .4rem}
+
+/* ── history, the schedule, the sites' list ─────────────────────────────────────────────────────── */
+.runs{list-style:none;margin:0 0 3rem;padding:0;font:14px/1.4 var(--f-ui)}
+.runs li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.25rem 1.2rem;padding:.75rem 0;border-bottom:1px solid var(--rule)}
+.runs li a{color:var(--ink);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums}
+.runs li a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
+.runs .lb{color:var(--dim)}
+.runs .n{color:var(--dim);text-align:right;font:12.5px var(--f-num);font-variant-numeric:tabular-nums}
+.runs .end{grid-column:1/-1;color:var(--dim);font-size:13px}
 .runs .end.warn{color:var(--warn)}.runs .end.bad{color:var(--bad)}
-.sched{font-size:13px;display:grid;gap:.7rem;justify-items:start;margin:0 0 .8rem}
+.runs li.bad a{color:var(--dim);font-weight:500}
+.sched{font:14px var(--f-ui);display:grid;gap:.8rem;justify-items:start;margin:0 0 .9rem}
 .sched label{display:flex;gap:.6rem;align-items:center}
 .sched .w{display:grid;grid-template-columns:5.5rem auto auto auto;gap:.5rem;align-items:center;color:var(--dim)}
-.sched input[type=checkbox]{width:1rem;height:1rem;accent-color:var(--fg)}
-.note{font-size:12px;color:var(--dim);margin:0 0 .4rem}
+.sched input[type=checkbox]{width:1rem;height:1rem;accent-color:var(--ink)}
+.sched input[type=time]{font-family:var(--f-num)}
 .sched .w2{display:flex;gap:.5rem}
-.site h2 a{color:inherit;text-decoration:none}.site h2 a:hover{color:var(--link)}
-.site>p:not(.by){font-size:17.5px;line-height:1.6}
-#list{margin-top:4rem}
 
-.search{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:.5rem;align-items:center;margin:0 0 .6rem}
-.search .to{color:var(--dim);font-size:12px}
-.hits{font-size:12.5px;color:var(--dim);margin:0 0 2.2rem}
-.day{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim);margin:2.2rem 0 .2rem;font-weight:400}
+/* ── search ─────────────────────────────────────────────────────────────────────────────────────── */
+.search{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:.5rem;align-items:center;margin:0 0 .8rem}
+.search input[type=search]{font-size:16px;padding:.65rem .8rem}
+.search input[type=date]{font-family:var(--f-num);font-size:12.5px}
+.search .to{color:var(--dim);font:13px var(--f-ui)}
+.hits{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:0 0 2.4rem}
+.day{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:2.6rem 0 .2rem}
 .post .from{margin-left:auto}
-mark{background:color-mix(in srgb,var(--fg) 20%,transparent);color:inherit;border-radius:2px;padding:0 .08em}
+mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;border-radius:3px;padding:0 .1em}
 
-@media (max-width:860px){.search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
-.search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}.rail .more{display:none}}
+@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:1.5rem;padding:1.5rem 16px 4rem}
+.rail{position:static;max-height:none;overflow:visible}  /* narrow: the controls stay, the lists go; the page is the list */
+.rail ol,.rail ul,.rail h2,.rail .more{display:none}.live{margin-bottom:0}
+.mast h1{font-size:2.1rem}.mast h1 span{font-size:1.8rem}.hype{margin:0 -16px 3rem;border-radius:0;padding:1.4rem 16px}
+.search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
+.search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}

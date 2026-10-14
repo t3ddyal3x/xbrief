@@ -260,3 +260,13 @@ def test_search_marks_words_and_never_inside_a_link():
     assert 'href="https://example.com/a?x=1&amp;y=2"' in html  # the address is left alone
     assert ">example.com/a</a>" not in html and "<mark>example</mark>.com/a</a>" in html
     assert page.marked("a &lt;b&gt;", ["lt"]) == "a &lt;b&gt;"  # never inside an escape
+
+
+def test_the_window_strip_marks_every_post_and_hype_in_its_colour():
+    ents = entries()
+    b, posts = brief.write(ents, ask=lambda t: answer_for(brief.unique_posts(ents)))
+    first = next(iter(posts))
+    meta = {**META, "boundary_id": None, "finished_ms": max(p.created_ms for p in posts.values()) + 60_000}
+    svg = page.window_strip(meta, posts, {first})
+    assert svg.count('<rect class="h"') == 1 and svg.count("<rect x=") == len(posts) - 1
+    assert page.window_strip(meta, {}, set()) == ""  # nothing read, nothing drawn
