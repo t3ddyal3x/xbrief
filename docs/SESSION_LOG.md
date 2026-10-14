@@ -140,3 +140,12 @@ recorded in ARCHITECTURE (Decisions, The page).
 **Checked**: offline tests (1 new, for the strip); every page at 2000 px light and dark, an open topic, and phone,
 through the write-refusing headless Brave.
 **Next**: the operator looks.
+
+## 2026-10-14 (Tokyo, coherent)
+**Changed**: back to Tokyo Night / Day on the operator's word ("tokyo night were the right colors just wanted it
+to be more coherent"), with macro's roles: headings, reading, secondary and quiet text on Tokyo's slate ladder
+(no more blue text), teal for HYPE only, blue for focus and selection only, yellow and red for problems only. The
+type by role, headline, read-window strip and HYPE band stay. Small text holds 4.5:1 in both themes (text in the
+HYPE band one step up the ladder to keep it). Review and ARCHITECTURE updated.
+**Checked**: offline tests; Brief, an open topic, Theses and History, dark and light, at 2000 px.
+**Next**: the operator looks.

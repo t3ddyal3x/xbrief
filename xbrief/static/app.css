@@ -1,32 +1,35 @@
-/* xbrief's one sheet. A private morning edition: paper, ink, and one accent, Hyperliquid's mint, which marks HYPE
-   and nothing else. SF Pro for headlines and everything you operate, Iowan Old Style for what you read, a mono only
-   for numbers and times. Sections are set apart by space, not rules. docs/REVIEW_2026-10-14.md has the why. */
-:root{--paper:#fbfbfa;--panel:#f1f2f1;--ink:#16181b;--ink2:#3f444b;--dim:#646a72;--rule:#e2e4e3;
---mint:#0b7a67;--wash:#e4f5f0;--tick:#9aa0a6;--warn:#93560a;--bad:#b3261e;--ok:#2f7d4f;
+/* xbrief's one sheet. A private morning edition in Tokyo Night / Day, with the roles macro gives them: text is a
+   ladder of Tokyo's slates (ink0 headings, ink reading, ink2 secondary, dim the quietest), Tokyo's teal marks HYPE
+   and nothing else, blue is focus and selection only, yellow and red mark a problem only. SF Pro for headlines and
+   everything you operate, Iowan Old Style for what you read, a mono only for numbers and times. Sections are set
+   apart by space, not rules. docs/REVIEW_2026-10-14.md has the why. */
+:root{--paper:#e1e2e7;--panel:#e9e9ed;--ink0:#1f2335;--ink:#343b58;--ink2:#4c5372;--dim:#5a6186;--rule:#c4c8da;
+--mint:#0b6152;--wash:#ced8da;--tick:#8990b3;--blue:#2e7de9;--warn:#6f5428;--bad:#b81f47;--ok:#387068;
 --f-head:"SF Pro Display",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
 --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
 --f-read:"Iowan Old Style","New York",Georgia,serif;
 --f-num:"SF Mono",ui-monospace,Menlo,monospace;color-scheme:light}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#111213;--panel:#1a1c1e;--ink:#ebebe8;
---ink2:#b9bcc0;--dim:#8d9298;--rule:#2a2d30;--mint:#97fce4;--wash:#132a24;--tick:#5d6268;--warn:#eea54d;--bad:#ff8a80;
---ok:#7fd49b;color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;
+--ink:#a9b1d6;--ink2:#9aa5ce;--dim:#8188ad;--rule:#292e42;--mint:#73daca;--wash:#222c35;--tick:#565f89;--blue:#7aa2f7;
+--warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.62 var(--f-read);-webkit-font-smoothing:antialiased;
 text-rendering:optimizeLegibility}
 a{color:inherit;text-decoration-color:var(--tick);text-decoration-thickness:1px;text-underline-offset:3px}
 a:hover{text-decoration-color:currentColor}
-:focus-visible{outline:2px solid var(--ink);outline-offset:2px;border-radius:3px}
+::selection{background:color-mix(in srgb,var(--blue) 28%,transparent);color:var(--ink0)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
 .wrap{display:grid;grid-template-columns:232px minmax(0,44rem);gap:5.5rem;justify-content:center;padding:3.2rem 2rem 7rem}
 
 /* ── the rail ───────────────────────────────────────────────────────────────────────────────────── */
 .rail{position:sticky;top:3.2rem;align-self:start;font:13.5px/1.45 var(--f-ui);color:var(--ink2);
 max-height:calc(100vh - 6.4rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;padding:3px;margin:-3px}
 .rail .brand{font:700 17px/1.2 var(--f-head);letter-spacing:-.01em;margin:0}
-.rail .brand a{text-decoration:none;color:var(--ink)}
+.rail .brand a{text-decoration:none;color:var(--ink0)}
 .tabs{display:flex;gap:1.15rem;margin:1.1rem 0 1.4rem;font-size:14px}
 .tabs a{color:var(--dim);text-decoration:none;padding-bottom:3px;border-bottom:2px solid transparent}
 .tabs a:hover{color:var(--ink)}
-.tabs a[aria-current]{color:var(--ink);font-weight:600;border-bottom-color:var(--ink)}
+.tabs a[aria-current]{color:var(--ink0);font-weight:600;border-bottom-color:var(--ink0)}
 .rail ol,.rail ul{list-style:none;margin:0 0 2rem;padding:0}
 .rail li{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.2rem 0}
 .rail li a{text-decoration:none;color:var(--ink2)}.rail li a:hover{color:var(--ink)}
@@ -40,8 +43,8 @@ max-height:calc(100vh - 6.4rem);overflow-y:auto;overscroll-behavior:contain;scro
 .ctl input,.ctl select,.ctl button{font:13.5px/1.2 var(--f-ui);color:var(--ink);background:var(--panel);border:1px solid transparent;
 border-radius:8px;padding:.5rem .65rem;min-width:0}
 .ctl input::placeholder{color:var(--dim)}
-.ctl input:focus-visible,.ctl select:focus-visible,.ctl button:focus-visible{outline:2px solid var(--ink);outline-offset:1px}
-.ctl button{cursor:pointer;font-weight:600;background:var(--ink);color:var(--paper)}
+.ctl input:focus-visible,.ctl select:focus-visible,.ctl button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.ctl button{cursor:pointer;font-weight:600;background:var(--ink0);color:var(--paper)}
 .ctl button:hover:not(:disabled){opacity:.85}
 .ctl button:disabled{cursor:default;background:var(--panel);color:var(--dim)}
 .find{margin:0 0 .5rem}.find input{width:100%}
@@ -58,7 +61,7 @@ margin-right:.5rem;vertical-align:.08em;animation:beat 1.4s ease-in-out infinite
 
 /* ── an edition's masthead: the day, the window the read covered, how much ─────────────────────── */
 .mast{margin:0 0 3.2rem}
-.mast h1{font:700 2.9rem/1.05 var(--f-head);letter-spacing:-.025em;margin:0;color:var(--ink)}
+.mast h1{font:700 2.9rem/1.05 var(--f-head);letter-spacing:-.025em;margin:0;color:var(--ink0)}
 .mast h1 span{font:italic 400 2.5rem/1 var(--f-read);letter-spacing:0;color:var(--dim);margin-left:.15em}
 .strip{margin:1.6rem 0 0}
 .strip svg{display:block;width:100%;height:35px}
@@ -73,7 +76,7 @@ border-radius:0 8px 8px 0;margin:-1.6rem 0 3rem;color:var(--ink)}
 
 /* ── the brief ──────────────────────────────────────────────────────────────────────────────────── */
 section{margin:0 0 3.4rem}
-section>h2{font:650 1.45rem/1.2 var(--f-head);letter-spacing:-.012em;color:var(--ink);margin:0 0 .7rem}
+section>h2{font:650 1.45rem/1.2 var(--f-head);letter-spacing:-.012em;color:var(--ink0);margin:0 0 .7rem}
 section>p{margin:0 0 .6rem}
 .empty{color:var(--dim)}
 a.go{text-decoration:none;font:600 12px/1 var(--f-ui);color:var(--dim);padding:.1rem .3rem;margin-left:.05rem;
@@ -83,9 +86,10 @@ a.go:hover{color:var(--ink);background:var(--rule)}
 /* HYPE leads: the one band on the page, in the one accent */
 .hype{background:var(--wash);border-radius:14px;padding:1.6rem 1.9rem 1.4rem;margin:0 -1.9rem 3.6rem}
 .hype>h2{font:700 12px/1 var(--f-ui);letter-spacing:.12em;color:var(--mint);margin:0 0 1rem}
+.hype summary,.hype .by,.hype .by a{color:var(--ink2)}
 .hype a.go{background:color-mix(in srgb,var(--mint) 14%,transparent);color:var(--mint)}
 .hype .thesis{margin:2rem 0 0;padding-top:1.6rem;border-top:1px solid color-mix(in srgb,var(--mint) 25%,transparent)}
-.hype .thesis h3{font:650 1.2rem/1.3 var(--f-head);letter-spacing:-.01em;margin:0 0 .3rem;color:var(--ink);text-transform:none}
+.hype .thesis h3{font:650 1.2rem/1.3 var(--f-head);letter-spacing:-.01em;margin:0 0 .3rem;color:var(--ink0);text-transform:none}
 
 ol.theses{margin:0;padding:0;list-style:none;counter-reset:th}
 ol.theses li{margin:0 0 .85rem;line-height:1.45}
@@ -104,7 +108,7 @@ details[open]>summary::before{transform:rotate(45deg)}
 .post{border-left:2px solid var(--rule);padding:.2rem 0 .2rem 1.1rem;margin:1rem 0 0;font-size:16px;line-height:1.55}
 .post .meta{font:13px/1.4 var(--f-ui);color:var(--dim);display:flex;gap:.25rem .7rem;flex-wrap:wrap;margin-bottom:.25rem}
 .post .meta a{color:var(--dim);text-decoration:none}.post .meta a:hover{color:var(--ink)}
-.post .meta b{color:var(--ink);font-weight:600}
+.post .meta b{color:var(--ink0);font-weight:600}
 .post .t{white-space:pre-wrap;overflow-wrap:anywhere}
 .post .t a{text-decoration-color:var(--tick)}
 .post .q{margin:.6rem 0 0;padding:.6rem .9rem;background:var(--panel);border-radius:10px;font-size:15px}
@@ -115,7 +119,7 @@ details[open]>summary::before{transform:rotate(45deg)}
 padding:.12rem .4rem;border-radius:5px}
 
 /* ── a thesis, and a site's post ────────────────────────────────────────────────────────────────── */
-.thesis h2{font:650 1.6rem/1.22 var(--f-head);letter-spacing:-.015em;color:var(--ink);margin:0 0 .45rem}
+.thesis h2{font:650 1.6rem/1.22 var(--f-head);letter-spacing:-.015em;color:var(--ink0);margin:0 0 .45rem}
 .thesis p.by{margin:0 0 1.2rem}
 .thesis h3,.thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
 margin:1.5rem 0 .55rem}
@@ -132,7 +136,7 @@ margin:1.5rem 0 .55rem}
 /* ── history, the schedule, the sites' list ─────────────────────────────────────────────────────── */
 .runs{list-style:none;margin:0 0 3rem;padding:0;font:14px/1.4 var(--f-ui)}
 .runs li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.25rem 1.2rem;padding:.75rem 0;border-bottom:1px solid var(--rule)}
-.runs li a{color:var(--ink);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums}
+.runs li a{color:var(--ink0);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums}
 .runs li a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
 .runs .lb{color:var(--dim)}
 .runs .n{color:var(--dim);text-align:right;font:12.5px var(--f-num);font-variant-numeric:tabular-nums}
