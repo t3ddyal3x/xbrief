@@ -138,6 +138,14 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   article's text for this; the three read before 2026-10-14 15:00 had theirs fetched again once. The posts come
   from the store, which the Following tab's reads fill: their profiles are never opened (rule 1), so the column
   starts 2026-10-12, when xbrief began, and a post scrolled past between reads is missing.
+- **Only the relevant posts** (operator, 2026-10-14: "i don't want every x-post just the relevant ones"): the
+  writer also returns each write-up's `topics` (tickers, names, projects, events, as a post would say them, never
+  a common word alone). Unsearched, the column holds a person's posts only when their words, a repost's or a
+  quote's name one of their source's topics, labelled with the ones matched. A short all-capitals ticker matches
+  exactly (LIT is not "lit"), a name in any case, each as a whole word or phrase. The authors are not a topic of
+  their own posts: a topic that holds or is held by the firm's name, a handle or a name they post under is
+  dropped (Fable listed "Fiskantes" and "Capriole Investments"). A search is the operator's own and shows every
+  post holding its words. The three existing write-ups were written again for their topics.
 
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an

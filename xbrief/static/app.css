@@ -139,6 +139,7 @@ margin:1.5rem 0 .55rem}
 .side>.by{margin:0 0 .4rem}
 .side .post{font-size:14.5px;line-height:1.5;margin-top:.9rem}.side .post .q{font-size:13.5px}
 .side .imgs img{max-height:180px}
+.side .post .about{color:var(--ink2);font-weight:600}
 .side .mk{display:flex;justify-content:space-between;gap:.8rem;margin:1.1rem 0 0;padding:.45rem .7rem;
 background:var(--panel);border-radius:8px;font:600 12.5px/1.35 var(--f-ui)}
 .side .mk a{color:var(--ink0);text-decoration:none}.side .mk a:hover{text-decoration:underline}

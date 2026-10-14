@@ -51,6 +51,7 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     `config.SITES_AFTER`, on by default (the page's switch). A source's people (`x`, their handles) are shown from
     posts already kept from the Following tab (`sites.people_posts`); their profiles are never read (rule 1).
     Each write-up keeps its article's text (`text`), so the tab's search reaches the article, not only the summary.
+    Unsearched, the people's column holds only posts naming one of their write-ups' `topics` (`sites.people_posts`).
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·

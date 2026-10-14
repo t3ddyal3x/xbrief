@@ -525,29 +525,32 @@ def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, lis
             + "</section>")
 
 
-def side_html(xposts: list[Post], posts: list[dict], handles: list[str], q: str, words: list[str]) -> str:
-    """The right-hand column: the people's posts on X, newest first, with a mark where each write-up falls among
-    them, so what they said before and after it reads in order."""
+def side_html(xposts: list[tuple[Post, list[str]]], posts: list[dict], handles: list[str], q: str,
+              words: list[str]) -> str:
+    """The right-hand column: the people's posts on X about what the write-ups cover (or holding the words
+    searched), newest first, each with the topics it matched, and a mark where each write-up falls among them, so
+    what they said before and after it reads in order."""
     if not handles:
         return ('<aside class="side"><h2>On X</h2><p class="empty">No one from this source is followed on X.</p>'
                 '</aside>')
-    items = [(p.created_ms, 1, post_html(p, words=words)) for p in xposts]
+    items = [(p.created_ms, 1, post_html(p, (f'<span class="about">{esc(", ".join(about))}</span>' if about else ""),
+                                         words=words)) for p, about in xposts]
     for i, d in enumerate(posts):
         when = d.get("published_ms") or d.get("seen_ms") or 0
         items.append((when, 0, f'<p class="mk"><a href="#s{i}">{esc(d.get("title") or d.get("url"))}</a>'
                                f'<span>{time.strftime("%-d %b %Y", time.localtime(when / 1000))}</span></p>'))
     items.sort(key=lambda t: (t[0], t[1]), reverse=True)
     find = " ".join(["@" + h for h in handles] + ([q] if q else []))
-    empty = (f'<p class="empty">Nothing by them{" with these words" if words else ""} in what the briefs have '
-             f'read.</p>' if not xposts else "")
+    empty = (f'<p class="empty">Nothing by them {"with these words" if words else "about what these write-ups cover"}'
+             f' in what the briefs have read.</p>' if not xposts else "")
     return (f'<aside class="side"><h2>On X</h2><p class="by">{x_links(handles)} · '
             f'<a href="/search?q={esc(quote(find))}">Every post kept</a></p>{empty}{"".join(h for _, _, h in items)}'
             f'</aside>')
 
 
 def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[str, int], checking: bool,
-               live: dict, running: bool = False, xposts: list[Post] | None = None, key: str = "", q: str = "",
-               words: list[str] | None = None, lines: dict[str, list[str]] | None = None) -> str:
+               live: dict, running: bool = False, xposts: list[tuple[Post, list[str]]] | None = None, key: str = "",
+               q: str = "", words: list[str] | None = None, lines: dict[str, list[str]] | None = None) -> str:
     """The write-ups in the middle, newest first, and their people's posts on X on the right; narrowed to one
     source (`key`) and to the words searched (`q`), the write-ups showing the article's lines that hold them. Below,
     the list itself, when each was last checked, and the daily check's switch."""

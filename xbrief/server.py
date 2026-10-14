@@ -217,7 +217,7 @@ class Handler(BaseHTTPRequestHandler):
                 lines = {d["url"]: sites.found_lines(d.get("text") or "", words) for d in docs} if words else {}
                 return self._html(page.sites_page(docs, config.SITES, store.settings(), store.site_counts(),
                                                   sites.running() or sites.just_started(), lv, lv["running"],
-                                                  sites.people_posts(shown, words), key, text, words, lines))
+                                                  sites.people_posts(shown, words, docs), key, text, words, lines))
             if path == "/api/health":
                 return self._json({"ok": True, "port": config.PORT, "running": runner.running(), **store.counts(),
                                    "schedule": store.settings()["schedule"]})

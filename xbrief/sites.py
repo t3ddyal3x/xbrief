@@ -35,7 +35,7 @@ MAX_TEXT = 80_000  # characters of a post given to Claude; a 21-minute letter is
 TIMEOUT_S = 30
 SPAWN_GRACE_MS = 20_000
 LIMITS = {"gist": 80, "point": 45, "call": 45, "view": 90}
-MAX_POINTS, MAX_CALLS = 12, 15
+MAX_POINTS, MAX_CALLS, MAX_TOPICS = 12, 15, 25
 
 PROMPT = """You read one post from a website I follow (an investment fund's letter, a research note, an essay), so I
 do not have to read it whole. Below, after the line BEGIN POST, are its title, its address, the day it was published
@@ -50,9 +50,13 @@ Plain English, no jargon. Keep every number, name and date that matters. Write:
   An empty list if it states none.
 - view: YOUR view, which the page labels as yours (so do not open with "my view"): where the argument is thin, what
   it leaves out, and any interest the authors have in what they praise. Under 70 words.
+- topics: what it is about, as the words a post on X about the same thing would use, so its authors' posts on X can
+  be matched to it: each asset's ticker and name ("ZRO", "LayerZero"), each project, company, product, person and
+  event it discusses at any length, but never the authors themselves or their own firm. Each one distinctive on
+  its own: never a common word alone ("Zero mainnet", not "Zero"). Up to 25, the most central first.
 
 Reply with JSON only, no prose and no code fence, in exactly this shape:
-{"gist": "...", "points": ["...", ...], "calls": ["...", ...], "view": "..."}
+{"gist": "...", "points": ["...", ...], "calls": ["...", ...], "view": "...", "topics": ["...", ...]}
 
 BEGIN POST
 """
@@ -193,7 +197,8 @@ def parse_summary(answer: str) -> dict:
         raise ValueError("the answer is not a JSON object")
     lst = lambda k, n, lim: [_words(x, lim) for x in (obj.get(k) or [])[:n] if isinstance(x, str) and x.strip()]  # noqa: E731
     out = {"gist": _words(obj.get("gist"), LIMITS["gist"]), "points": lst("points", MAX_POINTS, LIMITS["point"]),
-           "calls": lst("calls", MAX_CALLS, LIMITS["call"]), "view": _words(obj.get("view"), LIMITS["view"])}
+           "calls": lst("calls", MAX_CALLS, LIMITS["call"]), "view": _words(obj.get("view"), LIMITS["view"]),
+           "topics": [t for t in lst("topics", MAX_TOPICS, 6) if len(t) >= 2 and not t.endswith("…")]}
     if not (out["gist"] or out["points"]):
         raise ValueError("the answer had no gist and no points")
     return out
@@ -210,15 +215,63 @@ def summarise(title: str, url: str, text: str, ask=None, published_ms: int | Non
 # ── the people behind a source ──────────────────────────────────────────────────────────────────────
 
 
-def people_posts(sources: list[dict] | None = None, words: list[str] | None = None) -> list:
+def topic_pattern(topics: list[str]) -> re.Pattern | None:
+    """One pattern for a write-up's topics, each matched as a whole word or phrase: a short all-capitals ticker
+    exactly (so LIT is not "lit"), with or without its $; anything else in any case."""
+    tickers = [re.escape(t.lstrip("$")) for t in topics if re.fullmatch(r"\$?[A-Z0-9]{2,6}", t)]
+    names = [re.escape(t).replace(r"\ ", r"\s+") for t in topics if not re.fullmatch(r"\$?[A-Z0-9]{2,6}", t)]
+    parts = ([r"(?-i:\$?(?:" + "|".join(tickers) + "))"] if tickers else []) + \
+        ([r"(?:" + "|".join(names) + ")"] if names else [])
+    return re.compile(r"(?<![\w$])(?:" + "|".join(parts) + r")(?!\w)", re.I) if parts else None
+
+
+def _named(pat: re.Pattern, text: str, topics: list[str]) -> list[str]:
+    """The topics a text names, each once, in the write-up's order."""
+    hit = {" ".join(m.group(0).lstrip("$").split()).lower() for m in pat.finditer(text)}
+    seen, out = set(), []
+    for t in topics:
+        k = " ".join(t.lstrip("$").split()).lower()
+        if k in hit and k not in seen:
+            seen.add(k)
+            out.append(t.lstrip("$"))
+    return out
+
+
+def _said(p) -> str:
+    """A post's own words, what it reposts, and what it quotes."""
+    return "\n".join(x.text for x in (p, p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote) if x and x.text)
+
+
+def people_posts(sources: list[dict] | None = None, words: list[str] | None = None,
+                 docs: list[dict] | None = None) -> list:
     """The posts by the sources' people already kept from the Following tab's reads (never a read of their
-    profile), newest first, holding every word searched; at most `config.SITES_X_MAX`."""
-    handles = [h for src in sources or config.SITES for h in src.get("x") or []]
-    if not handles:
-        return []
-    hits, _ = store.search(" ".join(["@" + h for h in handles] + list(words or [])), limit=config.SITES_X_MAX)
-    own = {h.lower() for h in handles}
-    return [p for p, _ in hits if p.handle.lower() in own]  # theirs, or a repost they made; not another's repost of theirs
+    profile), newest first, at most `config.SITES_X_MAX`, each with the topics it matched: with words searched,
+    those that hold them all; without, only those about what the source's write-ups (`docs`) are about."""
+    out = []
+    for src in sources or config.SITES:
+        handles = src.get("x") or []
+        if not handles:
+            continue
+        own = {h.lower() for h in handles}
+        if words:
+            hits, _ = store.search(" ".join(["@" + h for h in handles] + list(words)), limit=config.SITES_X_MAX)
+            out += [(p, []) for p, _ in hits if p.handle.lower() in own]  # theirs, or a repost they made
+            continue
+        hits, _ = store.search(" ".join("@" + h for h in handles), limit=config.SITES_X_SCAN)
+        # the authors are not a topic of their own posts: the firm, the handles, and the names they post under
+        self = [n.lower() for n in [src["name"], *handles, *{p.name for p, _ in hits if p.handle.lower() in own}]
+                if len(n) >= 3]
+        topics = [t for d in docs or [] if d.get("source") == src["key"]
+                  for t in (d.get("summary") or {}).get("topics") or []
+                  if not any(n in t.lower() or t.lower() in n for n in self)]
+        pat = topic_pattern(topics)
+        if not pat:
+            continue
+        for p, _ in hits:
+            if p.handle.lower() in own and (found := _named(pat, _said(p), topics)):
+                out.append((p, found))
+    out.sort(key=lambda t: t[0].created_ms, reverse=True)
+    return out[:config.SITES_X_MAX]
 
 
 def _word(w: str) -> re.Pattern:

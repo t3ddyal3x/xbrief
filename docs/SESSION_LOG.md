@@ -186,3 +186,11 @@ and light, 1280 px (no margin, ↗ kept), phone, through the write-refusing head
 its lines ran on 19.6 px against the text's 28.35 px and drifted. Now the byline sits on the marker line's baseline
 (measured 0 px) and the note runs three lines to two of the text (18.9 px); the notes sit 42 px from the text (was
 88). Scoped to the brief, so the Sites page keeps its own layout.
+
+## 2026-10-14 (Sites: only the relevant X posts)
+**Changed**: the people's column shows only posts that name what their source's write-ups are about (new `topics`
+from the writer), each labelled with what it matched; a search still shows every post holding its words. The three
+write-ups were written again by Fable to get topics.
+**Checked**: offline tests; live, 2 of Charles Edwards's kept posts match (Bitcoin), none of Fiskantes's 2; the
+page at 2000 px.
+**Next**: the operator looks.

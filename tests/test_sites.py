@@ -39,7 +39,8 @@ RSS = """<?xml version="1.0"?><rss><channel><title>Zee Prime</title>
 </channel></rss>"""
 
 ANSWER = json.dumps({"gist": "Q2 was strong on HYPE and LIT.", "points": ["DeFi hacks hurt.", "ZEC added."],
-                     "calls": ["Long ZRO into the Zero launch; most contrarian."], "view": "Thin on <b>sizing</b>."})
+                     "calls": ["Long ZRO into the Zero launch; most contrarian."], "view": "Thin on <b>sizing</b>.",
+                     "topics": ["ZRO", "LayerZero", "Zero mainnet", "LIT", "$HYPE", "a b c d e f g h"]})
 
 
 def getter(pages: dict):
@@ -77,6 +78,7 @@ def test_a_page_read():
 def test_answers_are_checked():
     s = sites.parse_summary("here: " + ANSWER)
     assert s["gist"].startswith("Q2") and s["calls"] == ["Long ZRO into the Zero launch; most contrarian."]
+    assert s["topics"] == ["ZRO", "LayerZero", "Zero mainnet", "LIT", "$HYPE"]  # a topic too long to match is dropped
     long = sites.parse_summary(json.dumps({"gist": "w " * 500, "points": ["p"] * 50}))
     assert len(long["gist"].split()) == sites.LIMITS["gist"] + 1 and len(long["points"]) == sites.MAX_POINTS
     for bad in ("no json", "[1, 2]", '{"view": "only a view"}'):
@@ -171,26 +173,36 @@ def test_the_real_list_is_well_formed():
 def test_the_people_behind_a_source():
     from builders import xw_tweet
     from test_app import publish
-    publish([xw_tweet(1, "Fiskantes", "Zero mainnet is close, long ZRO"), xw_tweet(3, "Fiskantes", "HYPE looks fine"),
+    publish([xw_tweet(1, "Fiskantes", "Zero mainnet is close, long $ZRO"), xw_tweet(3, "Fiskantes", "gm, this party is lit"),
+             xw_tweet(4, "Fiskantes", "RT", retweet=xw_tweet(-6, "carl", "LayerZero ships")),
+             xw_tweet(5, "Fiskantes", "zero chance", quote=xw_tweet(-7, "dan", "HYPE ath")),
              xw_tweet(2, "bob", "RT", retweet=xw_tweet(-5, "Fiskantes", "a ZRO post of theirs"))])
     src = dict(SIGIL, x=["Fiskantes"])
-    assert [p.text for p in sites.people_posts([src])] == ["HYPE looks fine", "Zero mainnet is close, long ZRO"]  # not bob's repost
-    assert [p.text for p in sites.people_posts([src], ["zro"])] == ["Zero mainnet is close, long ZRO"]
-    assert sites.people_posts([ZEE]) == []
-    # a write-up is found by the words in its article, and shows the lines that hold them
     doc = {"source": "sigil", "url": "https://www.sigilfund.com/blog/q2-letter", "title": "Q2", "published_ms": 5,
-           "summary": json.loads(ANSWER), "text": "## Core\nWe trimmed HYPE.\n" + "x " * 300 + "then ZRO. " + "y " * 300}
+           "summary": sites.parse_summary(ANSWER), "text": "## Core\nWe trimmed HYPE.\n" + "x " * 300 + "then ZRO. " + "y " * 300}
+    got = sites.people_posts([src], docs=[doc])
+    # only what the write-up is about: a ticker exactly (not "lit"), a name in any case, a repost's or a quote's words;
+    # "zero chance" is not "Zero mainnet"; another account's repost of theirs is not theirs
+    assert [((p.retweet_of or p).text, about) for p, about in got] == [
+        ("zero chance", ["HYPE"]), ("LayerZero ships", ["LayerZero"]), ("Zero mainnet is close, long $ZRO", ["ZRO", "Zero mainnet"])]
+    assert sites.people_posts([src], docs=[]) == []  # no write-up, nothing is relevant
+    me = dict(doc, summary={**doc["summary"], "topics": ["Fiskantes", "Sigil Fund Ltd", "Sigil"]})
+    assert sites.people_posts([src], docs=[me]) == []  # the authors are not a topic
+    assert [p.text for p, _ in sites.people_posts([src], ["lit"])] == ["gm, this party is lit"]  # a search is the operator's own
+    assert sites.people_posts([ZEE], docs=[doc]) == []
+    # a write-up is found by the words in its article, and shows the lines that hold them
     assert sites.matches(doc, ["zro"]) and sites.matches(doc, ["hype", "trimmed"]) and not sites.matches(doc, ["sol"])
     assert not sites.matches(doc, ["ro"])  # a word that begins with it, not any part of one
     lines = sites.found_lines(doc["text"], ["zro"])
     assert len(lines) == 1 and "then ZRO." in lines[0] and lines[0].startswith("…") and len(lines[0]) < 370
     store.save_site_post(dict(doc), 1)
+    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""}, xposts=got, key="sigil")
+    side = html[html.index('<aside class="side">'):]
+    assert '<span class="about">ZRO, Zero mainnet</span>' in side and 'href="#s0"' in side and "party is lit" not in side
     html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""},
                            xposts=sites.people_posts([src], ["zro"]), key="sigil", q="zro", words=["zro"],
                            lines={doc["url"]: lines})
-    side = html[html.index('<aside class="side">'):]
-    assert "long <mark>ZRO</mark>" in side and 'href="#s0"' in side  # their post, and where the write-up falls
-    assert "In the article" in html and "then <mark>ZRO</mark>." in html
+    assert "long $<mark>ZRO</mark>" in html and "In the article" in html and "then <mark>ZRO</mark>." in html
     assert 'href="/sites?s=sigil&amp;q=zro" aria-current=page' in html and 'href="/sites?q=zro"' in html
     assert 'value="zro"' in html and 'name="s" value="sigil"' in html
     assert "No one from this source is followed" in page.sites_page([], [ZEE], {}, {}, False, {"text": ""}, key="zeeprime")
