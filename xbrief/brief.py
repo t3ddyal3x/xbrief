@@ -53,8 +53,8 @@ argument. Write:
 - steps: the argument as the post makes it, in its order, one short sentence a step; as many steps as it has.
 - if_it_holds: what follows for markets and trades if the claim is right: the assets, venues, sectors or positions
   it bears on, and which way. Under 80 words.
-- weak_spots: YOUR view, which the page labels as yours: where the argument is thin, what it assumes or leaves out.
-  Under 80 words.
+- weak_spots: YOUR view, which the page labels as yours (so do not open with "my view"): where the argument is
+  thin, what it assumes or leaves out. Under 80 words.
 - wrong_if: what would show the claim wrong, as something one could watch for. Under 50 words.
 - hype: true if the thesis is about HYPE or Hyperliquid, else false. Such a thesis goes here with hype true, not in
   the HYPE paragraph.
