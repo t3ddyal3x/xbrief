@@ -94,3 +94,14 @@ posts unsummarised (Fable: 315 s, 8).
 **Ran** a brief by hand (`xbrief run --now`): 6 pages, caught up, 507 posts, 35 topics.
 **Tried** the window on its own desktop, against the fake x.com: full screen came to the front and stalled the read;
 dropped (docs/ARCHITECTURE.md, Parked, not hidden). No code changed.
+
+## 2026-10-14 (later)
+**Built** what matters first (ROADMAP §0, decided with the operator): the writer reads every post whole (was 2,000
+characters); a HYPE part opens every brief; every thesis (any post arguing a claim, longest first, no cap) is written
+up on a new Theses tab (claim, steps, if it holds, Claude's view labelled), with a line each on the Brief, a HYPE
+thesis in the HYPE part instead; a small ↗ after a post that stands out, built from the post id. Old briefs still load.
+**Ran** a 12-hour read by hand: the first try stopped 11 s in (the first feed request was cancelled in the browser,
+`net::ERR_ABORTED`; no X error, no challenge), leaving an empty run `2026-10-14-0841-am`; `xbrief probe` then showed
+logged in and the feed loading, and the second try read 3 pages: 278 posts, 12 theses, 19 topics, HYPE 9 posts, 5
+links; writing took 6 min. @goodalexander's six-phase post is the first thesis, all seven steps.
+**Next**: the operator reads the new brief. Open: a link of its own for a shared article or chart.
