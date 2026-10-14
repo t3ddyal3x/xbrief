@@ -100,6 +100,9 @@ end. Timed on the 390-post read of 2026-10-12, one run each:
   `x-twitter-active-user: no`) and stop drawing, so the feed does not load (both checked 2026-10-12 on the fake
   x.com). macOS keeps 40 px of any window on screen, so the window waits at the right edge of the rightmost screen,
   behind the operator's windows.
+  Its own desktop (Space) was tried 2026-10-14: full screen took the front and the read timed out on the fake
+  x.com; the Dock assigns a desktop per app (it would move the operator's own Brave too), and moving one window
+  needs SIP off. The 40 px stays.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
 - **The page** follows the other local pages (Tokyo Night / Day), reads in Iowan Old Style, puts handles, times and
   controls in a mono, builds bylines from the data, and folds each topic's posts under its paragraph.

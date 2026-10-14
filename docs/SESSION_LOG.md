@@ -89,3 +89,8 @@ measured: sessions are kept out of the profile.
 **Next**: unchanged (ROADMAP §1).
 **Then**: the writer is Opus (`claude-opus-5-5`), on the operator's word. Same read, topics only: 335 s, 12 long
 posts unsummarised (Fable: 315 s, 8).
+
+## 2026-10-14
+**Ran** a brief by hand (`xbrief run --now`): 6 pages, caught up, 507 posts, 35 topics.
+**Tried** the window on its own desktop, against the fake x.com: full screen came to the front and stalled the read;
+dropped (docs/ARCHITECTURE.md, Parked, not hidden). No code changed.
