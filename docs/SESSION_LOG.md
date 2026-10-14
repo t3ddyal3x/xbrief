@@ -105,3 +105,15 @@ thesis in the HYPE part instead; a small ↗ after a post that stands out, built
 logged in and the feed loading, and the second try read 3 pages: 278 posts, 12 theses, 19 topics, HYPE 9 posts, 5
 links; writing took 6 min. @goodalexander's six-phase post is the first thesis, all seven steps.
 **Next**: the operator reads the new brief. Open: a link of its own for a shared article or chart.
+
+## 2026-10-14 (Sites tab)
+**Built** a Sites tab (operator: "a separate engine parsing useful information like sigil", checked daily; chose
+title, link and summary; Sigil and Zee Prime to start). `sites.py` reads each source's RSS feed or sitemap with a
+plain public GET, direct, on the source's own host only; a new post's text goes whole to `claude -p` (Fable, no
+tools) for gist, points, calls and Claude's view. A source's first check notes its archive and reads the newest
+post. The app starts `xbrief sites` once a day after 07:00 (switch and Check now on the page), own lock.
+`runner.take_lock`/`acquire`/`running` take a lock path; `brief.ask_claude` takes a model.
+**Checked**: 81 offline tests (10 new); the first real check ran from the app's daily tick at 11:16: Sigil's sitemap
+53 posts, the Q2 2026 letter read (24,949 characters); Zee Prime's feed 10, "Argonauts Journey" read; both
+summaries right. The page at 2000 px, light and dark, through a headless Brave with a write guard.
+**Next**: the operator looks at /sites. Open: adding a site from the page instead of config.py.

@@ -155,16 +155,16 @@ def prompt(posts: dict[str, Post]) -> str:
     return PROMPT + "\n".join(_line(p) for p in posts.values()) + "\n"
 
 
-def claude_cmd() -> list[str]:
+def claude_cmd(model: str | None = None) -> list[str]:
     cmd = [config.CLAUDE, "-p", "--tools", "", "--strict-mcp-config", "--mcp-config", '{"mcpServers":{}}',
            "--disallowedTools", "mcp__*", "--no-session-persistence", "--output-format", "text"]
-    if config.MODEL:
-        cmd += ["--model", config.MODEL]
+    if model or config.MODEL:
+        cmd += ["--model", model or config.MODEL]
     return cmd
 
 
-def ask_claude(text: str, timeout: int = 1800) -> str:
-    r = subprocess.run(claude_cmd(), input=text, capture_output=True, text=True, timeout=timeout, cwd=config.DATA)
+def ask_claude(text: str, timeout: int = 1800, model: str | None = None) -> str:
+    r = subprocess.run(claude_cmd(model), input=text, capture_output=True, text=True, timeout=timeout, cwd=config.DATA)
     if r.returncode != 0:
         raise RuntimeError(f"claude exited {r.returncode}: {(r.stderr or r.stdout).strip()[:300]}")
     return r.stdout

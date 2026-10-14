@@ -4,6 +4,7 @@ A twice-daily brief of what the accounts the operator follows on X posted. The o
 kept for the job, reads their Following tab in a background window, driven over the DevTools protocol; headless
 Claude writes the brief; the app (`server.py`, port 8795, xbrief.localhost) shows it, keeps every brief and post
 for history and search, starts a run from its Brief now button, and runs the schedule set on its History page.
+Its Sites tab (`sites.py`) reads the public sites in `config.SITES` once a day and summarises each new post.
 The tree's `../CLAUDE.md` applies in full; this file adds only what is particular. Design, findings and decisions: `docs/ARCHITECTURE.md`.
 
 ## Start a session
@@ -38,16 +39,22 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
 9. **One run at a time, whoever starts it**: `xbrief run` holds an flock on `run.lock` for its life (`runner.py`).
    The app starts a run as its own process (own session; the agent has `AbandonProcessGroup`), so restarting the app
    never cuts a read off with its Brave open.
-10. **Nothing outside loopback can start a read**: the app refuses a non-loopback `Host` or `Origin`, and its two
-    writes (`/api/run`, `/api/settings`) take a JSON body only, which a cross-site form cannot send.
+10. **Nothing outside loopback can start a read**: the app refuses a non-loopback `Host` or `Origin`, and its
+    writes (`/api/run`, `/api/settings`, `/api/sites`) take a JSON body only, which a cross-site form cannot send.
 11. **The schedule is set on the page and lives in the store** (`store.settings`, `runner.due`), not in launchd.
     It starts off; a window slept through runs on waking, two due at once run only the later, and a slot within an
     hour of another run is skipped.
+12. **The Sites tab reads public pages only, direct, and only on each source's own host** (`sites.same_host`): a
+    plain GET of its RSS feed or sitemap and of each new post, no browser, no login. A source's first check only
+    learns its list and reads the newest post. Page text is untrusted like post text (rule 7); its summariser is
+    Fable (`config.SITE_MODEL`), never Sonnet. One check at a time (`sites.lock`), once a day after
+    `config.SITES_AFTER`, on by default (the page's switch).
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
 `bin/install-agent` · `bin/xbrief serve` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
-`bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief login` (opens a window for the operator).
+`bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief login` (opens a window for the operator) ·
+`bin/xbrief sites` (check the sites now).
 
 ## Traps
 - **x.com runs two web apps** (2026-10-12): the old one (feed at x.com/i/api/graphql/…/HomeLatestTimeline) and a
@@ -66,6 +73,6 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
 - **A heredoc that names a file under `secrets/` is blocked by the guard**, even prose fed to python. Use the Edit tool.
 
 ## Where things live
-`xbrief/` (config, browser, collect, parse, brief, cli; the app: server, page, store, runner, static/) · `tests/`
-(`fake_x.py`, `test_browser_live.py`, `test_app.py`) · `ops/launchd/com.xbrief.app.plist` · `ops/caddy/xbrief.caddy`
-· data `~/Data/xbrief-data/` (secrets/brave, raw/, xbrief.db, run.lock, progress.json, logs/, state.json, venv/).
+`xbrief/` (config, browser, collect, parse, brief, cli, sites; the app: server, page, store, runner, static/) · `tests/`
+(`fake_x.py`, `test_browser_live.py`, `test_app.py`, `test_sites.py`) · `ops/launchd/com.xbrief.app.plist` · `ops/caddy/xbrief.caddy`
+· data `~/Data/xbrief-data/` (secrets/brave, raw/, xbrief.db, run.lock, sites.lock, progress.json, logs/, state.json, venv/).

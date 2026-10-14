@@ -104,6 +104,25 @@ is written up in the HYPE part; the rest on the Theses tab, with a line each on 
 that stands out with `[[post id]]`; the page links it to that post on X, built from the post, and drops an id not in
 the brief. The writer's timeout went from 15 to 30 minutes for the longer answer.
 
+## The Sites tab (2026-10-14)
+The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,
+checked daily, not their X accounts (reading a profile page would break rule 1). `sites.py`:
+- **A source** (`config.SITES`) names its list: an RSS feed (Zee Prime, WordPress: the feed carries each post whole
+  in `content:encoded`, used in place of the page) or a sitemap with a path to match (Sigil, whose site has no feed;
+  `/blog/`). Only addresses on the source's own host are followed.
+- **A check** reads each list; a post not in `site_posts` is fetched, its text taken from `<article>`, else
+  `<main>`, else `<body>`, with scripts, navigation, headers and footers dropped, and given whole (up to 80,000
+  characters) to `claude -p` with no tools, model Fable (`config.SITE_MODEL`: the operator prefers Fable for
+  summaries). It returns gist, points, calls (positions and forecasts with their numbers) and view (Claude's,
+  labelled on the page). A fetch or writer failure is kept on the post and shown; the post is not tried again.
+- **The first check of a source** marks everything already listed as known (`baseline`) and reads the newest one,
+  so adding a site never summarises its whole archive.
+- **When**: the server's schedule loop starts `xbrief sites` as its own process once a day at its first look after
+  07:00 (a day slept through runs on waking), unless the Sites page's switch is off; **Check now** starts one at
+  once. Its own lock (`sites.lock`), so it runs beside an X read.
+- Checked live 2026-10-14: Sigil's sitemap lists 53 posts, the newest the Q2 2026 letter (24,949 characters read);
+  Zee Prime's feed lists 10, the newest "Argonauts Journey".
+
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an
   everyday profile, and the job must not touch the operator's open browser.

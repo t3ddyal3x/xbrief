@@ -61,9 +61,18 @@ CREATE TABLE IF NOT EXISTS schedule (
   PRIMARY KEY (day, label)
 );
 CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS site_posts (  -- the Sites tab (sites.py): every post a source has listed
+  url TEXT PRIMARY KEY,
+  source TEXT NOT NULL,               -- config.SITES key
+  published_ms INTEGER,
+  seen_ms INTEGER NOT NULL,           -- the check that found it
+  baseline INTEGER NOT NULL,          -- 1: already there at the source's first check, never read
+  doc TEXT NOT NULL                   -- {title, url, published_ms, chars, summary: {gist, points, calls, view}, error}
+);
+CREATE INDEX IF NOT EXISTS site_posts_source ON site_posts (source, baseline);
 """
 
-DEFAULTS = {"schedule": False, "windows": {k: list(v) for k, v in config.WINDOWS.items()}}
+DEFAULTS = {"schedule": False, "windows": {k: list(v) for k, v in config.WINDOWS.items()}, "sites_daily": True}
 _fts_checked: set[str] = set()  # the databases this process has already looked at for the old index
 
 
@@ -257,6 +266,38 @@ def counts() -> dict:
         r = con.execute("SELECT (SELECT count(*) FROM runs) AS runs, (SELECT count(*) FROM posts) AS posts, "
                         "(SELECT min(created_ms) FROM posts) AS first_ms").fetchone()
     return dict(r)
+
+
+# ── the Sites tab ───────────────────────────────────────────────────────────────────────────────────
+
+
+def site_urls(source: str) -> set[str]:
+    with db() as con:
+        return {r[0] for r in con.execute("SELECT url FROM site_posts WHERE source = ?", (source,))}
+
+
+def save_site_post(doc: dict, seen_ms: int) -> None:
+    """A post a source listed: read and summarised, or (`baseline`) only noted as already there."""
+    base = bool(doc.pop("baseline", False))
+    with db() as con:
+        con.execute("INSERT INTO site_posts (url, source, published_ms, seen_ms, baseline, doc) VALUES (?,?,?,?,?,?) "
+                    "ON CONFLICT(url) DO UPDATE SET published_ms = excluded.published_ms, baseline = excluded.baseline, "
+                    "doc = excluded.doc",
+                    (doc["url"], doc["source"], doc.get("published_ms"), seen_ms, int(base),
+                     json.dumps(doc, ensure_ascii=False)))
+
+
+def site_posts(limit: int = 200) -> list[dict]:
+    """The posts that were read, newest first (by their own date, else when the check found them)."""
+    with db() as con:
+        rows = con.execute("SELECT doc, seen_ms FROM site_posts WHERE baseline = 0 "
+                           "ORDER BY coalesce(published_ms, seen_ms) DESC LIMIT ?", (limit,)).fetchall()
+    return [{**json.loads(r["doc"]), "seen_ms": r["seen_ms"]} for r in rows]
+
+
+def site_counts() -> dict[str, int]:
+    with db() as con:
+        return {r[0]: r[1] for r in con.execute("SELECT source, count(*) FROM site_posts GROUP BY source")}
 
 
 # ── settings and the schedule's memory ──────────────────────────────────────────────────────────────

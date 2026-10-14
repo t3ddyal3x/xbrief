@@ -33,10 +33,12 @@ _starting = threading.Lock()  # the server's threads start one run at a time
 # ── the lock ────────────────────────────────────────────────────────────────────────────────────────
 
 
-def take_lock():
-    """The open lock file, held; None if a run already holds it. Keep the returned file open for the run's life."""
-    config.LOCK.parent.mkdir(parents=True, exist_ok=True)
-    f = open(config.LOCK, "a+")
+def take_lock(path: Path | None = None):
+    """The open lock file, held; None if a run already holds it. Keep the returned file open for the run's life.
+    `path`: another job's lock (the site check's), config.LOCK if none."""
+    path = path or config.LOCK
+    path.parent.mkdir(parents=True, exist_ok=True)
+    f = open(path, "a+")
     try:
         fcntl.flock(f, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except BlockingIOError:
@@ -45,19 +47,19 @@ def take_lock():
     return f
 
 
-def acquire(wait_s: float = 3.0):
+def acquire(wait_s: float = 3.0, path: Path | None = None):
     """The lock for a run, waiting a moment: `running()` (the page's status, the schedule) holds it for a few
     microseconds to look, and a run must not give up for meeting one of those looks."""
     end = time.monotonic() + wait_s
     while True:
-        f = take_lock()
+        f = take_lock(path)
         if f is not None or time.monotonic() >= end:
             return f
         time.sleep(0.1)
 
 
-def running() -> bool:
-    f = take_lock()
+def running(path: Path | None = None) -> bool:
+    f = take_lock(path)
     if f is None:
         return True
     f.close()  # closing lets go of it

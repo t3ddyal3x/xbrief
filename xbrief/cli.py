@@ -1,4 +1,4 @@
-"""xbrief serve | run | rebrief | probe | login | status. See README.md."""
+"""xbrief serve | run | rebrief | probe | login | status | sites. See README.md."""
 
 from __future__ import annotations
 
@@ -221,6 +221,12 @@ def cmd_status(a) -> int:
     return 0
 
 
+def cmd_sites(a) -> int:
+    from . import sites
+
+    return sites.cmd(a)
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(prog="xbrief")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -237,6 +243,7 @@ def main(argv=None) -> int:
     sub.add_parser("probe", help="open x.com/home once (hidden) and say whether the job is logged in").set_defaults(fn=cmd_probe)
     sub.add_parser("login", help="open the job's Brave profile so you can log in to X").set_defaults(fn=cmd_login)
     sub.add_parser("status", help="the last run and the login profile").set_defaults(fn=cmd_status)
+    sub.add_parser("sites", help="check the sites on the list now and summarise their new posts").set_defaults(fn=cmd_sites)
     a = p.parse_args(argv)
     return a.fn(a)
 

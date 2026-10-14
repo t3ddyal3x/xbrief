@@ -13,6 +13,7 @@ import re
 import time
 from collections import Counter
 
+from . import config
 from .brief import Brief, Thesis, Topic
 from .parse import Post
 
@@ -190,6 +191,7 @@ def rail(active: str, live: dict, extra: str = "", running: bool = False, at: st
     tabs = "".join(f'<a href="{href}"{" aria-current=page" if key == active else ""}>{name}</a>'
                    for key, href, name in (("brief", f"/b/{esc(at)}" if at else "/", "Brief"),
                                            ("theses", f"/b/{esc(at)}/theses" if at else "/theses", "Theses"),
+                                           ("sites", "/sites", "Sites"),
                                            ("history", "/history", "History")))
     opts = "".join(f'<option value="{v}">{esc(t)}</option>' for v, t in HOURS)
     return (f'<nav class="rail"><h1><a href="/">X brief</a></h1><p class="tabs">{tabs}</p>'
@@ -366,3 +368,64 @@ def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | Non
         n = f"{len(hits)} post{'s' if len(hits) != 1 else ''}" + (", the newest shown; narrow the search for the rest" if cut else "")
         body = f'<p class="hits">{esc(n)}</p>' + "".join(out)
     return shell(f"X brief · {q or 'search'}", rail("search", live, running=running), form + body)
+
+
+# ── sites ───────────────────────────────────────────────────────────────────────────────────────────
+
+
+def site_post_html(d: dict, names: dict[str, str], i: int) -> str:
+    """One post from a site: its title linked to the page, the gist, the points, the calls it makes, and Claude's
+    view under its own label. The link is the stored address, and only an http(s) one."""
+    url = safe_url(d.get("url"))
+    title = esc(d.get("title") or d.get("url"))
+    head = f'<a href="{esc(url)}" rel="noreferrer">{title}</a>' if url else title
+    when = d.get("published_ms") or d.get("seen_ms") or 0
+    by = (f'<p class="by">{esc(names.get(d.get("source"), d.get("source")))} · '
+          f'{time.strftime("%a %-d %b %Y", time.localtime(when / 1000))}</p>')
+    s = d.get("summary") or {}
+    if d.get("error") or not s:
+        return (f'<section id="s{i}" class="thesis site"><h2>{head}</h2>{by}'
+                f'<p class="empty">No summary ({esc(d.get("error") or "nothing came back")}). Open the post to read it.</p></section>')
+    points = "".join(f"<li>{esc(x)}</li>" for x in s.get("points") or [])
+    calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
+    return (f'<section id="s{i}" class="thesis site"><h2>{head}</h2>{by}'
+            + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "")
+            + (f'<h3>Points</h3><ol class="steps">{points}</ol>' if points else "")
+            + (f'<h3>Calls</h3><ul class="steps">{calls}</ul>' if calls else "")
+            + (f'<div class="view"><h3>Claude\'s view</h3><p>{esc(s["view"])}</p></div>' if s.get("view") else "")
+            + "</section>")
+
+
+def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[str, int], checking: bool,
+               live: dict, running: bool = False) -> str:
+    """Every post read from the sites on the list, newest first; the list itself, when each was last checked, and
+    the daily check's switch."""
+    names = {s["key"]: s["name"] for s in sources}
+    state = sett.get("sites_state") or {}
+    main = "".join(site_post_html(d, names, i) for i, d in enumerate(posts))
+    if not posts:
+        main = '<p class="empty">Nothing read yet. <b>Check now</b> reads each site\'s list and its newest post.</p>'
+    rows = []
+    for s in sources:
+        st = state.get(s["key"]) or {}
+        if st.get("error"):
+            note, cls = f"could not read its list: {st['error']}", "bad"
+        elif st.get("checked_ms"):
+            note, cls = f"checked {day(st['checked_ms'])} · {st.get('new', 0)} new · {counts.get(s['key'], 0)} known", ""
+        else:
+            note, cls = "not checked yet", ""
+        rows.append(f'<li><a href="{esc(safe_url(s["home"]) or "")}" rel="noreferrer">{esc(s["name"])}</a>'
+                    f'<span class="n">{esc(s["kind"])}</span><span class="end {cls}">{esc(note)}</span></li>')
+    last = sett.get("sites_checked_ms")
+    line = ("Checking the sites now…" if checking else
+            f"Last checked {day(last)}." if last else "Not checked yet.")
+    ctl = (f'<form class="sched ctl" id="sites"><label><input type="checkbox" name="daily"'
+           f'{" checked" if sett.get("sites_daily", True) else ""}> Check once a day, after {esc(config.SITES_AFTER)}</label>'
+           f'<div class="w2"><button type="submit" name="act" value="save">Save</button>'
+           f'<button type="button" id="sites-now"{" disabled" if checking else ""}>Check now</button></div></form>'
+           f'<p class="note" id="sites-msg"{" data-checking=1" if checking else ""}>{esc(line)}</p>')
+    toc = "".join(f'<li><a href="#s{i}">{esc(d.get("title") or d.get("url"))}</a></li>' for i, d in enumerate(posts[:40]))
+    extra = f'<h2>Posts</h2><ol class="claims">{toc}</ol>' if toc else ""
+    main = (main + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
+            f'<p class="note">New sites are added in xbrief/config.py (SITES): an RSS feed or a sitemap.</p></section>')
+    return shell("X brief · sites", rail("sites", live, extra, running=running), main)

@@ -86,9 +86,9 @@ def test_a_run_in_a_terminal_waits_for_the_lock(monkeypatch):
 def test_a_run_waits_out_a_look_at_the_lock(monkeypatch):
     real, tries = runner.take_lock, []
 
-    def busy_once():
+    def busy_once(path=None):
         tries.append(1)
-        return None if len(tries) == 1 else real()  # the page's status held it the first time
+        return None if len(tries) == 1 else real(path)  # the page's status held it the first time
 
     monkeypatch.setattr(runner, "take_lock", busy_once)
     f = runner.acquire(wait_s=1)

@@ -22,6 +22,18 @@ CLAUDE = os.environ.get("XBRIEF_CLAUDE", str(HOME / ".local" / "bin" / "claude")
 MODEL = os.environ.get("XBRIEF_MODEL") or "claude-opus-5-5"  # the writer: Opus (operator, 2026-10-12; never
 # Sonnet); named, so it never follows the subscription's default
 
+# The sites tab (sites.py): public pages read once a day, direct, each new post summarised. A source lists its posts
+# in an RSS feed or a sitemap (`match`: the part of a post's address that marks it as a post).
+SITES = [
+    {"key": "sigil", "name": "Sigil Fund", "home": "https://www.sigilfund.com/insights",
+     "list": "https://www.sigilfund.com/sitemap.xml", "kind": "sitemap", "match": "/blog/"},
+    {"key": "zeeprime", "name": "Zee Prime", "home": "https://zeeprime.capital/writing/",
+     "list": "https://zeeprime.capital/rss/", "kind": "rss"},
+]
+SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-fable-5-1"  # Fable for summaries (operator, 2026-10-12)
+SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
+SITES_AFTER = "07:00"  # the daily check runs at the first look after this, local time, once a day
+
 RAW_KEEP_DAYS = 30
 MAX_PAGES = 20  # hard cap a run: a Recent page holds ~85 entries, a day is ~5 pages (hand run 2026-10-12)
 MAX_MINUTES = 40  # hard cap on one run's scrolling

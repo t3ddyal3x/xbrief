@@ -1,5 +1,6 @@
-// xbrief's one script: the Brief now button, the rail's live line, the schedule form. The server builds every page;
-// this only talks to /api/run, /api/status and /api/settings, and writes text (never markup) into the page.
+// xbrief's one script: the Brief now button, the rail's live line, the schedule form, the Sites tab's check. The
+// server builds every page; this only talks to /api/run, /api/status, /api/settings and /api/sites, and writes text
+// (never markup) into the page.
 (() => {
   "use strict";
   const live = document.getElementById("live");
@@ -66,6 +67,32 @@
       }
       location.reload();
     });
+  }
+
+  const sites = document.getElementById("sites");
+  if (sites) {
+    const msg = document.getElementById("sites-msg");
+    const now = document.getElementById("sites-now");
+    async function wait() {  // while a check goes, look every 3 s; reload when it is done
+      try {
+        const r = await fetch("/api/sites", { cache: "no-store" });
+        const j = await r.json();
+        if (!j.checking) return location.reload();
+      } catch (e) { /* the app restarting: look again */ }
+      setTimeout(wait, 3000);
+    }
+    sites.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const { ok, j } = await post("/api/sites", { daily: sites.elements.daily.checked });
+      msg.textContent = ok ? "Saved." : (j.error || "Not saved.");
+    });
+    now.addEventListener("click", async () => {
+      now.disabled = true;
+      const { ok, j } = await post("/api/sites", { check: true });
+      msg.textContent = ok ? "Checking the sites now… a new post takes a minute or two to read." : (j.error || "The check did not start.");
+      if (ok || j.error) setTimeout(wait, 3000);
+    });
+    if (msg.dataset.checking) setTimeout(wait, 3000);
   }
 
   poll();

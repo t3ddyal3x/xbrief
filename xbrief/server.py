@@ -6,10 +6,13 @@
     /b/<name>           one brief (2026-10-12-0857-am)
     /theses, /b/<name>/theses   the newest brief's theses, or one brief's
     /history            every brief, and the schedule
+    /sites              what the sites on the list posted, each read and summarised (sites.py)
     /search?q=&since=&until=    every post kept: words, @accounts, dates
     /api/status         what a run is doing, or when the next one starts (the page asks every few seconds)
     POST /api/run       {"hours": null | 1..168}: start a run now (409 while one is going)
     POST /api/settings  {"schedule": bool, "windows": {"am": [from, to], "pm": [from, to]}}
+    POST /api/sites     {"daily": bool} to set the daily check, or {"check": true} to check the sites now
+    /api/sites          whether a site check is going, and when the last one ended
     /api/health         what the doctor reads
 
 LOCALHOST ONLY, the perimeter macro and Hyperlitmus use (restated, not imported: no app imports another's code):
@@ -32,7 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import config, page, runner, store
+from . import config, page, runner, sites, store
 
 STATIC = Path(__file__).resolve().parent / "static"
 FILES = {"/app.css": ("app.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8")}
@@ -175,6 +178,15 @@ class Handler(BaseHTTPRequestHandler):
             if path == "/api/settings":
                 sett = runner.apply_settings(check_settings(body))
                 return self._json({"settings": sett, "live": live()})
+            if path == "/api/sites":
+                if body.get("check") is True:
+                    if not sites.start(by="page"):
+                        return self._json({"error": "a check is already going"}, 409)
+                    return self._json({"started": True}, 202)
+                if not isinstance(body.get("daily"), bool):
+                    raise ValueError("daily must be true or false, or check true")
+                store.save_settings({"sites_daily": body["daily"]})
+                return self._json({"daily": body["daily"]})
             return self._json({"error": "no such route"}, 404)
         except ValueError as e:
             return self._json({"error": str(e)}, 400)
@@ -192,6 +204,13 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send((STATIC / name).read_bytes(), ctype)
             if path == "/api/status":
                 return self._json(live(q.get("at")))
+            if path == "/api/sites":
+                return self._json({"checking": sites.running() or sites.just_started(),
+                                   "checked_ms": store.settings().get("sites_checked_ms")})
+            if path == "/sites":
+                lv = live()
+                return self._html(page.sites_page(store.site_posts(), config.SITES, store.settings(), store.site_counts(),
+                                                  sites.running() or sites.just_started(), lv, lv["running"]))
             if path == "/api/health":
                 return self._json({"ok": True, "port": config.PORT, "running": runner.running(), **store.counts(),
                                    "schedule": store.settings()["schedule"]})
@@ -234,6 +253,11 @@ def schedule_loop(stop: threading.Event) -> None:
             if label:
                 print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} schedule: started the {page.LABELS[label]} run", flush=True)
         except Exception:  # noqa: BLE001  the page keeps serving; the next tick tries again
+            traceback.print_exc()
+        try:
+            if sites.tick():
+                print(f"{time.strftime('%Y-%m-%d %H:%M:%S')} schedule: started the daily site check", flush=True)
+        except Exception:  # noqa: BLE001
             traceback.print_exc()
         if stop.wait(TICK_S):
             return
