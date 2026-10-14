@@ -262,11 +262,21 @@ def test_search_marks_words_and_never_inside_a_link():
     assert page.marked("a &lt;b&gt;", ["lt"]) == "a &lt;b&gt;"  # never inside an escape
 
 
-def test_the_window_strip_marks_every_post_and_hype_in_its_colour():
+def test_the_window_strip_marks_every_post():
     ents = entries()
     b, posts = brief.write(ents, ask=lambda t: answer_for(brief.unique_posts(ents)))
-    first = next(iter(posts))
     meta = {**META, "boundary_id": None, "finished_ms": max(p.created_ms for p in posts.values()) + 60_000}
-    svg = page.window_strip(meta, posts, {first})
-    assert svg.count('<rect class="h"') == 1 and svg.count("<rect x=") == len(posts) - 1
-    assert page.window_strip(meta, {}, set()) == ""  # nothing read, nothing drawn
+    assert page.window_strip(meta, posts).count("<rect x=") == len(posts)
+    assert page.window_strip(meta, {}) == ""  # nothing read, nothing drawn
+
+
+def test_margin_notes_are_numbered_and_built_from_the_post():
+    ents = entries()
+    posts = brief.unique_posts(ents)
+    bob = next(x for x in posts.values() if x.handle == "bob")
+    notes = page.Notes()
+    html = page.linked(f"Rates were cut [[{bob.id}]] and again [[{bob.id}]]; a made-up one [[999]].", posts, notes)
+    assert notes.n == 2 and html.count('class="sn"') == 2 and '<span class="num">2</span>' in html
+    assert "@bob</a>" in html and "&lt;script&gt;" in html and "<script>" not in html  # the post's words, escaped
+    assert "t.co" not in html.split('class="sn"')[1]  # its links left out of the note
+    assert page.linked(f"x [[{bob.id}]]", posts).count('class="sn"') == 0  # no notes asked: the ↗ alone

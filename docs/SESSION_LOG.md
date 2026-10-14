@@ -169,3 +169,14 @@ keep their article's text (the three existing ones fetched again once). The 7-da
 contrarian position"; no Fiskantes post in the store says ZRO yet (the store starts 2026-10-12). The page at
 2000 px light and dark.
 **Next**: the operator looks.
+
+## 2026-10-14 (elegance)
+**Researched** best-in-class reading and briefing pages (Tufte CSS, gwern.net, Particle, Semafor, Techmeme,
+Axios, Readwise Reader, Linear, Butterick): `docs/plans/2026-10-14_elegance.md`. **Built** on the operator's "build
+it": the posts behind a sentence in the right margin on a wide screen (folds kept, their word), headlines in Iowan,
+balanced headings and paragraphs without a lone last word, a hairline and faint lift on Claude's view, and a bar per
+story in the contents. HYPE lost its own colour (operator, mid-build); it leads by place only. **Dropped after
+looking**: old-style figures (the 0 in @0xNairolf read as an o) and small-caps openings (most open on an @handle).
+**Checked**: offline tests (1 new for the margin notes; the strip test no longer has a HYPE colour); 2000 px dark
+and light, 1280 px (no margin, ↗ kept), phone, through the write-refusing headless Brave.
+**Next**: the operator looks.

@@ -126,7 +126,7 @@ def opening(p: Post, limit: int = 180) -> str:
     text = re.sub(r"\s+", " ", text)
     if len(text) <= limit:
         return text
-    return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:—-") + "…"
+    return text[:limit].rsplit(" ", 1)[0].rstrip(",.;:—-…") + "…"
 
 
 def linked(text: str, posts: dict[str, Post], notes: Notes | None = None) -> str:
@@ -151,10 +151,6 @@ def linked(text: str, posts: dict[str, Post], notes: Notes | None = None) -> str
     return POST_REF.sub(go, esc(text))
 
 
-def lead(html_text: str, words: int = 3) -> str:
-    """A section's opening: its first few words set in small caps, as a book opens a section."""
-    return re.sub(r"^((?:[^\s<&]+\s+){0,%d}[^\s<&]+)" % (words - 1), r'<span class="nt">\1</span>', html_text, count=1)
-
 
 def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
     """The posts behind a paragraph, folded under a line that says how many and whose."""
@@ -168,7 +164,7 @@ def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -
 
 
 def topic_html(t: Topic, posts: dict[str, Post], thr: dict[str, list[Post]], notes: Notes | None = None) -> str:
-    return f'<p>{lead(linked(t.summary, posts, notes))}</p>{folded(t.posts, posts, thr)}'
+    return f'<p>{linked(t.summary, posts, notes)}</p>{folded(t.posts, posts, thr)}'
 
 
 def bar(n: int, most: int) -> str:
@@ -212,9 +208,9 @@ def run_dek(meta: dict, n_posts: int, n_accounts: int) -> str:
     return dek
 
 
-def window_strip(meta: dict, posts: dict[str, Post], hype: set[str]) -> str:
+def window_strip(meta: dict, posts: dict[str, Post]) -> str:
     """The window the read covered, from the last brief's newest post to the end of the read, a tick at each post's
-    time and HYPE's in mint: a quiet night, a busy hour or a hole shows at a glance. Drawn on the server, no script."""
+    time: a quiet night, a busy hour or a hole shows at a glance. Drawn on the server, no script."""
     from .parse import snowflake_ms
 
     times = [p.created_ms for p in posts.values() if p.created_ms]
@@ -226,12 +222,10 @@ def window_strip(meta: dict, posts: dict[str, Post], hype: set[str]) -> str:
         return ""
     span = hi - lo
     ticks = []
-    for pid, p in sorted(posts.items(), key=lambda kv: kv[0] in hype):  # HYPE's drawn last, on top
+    for p in posts.values():
         if not p.created_ms or p.created_ms < lo:
             continue
-        x = (p.created_ms - lo) / span * 1000
-        ticks.append(f'<rect class="h" x="{x:.1f}" y="0" width="2.4" height="30"/>' if pid in hype
-                     else f'<rect x="{x:.1f}" y="9" width="1.6" height="21"/>')
+        ticks.append(f'<rect x="{(p.created_ms - lo) / span * 1000:.1f}" y="9" width="1.6" height="21"/>')
     hours = []  # a faint mark on each local hour, for scale
     t = (lo // 3_600_000 + 1) * 3_600_000
     while t < hi:
@@ -332,7 +326,7 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
     if b.hype or on_hype:
         toc.append(f'<li><a href="#hype">HYPE</a>{bar(n_hype, most)}<span class="n">{n_hype}</span></li>')
         sections.append('<section id="hype" class="hype"><h2>HYPE</h2>'
-                        + (f'<p>{lead(linked(b.hype.summary, posts, notes))}</p>{folded(b.hype.posts, posts, thr)}'
+                        + (f'<p>{linked(b.hype.summary, posts, notes)}</p>{folded(b.hype.posts, posts, thr)}'
                            if b.hype else "")
                         + "".join(thesis_html(t, posts, thr, f"h{i}", 3) for i, t in enumerate(on_hype)) + "</section>")
     theses = [t for t in b.theses if not t.hype]
@@ -363,9 +357,8 @@ def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False
     main, toc = brief_main(run["brief"], run["posts"], run["threads"], meta, run["name"])
     accounts = len({p.handle for p in run["posts"].values()})  # who I follow; a repost counts as the reposter
     b = run["brief"]
-    hype = set(b.hype.posts if b.hype else []) | {i for t in b.theses if t.hype for i in t.posts}
     main = masthead(run_head(run["label"], meta.get("started_ms") or 0), run_dek(meta, len(run["posts"]), accounts),
-                    window_strip(meta, run["posts"], hype)) + main
+                    window_strip(meta, run["posts"])) + main
     # older than this one, and briefs only: a run that read nothing is on History with what stopped it
     others = [r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)
               and ending(r["meta"], r.get("writer_error"))[1] != "bad"][:10]

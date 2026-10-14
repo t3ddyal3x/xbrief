@@ -1,22 +1,23 @@
 /* xbrief's one sheet. A private morning edition in Tokyo Night / Day, with the roles macro gives them: text is a
-   ladder of Tokyo's slates (ink0 headings, ink reading, ink2 secondary, dim the quietest), Tokyo's teal marks HYPE
-   and nothing else, blue is focus and selection only, yellow and red mark a problem only. SF Pro for headlines and
-   everything you operate, Iowan Old Style for what you read, a mono only for numbers and times. Sections are set
-   apart by space, not rules. docs/REVIEW_2026-10-14.md has the why. */
+   ladder of Tokyo's slates (ink0 headings, ink reading, ink2 secondary, dim the quietest), blue is focus and
+   selection only, yellow and red mark a problem only; no part of a brief has a colour of its own, HYPE included.
+   Iowan Old Style for headlines and what you read, SF Pro for what you operate and the bylines, a mono only for
+   counts and times. Sections are set apart by space, not rules. On a wide screen the posts behind a sentence sit
+   in the margin beside it. docs/REVIEW_2026-10-14.md and docs/plans/2026-10-14_elegance.md have the why. */
 :root{--paper:#e1e2e7;--panel:#e9e9ed;--ink0:#1f2335;--ink:#343b58;--ink2:#4c5372;--dim:#5a6186;--rule:#c4c8da;
---mint:#0b6152;--wash:#ced8da;--tick:#8990b3;--blue:#2e7de9;--warn:#6f5428;--bad:#b81f47;--ok:#387068;
+--tick:#8990b3;--blue:#2e7de9;--warn:#6f5428;--bad:#b81f47;--ok:#387068;
 --f-head:"SF Pro Display",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
 --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
 --f-read:"Iowan Old Style","New York",Georgia,serif;
 --f-num:"SF Mono",ui-monospace,Menlo,monospace;
 --lift:0 1px 1px rgba(31,35,53,.05),0 2px 6px rgba(31,35,53,.07);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;
---ink:#a9b1d6;--ink2:#9aa5ce;--dim:#8188ad;--rule:#292e42;--mint:#73daca;--wash:#222c35;--tick:#565f89;--blue:#7aa2f7;
+--ink:#a9b1d6;--ink2:#9aa5ce;--dim:#8188ad;--rule:#292e42;--tick:#565f89;--blue:#7aa2f7;
 --warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;
 --lift:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.35);color-scheme:dark}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.62 var(--f-read);-webkit-font-smoothing:antialiased;
-text-rendering:optimizeLegibility;font-variant-numeric:oldstyle-nums proportional-nums}  /* figures sit in the line */
+text-rendering:optimizeLegibility}
 h1,h2,h3{text-wrap:balance}p,li{text-wrap:pretty}
 a{color:inherit;text-decoration-color:var(--tick);text-decoration-thickness:1px;text-underline-offset:3px}
 a:hover{text-decoration-color:currentColor}
@@ -37,7 +38,6 @@ max-height:calc(100vh - 6.4rem);overflow-y:auto;overscroll-behavior:contain;scro
 .rail li{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.2rem 0}
 .rail li a{text-decoration:none;color:var(--ink2)}.rail li a:hover{color:var(--ink)}
 .rail .n{font:11.5px var(--f-num);color:var(--dim);font-variant-numeric:tabular-nums}
-.rail .toc a[href="#hype"]{color:var(--mint);font-weight:600}
 .rail h2{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:0 0 .7rem}
 .rail .claims li a{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .rail .more{display:block;margin-top:-1.3rem;color:var(--dim);font-size:13px}
@@ -64,11 +64,11 @@ margin-right:.5rem;vertical-align:.08em;animation:beat 1.4s ease-in-out infinite
 
 /* ── an edition's masthead: the day, the window the read covered, how much ─────────────────────── */
 .mast{margin:0 0 3.2rem}
-.mast h1{font:600 3.2rem/1.06 var(--f-read);letter-spacing:-.012em;margin:0;color:var(--ink0)}
+.mast h1{font:600 2.65rem/1.1 var(--f-read);letter-spacing:-.012em;margin:0;color:var(--ink0)}
 .mast h1 span{font-style:italic;font-weight:400;letter-spacing:0;color:var(--dim);margin-left:.12em}
 .strip{margin:1.6rem 0 0}
 .strip svg{display:block;width:100%;height:35px}
-.strip rect{fill:var(--tick);opacity:.6}.strip rect.h{fill:var(--mint);opacity:1}
+.strip rect{fill:var(--tick);opacity:.6}
 .strip rect.base{fill:var(--rule);opacity:1}.strip rect.hr{fill:var(--tick);opacity:.7}
 .strip figcaption{display:flex;justify-content:space-between;font:11.5px/1 var(--f-num);color:var(--dim);margin-top:.45rem}
 .dek{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:.9rem 0 0}
@@ -80,7 +80,6 @@ border-radius:0 8px 8px 0;margin:-1.6rem 0 3rem;color:var(--ink)}
 /* ── the brief ──────────────────────────────────────────────────────────────────────────────────── */
 section{margin:0 0 3.4rem}
 section>h2{font:600 1.62rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .6rem}
-.nt{font-variant-caps:all-small-caps;letter-spacing:.05em;font-variant-numeric:lining-nums}  /* a section opens in small caps */
 section>p{margin:0 0 .6rem}
 .empty{color:var(--dim)}
 a.go{text-decoration:none;font:600 12px/1 var(--f-ui);color:var(--dim);padding:.1rem .3rem;margin-left:.05rem;
@@ -88,12 +87,8 @@ border-radius:4px;background:var(--panel);vertical-align:.12em}
 a.go:hover{color:var(--ink0);background:var(--rule)}
 a.go .num,.sn{display:none}
 
-/* HYPE leads: the one band on the page, in the one accent */
-.hype{background:var(--wash);border:1px solid color-mix(in srgb,var(--mint) 20%,transparent);box-shadow:var(--lift);border-radius:14px;padding:1.6rem 1.9rem 1.4rem;margin:0 -1.9rem 3.6rem}
-.hype>h2{font:700 12px/1 var(--f-ui);letter-spacing:.12em;color:var(--mint);margin:0 0 1rem}
-.hype summary,.hype .by,.hype .by a{color:var(--ink2)}
-.hype a.go{background:color-mix(in srgb,var(--mint) 14%,transparent);color:var(--mint)}
-.hype .thesis{margin:2rem 0 0;padding-top:1.6rem;border-top:1px solid color-mix(in srgb,var(--mint) 25%,transparent)}
+/* HYPE leads by place only: first, styled like every other part */
+.hype .thesis{margin:2rem 0 0;padding-top:1.6rem;border-top:1px solid var(--rule)}
 .hype .thesis h3{font:600 1.3rem/1.28 var(--f-read);margin:0 0 .3rem;color:var(--ink0);text-transform:none}
 
 ol.theses{margin:0;padding:0;list-style:none;counter-reset:th}
@@ -124,7 +119,7 @@ details[open]>summary::before{transform:rotate(45deg)}
 padding:.12rem .4rem;border-radius:5px}
 
 /* ── a thesis, and a site's post ────────────────────────────────────────────────────────────────── */
-.thesis h2{font:600 1.8rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .45rem}
+.thesis h2{font:600 1.8rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .45rem;text-wrap:pretty}  /* a long claim keeps the measure */
 .thesis p.by{margin:0 0 1.2rem}
 .thesis h3,.thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
 margin:1.5rem 0 .55rem}
@@ -185,7 +180,7 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 @media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:1.5rem;padding:1.5rem 16px 4rem}
 .rail{position:static;max-height:none;overflow:visible}  /* narrow: the controls stay, the lists go; the page is the list */
 .rail ol,.rail ul,.rail h2,.rail .more{display:none}.live{margin-bottom:0}
-.mast h1{font-size:2.1rem}.mast h1 span{font-size:1.8rem}.hype{margin:0 -16px 3rem;border-radius:0;padding:1.4rem 16px}
+.mast h1{font-size:2.1rem}.mast h1 span{font-size:1.8rem}
 .search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
 .search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
@@ -197,17 +192,14 @@ a.go{font:600 11px/1 var(--f-num);font-variant-numeric:lining-nums;padding:.12re
 a.go .num{display:inline}a.go .arr{display:none}
 .sn{display:block;float:right;clear:right;width:280px;margin:.35rem calc(-280px - 5.5rem) .9rem 0;
 font:12.5px/1.45 var(--f-ui);color:var(--ink2);text-wrap:pretty}
-.hype .sn{margin-right:calc(-280px - 5.5rem - 1.9rem - 1px)}
 .sn-by{display:block;color:var(--dim);margin-bottom:.15rem}
 .sn-by b{color:var(--ink0);font-weight:600}.sn-by a{color:var(--dim);text-decoration:none}.sn-by a:hover{color:var(--ink0)}
 .sn-n{font:600 10.5px var(--f-num);color:var(--dim);background:var(--panel);border-radius:4px;padding:.08rem .3rem;margin-right:.45rem}
-.hype .sn-n{color:var(--mint);background:color-mix(in srgb,var(--mint) 14%,transparent)}
 .sn-t{display:block;font:13.5px/1.45 var(--f-read);color:var(--ink2)}}
 
 /* the contents: a bar beside each story, its length the story's share, so the big ones stand out unread */
-.rail .toc li{display:grid;grid-template-columns:minmax(0,1fr) 34px 1.8rem;gap:.6rem;align-items:baseline}
-.rail .toc li .n{grid-column:3;text-align:right}
+.rail .toc:not(.claims) li{display:grid;grid-template-columns:minmax(0,1fr) 34px 1.8rem;gap:.6rem;align-items:baseline}
+.rail .toc:not(.claims) li .n{grid-column:3;text-align:right}
 .rail .toc .bar{grid-column:2;width:34px;height:3px;align-self:center}
 .rail .toc .bar rect{fill:var(--tick)}
-.rail .toc a[href="#hype"]+.bar rect{fill:var(--mint)}
 
