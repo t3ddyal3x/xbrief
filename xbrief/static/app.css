@@ -190,17 +190,21 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 @media (min-width:1440px){
 .wrap:not(.has-side){grid-template-columns:232px minmax(0,calc(41rem + 8.1rem)) 280px;column-gap:0}
 .wrap:not(.has-side)>main{margin:0 2.6rem 0 5.5rem}  /* the notes sit close to the text they belong to */
-a.go{font:600 11px/1 var(--f-num);font-variant-numeric:lining-nums;padding:.12rem .3rem;vertical-align:.35em}
+a.go{font:500 11px/1 var(--f-num);font-variant-numeric:lining-nums;padding:0 .12em 0 .08em;margin:0;
+vertical-align:.55em;background:none;color:var(--dim);border-radius:0}  /* a footnote mark, not a button */
+a.go:hover,a.go:focus-visible{color:var(--ink0);background:none}
 a.go .num{display:inline}a.go .arr{display:none}
 /* on the text's rhythm: three note lines to two lines of text (17.5px × 1.62 = 28.35px), the first on the
-   baseline of the line that carries its number */
-.sn{--g:calc(17.5px * 1.62 * 2 / 3);display:block;float:right;clear:right;width:280px;
-margin:7px calc(-280px - 2.6rem) var(--g) 0;font:12.5px/var(--g) var(--f-ui);color:var(--ink2);text-wrap:pretty}
-.sn-by{display:block;color:var(--dim)}
-.sn-by b{color:var(--ink0);font-weight:600}.sn-by a{color:var(--dim);text-decoration:none}.sn-by a:hover{color:var(--ink0)}
-.sn-n{font:600 10.5px var(--f-num);color:var(--dim);background:var(--panel);border-radius:4px;padding:.08rem .3rem;margin-right:.45rem}
+   baseline of the line that carries its number. A note is one object: a hairline, its number hung outside it. */
+.sn{--g:calc(17.5px * 1.62 * 2 / 3);display:block;float:right;clear:right;position:relative;width:280px;
+margin:7px calc(-280px - 2.6rem) var(--g) 0;padding-left:.95rem;border-left:1px solid var(--rule);
+font:12.5px/var(--g) var(--f-ui);color:var(--ink2);text-wrap:pretty;transition:border-color .15s}
+a.go:hover+.sn,a.go:focus-visible+.sn,.sn:hover{border-left-color:var(--ink2)}
+.sn-by{display:block;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sn-by b{color:var(--ink0);font-weight:600;margin-right:.2rem}
+.sn-by a{color:var(--dim);text-decoration:none}.sn-by a:hover{color:var(--ink0)}
+.sn-n{position:absolute;left:-1.7rem;width:1.1rem;text-align:right;font:500 11px/var(--g) var(--f-num);color:var(--dim)}
 .sn-t{display:block;font:14px/var(--g) var(--f-read);color:var(--ink2);margin-top:-1px}}
-
 /* the contents: a bar beside each story, its length the story's share, so the big ones stand out unread */
 .rail .toc:not(.claims) li{display:grid;grid-template-columns:minmax(0,1fr) 34px 1.8rem;gap:.6rem;align-items:baseline}
 .rail .toc:not(.claims) li .n{grid-column:3;text-align:right}

@@ -194,3 +194,8 @@ write-ups were written again by Fable to get topics.
 **Checked**: offline tests; live, 2 of Charles Edwards's kept posts match (Bitcoin), none of Fiskantes's 2; the
 page at 2000 px.
 **Next**: the operator looks.
+
+## 2026-10-14 (margin notes refined)
+**Changed** on "please make it look better": the number in the text is a plain footnote mark (no grey box); each
+margin note is one object, a hairline on its left with its number hung outside it, the name without its emoji,
+then @handle and time; hovering the number lights the note's hairline. Baselines re-measured: 0 px on every note.

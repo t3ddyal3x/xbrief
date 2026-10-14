@@ -21,7 +21,8 @@ CSP = ("default-src 'none'; img-src https://pbs.twimg.com; style-src 'self'; scr
        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 LABELS = {"am": "morning", "pm": "evening"}
 HOURS = [("", "since last"), ("12", "last 12 h"), ("24", "last 24 h"), ("48", "last 48 h")]
-POST_REF = re.compile(r"\s*\[\[(\d{1,25})\]\]")  # the writer's pointer at a post that stands out
+POST_REF = re.compile(r"\s*\[\[(\d{1,25})\]\]")
+EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]")  # the writer's pointer at a post that stands out
 
 
 def esc(s) -> str:
@@ -144,7 +145,8 @@ def linked(text: str, posts: dict[str, Post], notes: Notes | None = None) -> str
                 + (f'<span class="num">{notes.next()}</span>' if notes else "") + '<span class="arr">↗</span></a>')
         if not notes:
             return "&nbsp;" + link
-        name = f'<b>{esc(shown.name)}</b> ' if shown.name and shown.name != shown.handle else ""
+        plain = EMOJI.sub("", shown.name or "").strip()  # a margin note is type only: the name without its emoji
+        name = f'<b>{esc(plain)}</b> ' if plain and plain != shown.handle else ""
         return (f'{link}<span class="sn"><span class="sn-by"><span class="sn-n">{notes.n}</span>{name}'
                 f'<a href="{url}" rel="noreferrer">@{esc(shown.handle)}</a> · {hhmm(shown.created_ms)}</span>'
                 f'<span class="sn-t">{esc(opening(shown))}</span></span>')
