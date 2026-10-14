@@ -113,7 +113,7 @@ plain public GET, direct, on the source's own host only; a new post's text goes 
 tools) for gist, points, calls and Claude's view. A source's first check notes its archive and reads the newest
 post. The app starts `xbrief sites` once a day after 07:00 (switch and Check now on the page), own lock.
 `runner.take_lock`/`acquire`/`running` take a lock path; `brief.ask_claude` takes a model.
-**Checked**: 81 offline tests (10 new); the first real check ran from the app's daily tick at 11:16: Sigil's sitemap
+**Checked**: 79 offline tests pass, 3 browser ones skipped (9 new); the first real check ran from the app's daily tick at 11:16: Sigil's sitemap
 53 posts, the Q2 2026 letter read (24,949 characters); Zee Prime's feed 10, "Argonauts Journey" read; both
 summaries right. The page at 2000 px, light and dark, through a headless Brave with a write guard.
 **Next**: the operator looks at /sites. Open: adding a site from the page instead of config.py.
