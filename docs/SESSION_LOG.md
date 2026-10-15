@@ -199,3 +199,13 @@ page at 2000 px.
 **Changed** on "please make it look better": the number in the text is a plain footnote mark (no grey box); each
 margin note is one object, a hairline on its left with its number hung outside it, the name without its emoji,
 then @handle and time; hovering the number lights the note's hairline. Baselines re-measured: 0 px on every note.
+
+## 2026-10-14 (starting over: plan)
+**Asked**: "the entire thing needs a re-work; it's just not a good experience; please do some reviews online and
+start over". **Researched** Nuzzel, Techmeme, Bloomberg Five Things, the Economist's Espresso, Axios, Particle,
+shapeof.ai's summary and citation patterns, Reeder and Readwise. **Measured** the 08:44 brief: 3,450 words, twenty
+topics of equal weight, headings that name a drawer, not the news. **Plan**: `docs/plans/2026-10-14_rework.md`
+(stories with a news headline and a two-sentence gist, ranked by how many people talked about them, five open and
+the rest one line each, the key posts in their own words beside each story, one page with a top bar; the rail,
+the Theses tab and the margin notes go). Nothing built.
+**Next**: the operator's word on the plan.
