@@ -129,8 +129,8 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   `/blog/`). Only addresses on the source's own host are followed.
 - **A check** reads each list; a post not in `site_posts` is fetched, its text taken from `<article>`, else
   `<main>`, else `<body>`, with scripts, navigation, headers and footers dropped, and given whole (up to 80,000
-  characters) to `claude -p` with no tools, model Fable (`config.SITE_MODEL`: the operator prefers Fable for
-  summaries). It returns gist, points, calls (positions and forecasts with their numbers) and view (Claude's,
+  characters) to `claude -p` with no tools, model Opus (`config.SITE_MODEL`; Fable until 2026-10-15, when it began to need
+  paid credits and the operator chose Opus). It returns gist, points, calls (positions and forecasts with their numbers) and view (Claude's,
   labelled on the page). A fetch or writer failure is kept on the post and shown; the post is not tried again.
 - **The first check of a source** marks everything already listed as known (`baseline`) and reads the newest one,
   so adding a site never summarises its whole archive.
@@ -149,7 +149,7 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   handle the posts link to, already followed (60 of their posts kept by 2026-10-15).
 - **Fable needs usage credits** (2026-10-15 11:11, `claude -p` exited 1: "Fable 5.1 requires usage credits"):
   Evanss6's first write-up failed on it; the row was deleted so the next check reads it again. Every new post's
-  write-up fails the same way until the operator buys credits or names another model (`XBRIEF_SITE_MODEL`).
+  write-up failed the same way, so the operator moved the summaries to Opus the same day.
 - **The people behind a source** (operator, 2026-10-14: "tie the head figures with these people in terms of their
   twitter"; "I just want it tied together as one place"; "the article in the middle and the twitter stuff on the
   right like we have for the brief"): a source's `x` names their handles (Sigil: Fiskantes; Capriole: caprioleio; Evanss6: Evan_ss6;

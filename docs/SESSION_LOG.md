@@ -239,3 +239,7 @@ Sites people-column match). 26 kept posts given theirs from the raw files (store
 scratchpad); the 11:15 brief rewritten, and the CRWV article is now its own thesis. The full article was read for the
 operator in their own Chrome, by hand; the job still never opens it (rule 1).
 **Next**: the Fable credits question from the entry above.
+
+## 2026-10-15 (Sites summaries on Opus)
+**Changed** `config.SITE_MODEL` to Opus at the operator's word ("just stick with opus"), since Fable needs paid
+credits. Checked the sites: Evanss6's "Have Fun Staying Poor" written up.

@@ -37,7 +37,7 @@ SITES = [
     {"key": "evanss6", "name": "Evanss6", "home": "https://evanss6.substack.com/",
      "list": "https://evanss6.substack.com/feed", "kind": "rss", "x": ["Evan_ss6"]},
 ]
-SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-fable-5-1"  # Fable for summaries (operator, 2026-10-12)
+SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
 SITES_X_MAX = 120  # the Sites page's right-hand column: at most this many of the people's posts
 SITES_X_SCAN = 2000  # of each source's people's newest posts kept, matched against its write-ups' topics
