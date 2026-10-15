@@ -1,4 +1,4 @@
-// xbrief's one script: the Brief now button, the rail's live line, the schedule form, the Sites tab's check. The
+// xbrief's one script: the Brief now button, the top bar's live line, the schedule form, the Sites tab's check. The
 // server builds every page; this only talks to /api/run, /api/status, /api/settings and /api/sites, and writes text
 // (never markup) into the page.
 (() => {

@@ -1,46 +1,49 @@
-/* xbrief's one sheet. A private morning edition in Tokyo Night / Day, with the roles macro gives them: text is a
-   ladder of Tokyo's slates (ink0 headings, ink reading, ink2 secondary, dim the quietest), blue is focus and
-   selection only, yellow and red mark a problem only; no part of a brief has a colour of its own, HYPE included.
-   Iowan Old Style for headlines and what you read, SF Pro for what you operate and the bylines, a mono only for
-   counts and times. Sections are set apart by space, not rules. On a wide screen the posts behind a sentence sit
-   in the margin beside it. docs/REVIEW_2026-10-14.md and docs/plans/2026-10-14_elegance.md have the why. */
+/* xbrief's one sheet. A front page in Tokyo Night / Day, with the roles macro gives them: text is a ladder of
+   Tokyo's slates (ink0 headlines, ink reading, ink2 secondary, dim the quietest), blue is focus and selection only,
+   yellow and red mark a problem only; no part of a brief has a colour of its own, HYPE included.
+   Iowan Old Style is what Claude wrote (headlines, gists, theses); the system sans is what people posted (the key
+   posts beside each story) and what you operate; a mono only for times. HYPE and the top four stories are open,
+   the rest a line each that opens in place. docs/plans/2026-10-14_rework.md has the why. */
 :root{--paper:#e1e2e7;--panel:#e9e9ed;--ink0:#1f2335;--ink:#343b58;--ink2:#4c5372;--dim:#5a6186;--rule:#c4c8da;
 --tick:#8990b3;--blue:#2e7de9;--warn:#6f5428;--bad:#b81f47;--ok:#387068;
---f-head:"SF Pro Display",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
 --f-ui:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
 --f-read:"Iowan Old Style","New York",Georgia,serif;
 --f-num:"SF Mono",ui-monospace,Menlo,monospace;
---lift:0 1px 1px rgba(31,35,53,.05),0 2px 6px rgba(31,35,53,.07);color-scheme:light}
+--w:1180px;--said:400px;--gut:40px;
+--lift:0 1px 1px rgba(31,35,53,.04),0 2px 8px rgba(31,35,53,.06);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;
---ink:#a9b1d6;--ink2:#9aa5ce;--dim:#8188ad;--rule:#292e42;--tick:#565f89;--blue:#7aa2f7;
+--ink:#a9b1d6;--ink2:#9aa5ce;--dim:#858cb1;--rule:#292e42;--tick:#565f89;--blue:#7aa2f7;
 --warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;
 --lift:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.35);color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;--ink:#a9b1d6;--ink2:#9aa5ce;--dim:#858cb1;
+--rule:#292e42;--tick:#565f89;--blue:#7aa2f7;--warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;
+--lift:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.35);color-scheme:dark}
 *{box-sizing:border-box}
-body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.62 var(--f-read);-webkit-font-smoothing:antialiased;
+body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.6 var(--f-read);-webkit-font-smoothing:antialiased;
 text-rendering:optimizeLegibility}
 h1,h2,h3{text-wrap:balance}p,li{text-wrap:pretty}
 a{color:inherit;text-decoration-color:var(--tick);text-decoration-thickness:1px;text-underline-offset:3px}
 a:hover{text-decoration-color:currentColor}
 ::selection{background:color-mix(in srgb,var(--blue) 28%,transparent);color:var(--ink0)}
 :focus-visible{outline:2px solid var(--blue);outline-offset:2px;border-radius:3px}
-.wrap{display:grid;grid-template-columns:232px minmax(0,44rem);gap:5.5rem;justify-content:center;padding:3.2rem 2rem 7rem}
 
-/* ── the rail ───────────────────────────────────────────────────────────────────────────────────── */
-.rail{position:sticky;top:3.2rem;align-self:start;font:13.5px/1.45 var(--f-ui);color:var(--ink2);
-max-height:calc(100vh - 6.4rem);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;padding:3px;margin:-3px}
-.rail .brand{font:700 17px/1.2 var(--f-head);letter-spacing:-.01em;margin:0}
-.rail .brand a{text-decoration:none;color:var(--ink0)}
-.tabs{display:flex;gap:1.15rem;margin:1.1rem 0 1.4rem;font-size:14px}
-.tabs a{color:var(--dim);text-decoration:none;padding-bottom:3px;border-bottom:2px solid transparent}
+/* ── the bar every page shares ──────────────────────────────────────────────────────────────────── */
+.top{border-bottom:1px solid var(--rule);font:14px/1.3 var(--f-ui)}
+.bar{max-width:var(--w);margin:0 auto;padding:.85rem var(--gut);display:flex;align-items:center;gap:.6rem 2rem}
+.brand{font-weight:700;font-size:16px;letter-spacing:-.01em;color:var(--ink0);text-decoration:none;white-space:nowrap}
+.tabs{display:flex;gap:1.3rem}
+.tabs a{color:var(--dim);text-decoration:none;padding:.3rem 0;border-bottom:2px solid transparent}
 .tabs a:hover{color:var(--ink)}
 .tabs a[aria-current]{color:var(--ink0);font-weight:600;border-bottom-color:var(--ink0)}
-.rail ol,.rail ul{list-style:none;margin:0 0 2rem;padding:0}
-.rail li{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;padding:.2rem 0}
-.rail li a{text-decoration:none;color:var(--ink2)}.rail li a:hover{color:var(--ink)}
-.rail .n{font:11.5px var(--f-num);color:var(--dim);font-variant-numeric:tabular-nums}
-.rail h2{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:0 0 .7rem}
-.rail .claims li a{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.rail .more{display:block;margin-top:-1.3rem;color:var(--dim);font-size:13px}
+.find{flex:0 1 300px;margin:0}.find input{width:100%}
+.act{margin-left:auto;display:flex;align-items:center;gap:1rem;min-width:0}
+.live{margin:0;font-size:12.5px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:26rem}
+.live a{color:var(--ink);font-weight:600}
+.live.on{color:var(--ink)}
+.live.on::before{content:"";display:inline-block;width:.45rem;height:.45rem;border-radius:50%;background:var(--ok);
+margin-right:.5rem;vertical-align:.08em;animation:beat 1.4s ease-in-out infinite}
+.live.bad{color:var(--bad)}
+@keyframes beat{50%{opacity:.25}}
 
 /* controls: quiet until used */
 .ctl input,.ctl select,.ctl button{font:13.5px/1.2 var(--f-ui);color:var(--ink);background:var(--panel);border:1px solid transparent;
@@ -50,90 +53,124 @@ border-radius:8px;padding:.5rem .65rem;min-width:0}
 .ctl button{cursor:pointer;font-weight:600;background:var(--ink0);color:var(--paper)}
 .ctl button:hover:not(:disabled){opacity:.85}
 .ctl button:disabled{cursor:default;background:var(--panel);color:var(--dim)}
-.find{margin:0 0 .5rem}.find input{width:100%}
-.run{display:flex;gap:.45rem;margin:0}.run select{flex:1}
-.run button{background:var(--panel);color:var(--ink);font-weight:500}  /* a run is occasional; reading is the page */
+.run{display:flex;gap:.4rem;margin:0}
+.run button{background:var(--panel);color:var(--ink);font-weight:500;white-space:nowrap}  /* a run is occasional; reading is the page */
 .run button:hover:not(:disabled){background:var(--rule);opacity:1}
-.live{margin:.6rem 0 2.2rem;min-height:1.45em;font-size:12.5px;color:var(--dim)}
-.live a{color:var(--ink);font-weight:600}
-.live.on{color:var(--ink)}
-.live.on::before{content:"";display:inline-block;width:.45rem;height:.45rem;border-radius:50%;background:var(--ok);
-margin-right:.5rem;vertical-align:.08em;animation:beat 1.4s ease-in-out infinite}
-.live.bad{color:var(--bad)}
-@keyframes beat{50%{opacity:.25}}
 
-/* ── an edition's masthead: the day, the window the read covered, how much ─────────────────────── */
-.mast{margin:0 0 3.2rem}
-.mast h1{font:600 2.65rem/1.1 var(--f-read);letter-spacing:-.012em;margin:0;color:var(--ink0)}
+.wrap{max-width:var(--w);margin:0 auto;padding:3rem var(--gut) 7rem}
+
+/* ── a brief's masthead: the day, how much was read, the window it covered ─────────────────────── */
+.mast{margin:0 0 2.6rem}
+.mast h1{font:600 2.6rem/1.1 var(--f-read);letter-spacing:-.012em;margin:0;color:var(--ink0)}
 .mast h1 span{font-style:italic;font-weight:400;letter-spacing:0;color:var(--dim);margin-left:.12em}
-.strip{margin:1.6rem 0 0}
-.strip svg{display:block;width:100%;height:35px}
+.dek{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:.7rem 0 0}.dek a{color:var(--dim)}.dek a:hover{color:var(--ink)}
+.strip{margin:1.4rem 0 0}
+.strip svg{display:block;width:100%;height:30px}
 .strip rect{fill:var(--tick);opacity:.6}
 .strip rect.base{fill:var(--rule);opacity:1}.strip rect.hr{fill:var(--tick);opacity:.7}
 .strip figcaption{display:flex;justify-content:space-between;font:11.5px/1 var(--f-num);color:var(--dim);margin-top:.45rem}
-.dek{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:.9rem 0 0}
 .status{font:13.5px/1.55 var(--f-ui);padding:.8rem 1rem;border-left:3px solid var(--warn);background:var(--panel);
-border-radius:0 8px 8px 0;margin:-1.6rem 0 3rem;color:var(--ink)}
+border-radius:0 8px 8px 0;margin:0 0 2.6rem;color:var(--ink)}
 .status.bad{border-color:var(--bad)}
 .status b{color:var(--warn)}.status.bad b{color:var(--bad)}
-
-/* ── the brief ──────────────────────────────────────────────────────────────────────────────────── */
-section{margin:0 0 3.4rem}
-section>h2{font:600 1.62rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .6rem}
-section>p{margin:0 0 .6rem}
 .empty{color:var(--dim)}
-a.go{text-decoration:none;font:600 12px/1 var(--f-ui);color:var(--dim);padding:.1rem .3rem;margin-left:.05rem;
-border-radius:4px;background:var(--panel);vertical-align:.12em}
-a.go:hover{color:var(--ink0);background:var(--rule)}
-a.go .num,.sn{display:none}
 
-/* HYPE leads by place only: first, styled like every other part */
-.hype .thesis{margin:2rem 0 0;padding-top:1.6rem;border-top:1px solid var(--rule)}
-.hype .thesis h3{font:600 1.3rem/1.28 var(--f-read);margin:0 0 .3rem;color:var(--ink0);text-transform:none}
+/* ── the front page ─────────────────────────────────────────────────────────────────────────────── */
+main>section{margin:0 0 3.2rem}
+.label{font:600 11.5px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:0 0 .9rem}
 
-ol.theses{margin:0;padding:0;list-style:none;counter-reset:th}
-ol.theses li{margin:0 0 .85rem;line-height:1.45}
-ol.theses a{text-decoration:none}ol.theses a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
-.by{font:13px/1.4 var(--f-ui);color:var(--dim)}.by a{color:var(--dim)}
-ol.theses .by{margin-left:.35rem;white-space:nowrap}
+/* a lead story: the headline and gist on the left in Claude's words, the key posts on the right in their own */
+.story.lead{border-top:1px solid var(--rule);padding:1.9rem 0 2.2rem;display:grid;
+grid-template-columns:minmax(0,1fr) var(--said);column-gap:3.5rem;align-items:start}
+.story.lead{grid-template-rows:auto auto 1fr}  /* the posts' height goes to the last row, never between headline and gist */
+.story.lead>h3{grid-column:1;font:600 1.8rem/1.2 var(--f-read);letter-spacing:-.008em;color:var(--ink0);margin:0 0 .75rem}
+.story.lead>.body{display:contents}
+.story.lead .words{grid-column:1}
+.story.lead .said{grid-column:2;grid-row:1/-1}
+.gist{font-size:19.5px;line-height:1.55;margin:0 0 .8rem;color:var(--ink)}
+.words{max-width:40rem}
 
-/* the posts behind a paragraph, folded */
-details{margin-top:.5rem}
-summary{cursor:pointer;font:13px/1.4 var(--f-ui);color:var(--dim);list-style:none;display:inline-block;padding:.15rem 0}
-summary:hover{color:var(--ink)}
+/* a key post: what someone wrote, as they wrote it */
+.said{display:grid;gap:.75rem}
+.card{background:var(--panel);border-radius:12px;padding:.8rem 1rem .9rem;box-shadow:var(--lift);
+font:14.5px/1.5 var(--f-ui);color:var(--ink)}
+.card .who{margin:0 0 .25rem;font-size:13px;color:var(--dim);display:flex;flex-wrap:wrap;gap:0 .5rem;align-items:baseline}
+.card .who b{color:var(--ink0);font-weight:600;font-size:14px}
+.card .who a{color:var(--dim);text-decoration:none;font-variant-numeric:tabular-nums}.card .who a:hover{color:var(--ink0)}
+.card .t{white-space:pre-wrap;overflow-wrap:anywhere;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:7;overflow:hidden}
+.card .imgs{margin-top:.6rem}.card .imgs a{width:100%}
+.card .imgs img{width:100%;max-height:180px;object-fit:cover}
+.card .q{margin:.6rem 0 0;padding:.5rem .75rem;border:1px solid var(--rule);border-radius:9px;font-size:13.5px;line-height:1.45}
+.card .q .who{font-size:12.5px;margin:0}
+.card .q .t{-webkit-line-clamp:4}
+
+/* a story told in one line, and a thesis: opens in place */
+.story.line{border-top:1px solid var(--rule);margin:0}
+main>section>.story.line:last-child,.pair>.story.line:last-child{border-bottom:1px solid var(--rule)}
+/* the stories one person posted: two columns, each opening in place in its own column */
+@media (min-width:1101px){.pair{display:grid;grid-template-columns:1fr 1fr;column-gap:3.5rem;align-items:start}
+.pair>.story.line:nth-last-child(2):nth-child(odd){border-bottom:1px solid var(--rule)}
+.pair .story.line>.body.two{grid-template-columns:minmax(0,1fr)}.pair .said{margin-top:.6rem}
+.pair .story.line>summary h3{font-size:17px}}
+.pair .gist{font-size:17.5px}
+#one .story.line>summary .n{display:none}  /* the label says it: one person each */
+.story.line>summary{display:grid;grid-template-columns:1.3rem minmax(0,1fr) auto;column-gap:.4rem;align-items:baseline;
+padding:.8rem 0;cursor:pointer;list-style:none}
+.story.line>summary h3{font:500 18.5px/1.4 var(--f-read);color:var(--ink0);margin:0;text-wrap:pretty}
+.story.line>summary:hover h3{text-decoration:underline;text-decoration-color:var(--tick);text-underline-offset:4px}
+.story.line[open]>summary h3{font-weight:600}
+.story.line>summary .n{font:12.5px/1 var(--f-ui);color:var(--dim);white-space:nowrap;padding-left:1.5rem;font-variant-numeric:tabular-nums}
+.story.line>.body{padding:.2rem 0 2rem 1.7rem}
+.story.line>.body.two{display:grid;grid-template-columns:minmax(0,1fr) var(--said);column-gap:3.5rem;align-items:start}
+.story.line>.post,.story.line>.empty{margin-left:1.7rem}
+#other .story.line[open]{padding-bottom:2rem}
+#other p.empty{font:14px/1.5 var(--f-ui);margin-top:0}
+
+/* the chevron on everything that opens */
+summary{list-style:none}
 summary::-webkit-details-marker{display:none}
-summary::before{content:"";display:inline-block;width:.38rem;height:.38rem;border-right:1.5px solid currentColor;
-border-bottom:1.5px solid currentColor;transform:rotate(-45deg);margin:0 .55rem .1rem .1rem;transition:transform .15s}
-details[open]>summary::before{transform:rotate(45deg)}
-.post{border-left:2px solid var(--rule);padding:.2rem 0 .2rem 1.1rem;margin:1rem 0 0;font-size:16px;line-height:1.55}
+.story.line>summary::before,.fold>summary::before{content:"";justify-self:start;display:inline-block;width:.4rem;height:.4rem;
+border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transform:rotate(-45deg);transition:transform .15s}
+.story.line>summary::before{position:relative;top:-.15em}
+.story.line[open]>summary::before,.fold[open]>summary::before{transform:rotate(45deg)}
+
+/* a thesis opened: the argument, what follows, Claude's view under its own label */
+.thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:1.2rem 0 .55rem}
+.thesis .words>h4:first-child{margin-top:.4rem}
+.steps{margin:0;padding-left:1.5rem}.steps li{margin:0 0 .35rem;padding-left:.2rem}
+.steps li::marker{font:12.5px var(--f-num);color:var(--dim)}
+.thesis p{margin:0 0 .6rem}
+.view{margin:1.3rem 0 .6rem;padding:.3rem 1.2rem .6rem;background:var(--panel);border:1px solid var(--rule);box-shadow:var(--lift);border-radius:12px}
+.view b{font:600 14px var(--f-ui);margin-right:.3rem}
+
+/* the posts behind a story, folded */
+.fold{margin-top:.3rem}
+.fold>summary{cursor:pointer;font:13px/1.4 var(--f-ui);color:var(--dim);display:inline-flex;align-items:center;gap:.6rem;padding:.15rem 0}
+.fold>summary:hover{color:var(--ink)}
+.post{border-left:2px solid var(--rule);padding:.2rem 0 .2rem 1.1rem;margin:1rem 0 0;font:15px/1.5 var(--f-ui)}
 .post .meta{font:13px/1.4 var(--f-ui);color:var(--dim);display:flex;gap:.25rem .7rem;flex-wrap:wrap;margin-bottom:.25rem}
 .post .meta a{color:var(--dim);text-decoration:none}.post .meta a:hover{color:var(--ink)}
 .post .meta b{color:var(--ink0);font-weight:600}
 .post .t{white-space:pre-wrap;overflow-wrap:anywhere}
-.post .t a{text-decoration-color:var(--tick)}
-.post .q{margin:.6rem 0 0;padding:.6rem .9rem;background:var(--panel);border-radius:10px;font-size:15px}
+.post .q{margin:.6rem 0 0;padding:.6rem .9rem;background:var(--panel);border-radius:10px;font-size:14px}
 .imgs{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.6rem}
 .imgs a{position:relative;display:block}
 .imgs img{display:block;max-height:260px;max-width:100%;border-radius:10px;background:var(--panel)}
 .imgs .v{position:absolute;left:.45rem;bottom:.45rem;font:600 11px var(--f-ui);background:#000b;color:#fff;
 padding:.12rem .4rem;border-radius:5px}
 
-/* ── a thesis, and a site's post ────────────────────────────────────────────────────────────────── */
-.thesis h2{font:600 1.8rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .45rem;text-wrap:pretty}  /* a long claim keeps the measure */
-.thesis p.by{margin:0 0 1.2rem}
-.thesis h3,.thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);
-margin:1.5rem 0 .55rem}
-.thesis .steps{margin:0;padding-left:1.5rem}.thesis .steps li{margin:0 0 .35rem;padding-left:.2rem}
-.thesis .steps li::marker{font:12.5px var(--f-num);color:var(--dim)}
-.thesis p{margin:0 0 .6rem}
-.thesis .view{margin:1.4rem 0 .6rem;padding:.3rem 1.2rem .6rem;background:var(--panel);border:1px solid var(--rule);box-shadow:var(--lift);border-radius:12px}
-.thesis .view b{font:600 14px var(--f-ui);margin-right:.3rem}
-.thesis:not(.hype .thesis){padding-bottom:2.6rem;margin-bottom:3rem;border-bottom:1px solid var(--rule)}
+/* ── the Sites tab: the write-ups in the middle, their people's posts on X on the right ────────── */
+.sitefind{margin:0 0 1rem}.sitefind input{width:100%;font-size:15px;padding:.6rem .8rem}
+.pick{list-style:none;display:flex;flex-wrap:wrap;gap:.4rem 1.3rem;margin:0 0 2.6rem;padding:0;font:14px var(--f-ui)}
+.pick a{color:var(--dim);text-decoration:none}.pick a:hover{color:var(--ink)}
+.pick a[aria-current]{color:var(--ink0);font-weight:600}
+.site{margin:0 0 3rem;padding-bottom:2.6rem;border-bottom:1px solid var(--rule)}
+.site h2{font:600 1.8rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .45rem;text-wrap:pretty}
 .site h2 a{text-decoration:none}.site h2 a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
-/* the Sites tab: the write-ups in the middle, their people's posts on X on the right */
-.sitefind{margin:0 0 2.6rem}
-.rail .pick a[aria-current]{color:var(--ink0);font-weight:600}
-.thesis .found li{font-size:15px;color:var(--ink2)}
+.site h3{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:1.5rem 0 .55rem}
+.site p{margin:0 0 .6rem}.site p.by{margin:0 0 1.2rem}
+.site .found li{font-size:15px;color:var(--ink2)}
+.by{font:13px/1.4 var(--f-ui);color:var(--dim)}.by a{color:var(--dim)}
 .side{font-size:15px}
 .side h2{font:650 1.05rem/1.3 var(--f-ui);color:var(--ink0);margin:0 0 .2rem}
 .side>.by{margin:0 0 .4rem}
@@ -144,15 +181,15 @@ margin:1.5rem 0 .55rem}
 background:var(--panel);border-radius:8px;font:600 12.5px/1.35 var(--f-ui)}
 .side .mk a{color:var(--ink0);text-decoration:none}.side .mk a:hover{text-decoration:underline}
 .side .mk span{color:var(--dim);font-weight:400;white-space:nowrap}
-@media (min-width:861px) and (max-width:1439px){.wrap>.side{grid-column:2}}
-@media (min-width:1440px){.wrap.has-side{grid-template-columns:232px minmax(0,41rem) 360px;gap:4rem}
-.wrap>.side{position:sticky;top:3.2rem;align-self:start;max-height:calc(100vh - 4.4rem);overflow-y:auto;
-padding-right:.4rem;scrollbar-width:thin}}
+.wrap.has-side{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:4rem}
+.wrap>.side{position:sticky;top:1.5rem;align-self:start;max-height:calc(100vh - 3rem);overflow-y:auto;
+padding-right:.4rem;scrollbar-width:thin}
 #list{margin-top:4.5rem}
+#list h2,main>section>h2:not(.label){font:600 1.6rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .8rem}
 .note{font:13px/1.5 var(--f-ui);color:var(--dim);margin:0 0 .4rem}
 
 /* ── history, the schedule, the sites' list ─────────────────────────────────────────────────────── */
-.runs{list-style:none;margin:0 0 3rem;padding:0;font:14px/1.4 var(--f-ui)}
+.runs{list-style:none;margin:0 0 3rem;padding:0;font:14px/1.4 var(--f-ui);max-width:46rem}
 .runs li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:.25rem 1.2rem;padding:.75rem 0;border-bottom:1px solid var(--rule)}
 .runs li a{color:var(--ink0);text-decoration:none;font-weight:600;font-variant-numeric:tabular-nums}
 .runs li a:hover{text-decoration:underline;text-decoration-color:var(--tick)}
@@ -169,45 +206,30 @@ padding-right:.4rem;scrollbar-width:thin}}
 .sched .w2{display:flex;gap:.5rem}
 
 /* ── search ─────────────────────────────────────────────────────────────────────────────────────── */
-.search{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:.5rem;align-items:center;margin:0 0 .8rem}
+.search{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:.5rem;align-items:center;margin:0 0 .8rem;max-width:46rem}
 .search input[type=search]{font-size:16px;padding:.65rem .8rem}
 .search input[type=date]{font-family:var(--f-num);font-size:12.5px}
 .search .to{color:var(--dim);font:13px var(--f-ui)}
 .hits{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:0 0 2.4rem}
 .day{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:2.6rem 0 .2rem}
+main>.post{max-width:46rem}
 .post .from{margin-left:auto}
 mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;border-radius:3px;padding:0 .1em}
 
-@media (max-width:860px){.wrap{grid-template-columns:minmax(0,1fr);gap:1.5rem;padding:1.5rem 16px 4rem}
-.rail{position:static;max-height:none;overflow:visible}  /* narrow: the controls stay, the lists go; the page is the list */
-.rail ol,.rail ul,.rail h2,.rail .more{display:none}.live{margin-bottom:0}
-.mast h1{font-size:2.1rem}.mast h1 span{font-size:1.8rem}
+/* ── narrower: the key posts go under the words; the side column under the write-ups ─────────────── */
+@media (max-width:1100px){
+.story.lead,.story.line>.body.two{grid-template-columns:minmax(0,1fr)}
+.story.lead .said{grid-column:1;grid-row:auto;margin-top:.6rem}
+.said{max-width:40rem}
+.wrap.has-side{grid-template-columns:minmax(0,1fr)}.wrap>.side{position:static;max-height:none}}
+@media (max-width:760px){:root{--gut:16px}
+.bar{flex-wrap:wrap;gap:.6rem 1.2rem}.find{order:3;flex:1 1 100%}.act{order:4;flex:1 1 100%;margin:0}
+.run{flex:1}.run select{flex:1}.live{display:none}
+.wrap{padding:1.8rem var(--gut) 4rem}
+.mast h1{font-size:2rem}
+.story.lead>h3{font-size:1.5rem}.gist{font-size:18px}
+.story.line>summary{grid-template-columns:1.1rem minmax(0,1fr)}.story.line>summary .n{grid-column:2;padding:.2rem 0 0}
+.story.line>.body{padding-left:0}.story.line>.post{margin-left:0}
 .search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
 .search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
-
-/* ── wide screens: the posts behind a sentence sit in the margin beside it (Tufte's sidenotes) ────── */
-@media (min-width:1440px){
-.wrap:not(.has-side){grid-template-columns:232px minmax(0,calc(41rem + 8.1rem)) 280px;column-gap:0}
-.wrap:not(.has-side)>main{margin:0 2.6rem 0 5.5rem}  /* the notes sit close to the text they belong to */
-a.go{font:500 11px/1 var(--f-num);font-variant-numeric:lining-nums;padding:0 .12em 0 .08em;margin:0;
-vertical-align:.55em;background:none;color:var(--dim);border-radius:0}  /* a footnote mark, not a button */
-a.go:hover,a.go:focus-visible{color:var(--ink0);background:none}
-a.go .num{display:inline}a.go .arr{display:none}
-/* on the text's rhythm: three note lines to two lines of text (17.5px × 1.62 = 28.35px), the first on the
-   baseline of the line that carries its number. A note is one object: a hairline, its number hung outside it. */
-.sn{--g:calc(17.5px * 1.62 * 2 / 3);display:block;float:right;clear:right;position:relative;width:280px;
-margin:7px calc(-280px - 2.6rem) var(--g) 0;padding-left:.95rem;border-left:1px solid var(--rule);
-font:12.5px/var(--g) var(--f-ui);color:var(--ink2);text-wrap:pretty;transition:border-color .15s}
-a.go:hover+.sn,a.go:focus-visible+.sn,.sn:hover{border-left-color:var(--ink2)}
-.sn-by{display:block;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.sn-by b{color:var(--ink0);font-weight:600;margin-right:.2rem}
-.sn-by a{color:var(--dim);text-decoration:none}.sn-by a:hover{color:var(--ink0)}
-.sn-n{position:absolute;left:-1.7rem;width:1.1rem;text-align:right;font:500 11px/var(--g) var(--f-num);color:var(--dim)}
-.sn-t{display:block;font:14px/var(--g) var(--f-read);color:var(--ink2);margin-top:-1px}}
-/* the contents: a bar beside each story, its length the story's share, so the big ones stand out unread */
-.rail .toc:not(.claims) li{display:grid;grid-template-columns:minmax(0,1fr) 34px 1.8rem;gap:.6rem;align-items:baseline}
-.rail .toc:not(.claims) li .n{grid-column:3;text-align:right}
-.rail .toc .bar{grid-column:2;width:34px;height:3px;align-self:center}
-.rail .toc .bar rect{fill:var(--tick)}
-

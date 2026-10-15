@@ -209,3 +209,17 @@ topics of equal weight, headings that name a drawer, not the news. **Plan**: `do
 the rest one line each, the key posts in their own words beside each story, one page with a top bar; the rail,
 the Theses tab and the margin notes go). Nothing built.
 **Next**: the operator's word on the plan.
+
+## 2026-10-14 (starting over: built)
+**Built** on "yup go build", steps 1–4 of `docs/plans/2026-10-14_rework.md`. The writer returns stories (headline,
+gist, key posts, posts; HYPE as stories too) and is told to leave trivia out; the page ranks them by how many people
+posted in each, opens HYPE and the top four with their key posts beside them as cards, lists the rest a line each
+(those from one person in two columns), and the theses as lines that open in place. One top bar replaces the rail;
+the Theses tab and the margin notes are gone (`/theses` shows the brief). Older briefs still show: paragraph as gist,
+its pointed-at posts as key posts. Fixed on the way: X's `&gt;`-style entities showed escaped twice; dark-theme quiet
+text lifted to 4.7:1 on a card.
+**Rewrote** the 08:44 brief with the new writer (`xbrief rebrief`, Opus, about 9 minutes): 69 stories, 18 theses.
+That was before the trivia line was added; the next brief is the first with it.
+**Checked**: offline tests (new: ranking, key-post cards, old briefs, entities); 2000 px light and dark, 1000 px,
+phone, through the write-refusing headless Brave.
+**Next**: the operator looks. Faces (step 5) not built.

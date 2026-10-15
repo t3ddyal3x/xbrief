@@ -8,7 +8,7 @@ devtools update"). This file records what the build found and where it differs f
 The static page became an app on the operator's word ("make it into a full blown app"; chosen: a local web app like
 macro, with a run button and history and search; X only). `server.py` on 127.0.0.1:8795 behind Caddy, the
 standard library only, macro's loopback perimeter. Pages are built on the server (`page.py`); one script,
-`static/app.js`, drives the Brief now button, the rail's live line (`/api/status`, every 1.5 s while a run goes,
+`static/app.js`, drives the Brief now button, the top bar's live line (`/api/status`, every 1.5 s while a run goes,
 30 s otherwise) and the schedule form. The CSP allows that script and the app's sheet, nothing inline.
 
 - **The store** (`store.py`, `xbrief.db`, SQLite in WAL): a run is stored whole when its brief is written (meta,
@@ -104,6 +104,16 @@ is written up in the HYPE part; the rest on the Theses tab, with a line each on 
 that stands out with `[[post id]]`; the page links it to that post on X, built from the post, and drops an id not in
 the brief. The writer's timeout went from 15 to 30 minutes for the longer answer.
 
+**Stories, not drawers** (2026-10-14, operator: "the entire thing needs a re-work; it's just not a good experience";
+research and plan in `docs/plans/2026-10-14_rework.md`). That morning's brief ran to 3,450 words: twenty topics of
+equal weight under headings that named a drawer ("AI products and companies"), each a paragraph retelling posts as
+"@a said, @b said". Now `hype` and `stories` are lists of stories, each one piece of news or one conversation:
+`headline` (what happened, a sentence with a verb), `gist` (one or two sentences, people by name, no handles),
+`key` (one to three posts that carry it) and `posts`; theses are unchanged. Stored as `topics` (`Topic.title` is the
+headline, `summary` the gist, `hype` marks HYPE's), so a brief from before still loads: its paragraph is the gist and
+the posts its `[[post id]]` marks pointed at are its key posts. The writer no longer orders stories: the page ranks
+them by how many people posted in each (Nuzzel's measure), then by posts.
+
 ## The Sites tab (2026-10-14)
 The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,
 checked daily, not their X accounts (reading a profile page would break rule 1). `sites.py`:
@@ -158,17 +168,22 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   x.com; the Dock assigns a desktop per app (it would move the operator's own Brave too), and moving one window
   needs SIP off. The 40 px stays.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
-- **The page** is a private morning edition in Tokyo Night / Day (redesigned 2026-10-14; review in
-  `docs/REVIEW_2026-10-14.md`, research and plan in `docs/plans/2026-10-14_elegance.md`). Operator: "tokyo night were
-  the right colors just wanted it to be more coherent", then "please don't have hype have its own color". The
-  colours keep macro's roles: text is a ladder of Tokyo's slates (headings, reading, secondary, quietest), blue is
-  focus and selection only, and yellow and red mark a problem only. No part of a brief has a colour of its own:
-  HYPE leads by being first, nothing else. Iowan Old Style sets the headlines and the reading, SF Pro the controls
-  and bylines, and a mono the counts and times. Figures are lining, because old-style ones made the 0 in @0x… read
-  as an o. Small-caps openings were tried and dropped, since most paragraphs open on an @handle. A brief opens on
-  the day as a headline, then a strip with a tick for every post across the window the read covered. On a wide
-  screen (1440 px and up), each sentence's ↗ becomes a number and that post sits in the right margin beside it:
-  name, @handle, time and its opening words, built from the post (Tufte's sidenotes). Narrower, the ↗ stays. The
-  `› N posts` fold is kept as it was (operator: "i like the sources folded that way"). In the contents, a bar
-  beside each story shows its share of posts. Small text reads at 4.5:1 or better in both themes. A warning box
-  appears only when something went wrong. Runs are listed by day and minute. Search marks the words it matched.
+- **The page** is a front page in Tokyo Night / Day (re-worked 2026-10-14 on "the entire thing needs a re-work";
+  plan `docs/plans/2026-10-14_rework.md`; earlier the same day `docs/REVIEW_2026-10-14.md` and
+  `docs/plans/2026-10-14_elegance.md`). Operator: "tokyo night were the right colors just wanted it to be more
+  coherent", then "please don't have hype have its own color". The colours keep macro's roles: text is a ladder of
+  Tokyo's slates (headlines, reading, secondary, quietest), blue is focus and selection only, and yellow and red mark
+  a problem only. No part of a brief has a colour of its own: HYPE leads by being first, nothing else.
+  One bar at the top of every page (tabs, search, the hours and Brief now, the live line); no side rail. A brief opens
+  on the day as a headline, how much was read, a link to the brief before, and a strip with a tick for every post
+  across the window. Then HYPE's stories and theses; then the four stories the most people posted in (`page.LEAD`),
+  open; then every other story as one line, its headline and how many people, opening in place (`<details>`, no
+  script); then the theses, a line each, opening to the argument, what follows, Claude's view (labelled) and the post;
+  then everything else, folded. An open story sets Claude's words on the left in Iowan Old Style and its key posts on
+  the right as cards in the system sans, as written (name without emoji, @handle and time linking to X, its first
+  picture, what it quotes): serif is what Claude wrote, sans what people posted. Below 1100 px the cards go under the
+  words. The `› N posts` fold is kept (operator: "i like the sources folded that way"). The Theses tab, the rail's
+  contents with their bars, and the margin notes of the elegance pass are gone; `/theses` shows the brief. Figures
+  are lining (old-style ones made the 0 in @0x… read as an o). Small text reads at 4.5:1 or better in both themes.
+  A warning box appears only when something went wrong. Runs are listed by day and minute. Search marks the words
+  it matched. X sends post text with &, < and > as entities; the page reads them back before escaping once.

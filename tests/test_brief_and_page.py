@@ -27,9 +27,10 @@ META = {"stop": "caught up", "normal": True, "gap": False, "started_ms": 1_760_2
 def answer_for(posts):
     ids = list(posts)
     return "```json\n" + json.dumps({
-        "topics": [{"title": "Rates", "summary": "@bob says rates were cut.", "posts": [ids[0], "999"]},
-                   {"title": "Threads", "summary": "@gina wrote a thread.", "posts": [ids[2], ids[0]]},
-                   {"title": "Empty", "summary": "", "posts": [ids[1]]}],
+        "stories": [{"headline": "Rates were cut", "gist": "Bob says rates were cut.", "key": [ids[0], "999"],
+                     "posts": [ids[0], "999"]},
+                    {"headline": "Gina wrote a thread", "gist": "A thread.", "key": [], "posts": [ids[2], ids[0]]},
+                    {"headline": "", "gist": "", "posts": [ids[1]]}],
         "other": [ids[1]],
     }) + "\n```"
 
@@ -56,18 +57,19 @@ def test_answer_is_checked_and_nothing_is_dropped():
     ents = entries()
     b, posts = brief.write(ents, ask=lambda text: answer_for(brief.unique_posts(ents)))
     ids = list(posts)
-    assert [t.title for t in b.topics] == ["Rates", "Threads"]  # the empty topic is gone
-    assert b.topics[0].posts == [ids[0]]  # an id the writer made up is dropped
+    assert [t.title for t in b.topics] == ["Rates were cut", "Gina wrote a thread"]  # the empty story is gone
+    assert b.topics[0].posts == [ids[0]] and b.topics[0].key == [ids[0]]  # an id the writer made up is dropped
     assert b.topics[1].posts == [ids[2]]  # a post placed twice stays where it was placed first
     assert b.other[0] == ids[1] and set(b.other) == set(ids) - {ids[0], ids[2]}  # the rest, never dropped
 
 
-def test_a_long_paragraph_is_cut():
+def test_a_long_gist_is_cut():
     ents = entries()
     posts = brief.unique_posts(ents)
     long = " ".join(["word"] * 200)
-    b = brief.parse_answer(json.dumps({"topics": [{"title": "T", "summary": long, "posts": [list(posts)[0]]}]}), posts)
-    assert len(b.topics[0].summary.split()) == brief.SUMMARY_WORDS + 1 and b.topics[0].summary.endswith("…")
+    b = brief.parse_answer(json.dumps({"stories": [{"headline": "T " * 100, "gist": long, "posts": [list(posts)[0]]}]}), posts)
+    assert len(b.topics[0].summary.split()) == brief.GIST_WORDS + 1 and b.topics[0].summary.endswith("…")
+    assert len(b.topics[0].title) <= brief.HEADLINE_CHARS
 
 
 def test_writer_failure_still_lists_every_post():
@@ -101,15 +103,16 @@ def test_page_escapes_and_runs_only_its_own_script():
 def test_page_layout():
     html = render()
     main = html.split("<main>", 1)[1]
-    assert main.index("Rates") < main.index("Threads") < main.index("Everything else")
+    assert main.index("<h3>Rates were cut</h3>") < main.index("Gina wrote a thread") < main.index("Everything else")
     assert "<summary>3 posts · @gina</summary>" in html and html.count("@gina") >= 3  # the thread, whole, folded
     assert "reposted by @dave" in html and ">@alice</a>" in html
-    assert main.count("<section") == 3 and main.count("<p>") == 2  # one paragraph a topic, none for the rest
-    assert 'href="/b/2025-10-11-1800-pm"' in html  # earlier briefs, from the store
+    assert main.count('class="story lead"') == 2 and main.count('<p class="gist">') == 2  # few stories: all open
+    assert main.count('<article class="card">') == 1  # Bob's post beside his story; the thread has no key post
+    assert 'href="/b/2025-10-11-1800-pm"' in html  # the brief before, from the store
     store.save_run("2025-10-12-1800-pm", "pm", {**META, "started_ms": META["started_ms"] + 3_600_000}, brief.Brief(), {}, [])
     again = page.brief_page(store.load_run("2025-10-12-0500-am"), store.runs(), {"text": ""})
     assert "2025-10-12-1800-pm" not in again  # a later brief is not "earlier"
-    assert 'class="status' not in html and "6 posts from 4 accounts" in html and "since " in html  # a clean read: no box
+    assert 'class="status' not in html and "6 posts from 4 people" in html and "since " in html  # a clean read: no box
     assert html.count("<h1>") == 1 and '<header class="mast"><h1>' in html  # the masthead is the page's one heading
     assert 'data-at="2025-10-12-0500-am"' in html
 
@@ -122,8 +125,8 @@ def test_status_says_how_the_run_ended():
 
 
 def test_empty_brief():
-    main, toc = page.brief_main(brief.Brief(), {}, {}, META)
-    assert "Nothing new from the accounts you follow" in main and toc == []
+    main = page.brief_main(brief.Brief(), {}, {}, META)
+    assert "Nothing new from the accounts you follow" in main and "<section" not in main
 
 
 def test_jitter_lands_inside_the_window():
@@ -167,7 +170,8 @@ def matters():
     posts = brief.unique_posts(ents)
     i = {p.handle: p.id for p in posts.values()}
     answer = json.dumps({
-        "hype": {"summary": f"@hl_news [[{i['hl_news']}]] says a HIP-3 market listed.", "posts": [i["hl_news"]]},
+        "hype": [{"headline": "Hyperliquid lists a HIP-3 market", "gist": "A new market.", "key": [i["hl_news"]],
+                  "posts": [i["hl_news"]]}],
         "theses": [
             {"posts": [i["quant"]], "hype": False, "claim": "Faster math raises crypto security fears.",
              "steps": ["Math speeds up."], "if_it_holds": "Weighs on old coins.", "weak_spots": "One anecdote.",
@@ -179,8 +183,8 @@ def matters():
              "if_it_holds": "HYPE up.", "weak_spots": "Unlocks may grow.", "wrong_if": "Supply rises."},
             {"posts": ["999"], "claim": "a made-up id"},
         ],
-        "topics": [{"title": "Rates", "summary": f"@bob [[{i['bob']}]] says rates were cut [[123]].",
-                    "posts": [i["bob"], i["quant"]]}],
+        "stories": [{"headline": "Rates were cut", "gist": "Bob says so.", "key": [i["bob"]],
+                     "posts": [i["bob"], i["quant"]]}],
     })
     return ents, posts, i, answer
 
@@ -196,8 +200,8 @@ def test_theses_come_first_long_ones_first_each_post_once():
     assert [t.claim for t in b.theses] == ["AI changes speculation in six phases.",
                                            "Faster math raises crypto security fears.", "HYPE supply shrinks."]
     assert b.theses[0].posts == [i["essayist"], i["bob"]] and [t.hype for t in b.theses] == [False, False, True]
-    assert b.hype.posts == [i["hl_news"]]
-    assert b.topics == []  # its posts are in theses already: the topic has none left
+    assert b.hype is None and [(t.title, t.hype, t.posts) for t in b.topics] == [
+        ("Hyperliquid lists a HIP-3 market", True, [i["hl_news"]])]  # the story whose posts are in theses is gone
     assert i["bob"] not in b.other and set(b.other) == set()
 
 
@@ -206,40 +210,44 @@ def test_hype_and_theses_on_the_page():
     b, posts = brief.write(ents, ask=lambda t: answer)
     store.save_run("2025-10-12-0500-am", "am", META, b, posts, [])
     run = store.load_run("2025-10-12-0500-am")
-    assert [t.claim for t in run["brief"].theses] == [t.claim for t in b.theses] and run["brief"].hype == b.hype
+    assert [t.claim for t in run["brief"].theses] == [t.claim for t in b.theses] and run["brief"].topics == b.topics
     html = page.brief_page(run, store.runs(), {"text": ""})
     main = html.split("<main>", 1)[1]
-    assert main.index('id="hype"') < main.index('id="theses"')
-    assert main.index("HYPE supply shrinks.") < main.index('id="theses"')  # a HYPE thesis sits in HYPE, written up
-    assert 'href="/b/2025-10-12-0500-am/theses#th0">AI changes speculation in six phases.</a>' in main
-    assert 'href="/b/2025-10-12-0500-am/theses#th1">Faster math' in main
-    assert f'class="go" href="https://x.com/hl_news/status/{i["hl_news"]}"' in main
-    assert "[[" not in main
-    th = page.theses_page(run, {"text": ""})
-    tmain = th.split("<main>", 1)[1]
-    assert tmain.index('id="th0"') < tmain.index('id="th1"') and "HYPE supply shrinks." not in tmain
-    assert "<h3>Claude's view</h3>" in tmain and "<b>Weak spots</b> One anecdote." in tmain
-    assert tmain.count("Claude's view") == 1  # the essay's write-up has no view, so no label
-    assert "1 more about HYPE" in tmain and 'aria-current=page>Theses' in th
+    assert main.index('id="hype"') < main.index("Hyperliquid lists a HIP-3 market") < main.index('id="theses"')
+    assert main.index("HYPE supply shrinks.") < main.index('id="theses"')  # a HYPE thesis sits in HYPE
+    assert main.index('id="th0"') < main.index('id="th1"') and "<h3>AI changes speculation in six phases.</h3>" in main
+    assert "<h4>Claude's view</h4>" in main and "<b>Weak spots</b> One anecdote." in main
+    th0 = main[main.index('id="th0"'):main.index('id="th1"')]
+    assert "Claude's view" not in th0  # the essay's write-up has no view, so no label
+    assert f'href="https://x.com/essayist/status/{i["essayist"]}"' in th0  # the post itself, beside the argument
+    assert f'href="https://x.com/hl_news/status/{i["hl_news"]}"' in main and "[[" not in main
 
 
 def test_a_link_is_built_from_the_post_never_the_writer():
     ents, posts, i, _ = matters()
-    evil = json.dumps({"topics": [{"title": "T", "posts": [i["bob"]],
-                                   "summary": '@bob [[999]] [[javascript:alert(1)]] <a href="https://evil">x</a>'}]})
+    evil = json.dumps({"stories": [{"headline": '<a href="https://evil">x</a>', "posts": [i["bob"]],
+                                    "key": ["999", "javascript:alert(1)"],
+                                    "gist": '@bob [[999]] [[javascript:alert(1)]] <a href="https://evil">x</a>'}]})
     b, posts = brief.write(ents, ask=lambda t: evil)
-    main, _ = page.brief_main(b, posts, {}, META)
-    assert 'class="go"' not in main and 'href="https://evil"' not in main and "&lt;a href=" in main
+    main = page.brief_main(b, posts, {}, META)
+    assert 'class="card"' not in main and 'href="https://evil"' not in main and "&lt;a href=" in main
     assert 'href="javascript' not in main
 
 
 def test_an_old_brief_still_loads():
-    store.save_run("2025-10-12-0500-am", "am", META, brief.Brief(), {}, [])
+    """Briefs before the re-work: a HYPE paragraph and topics with [[post id]] marks, which become key posts."""
+    ents, posts, i, _ = matters()
+    store.save_run("2025-10-12-0500-am", "am", META, brief.Brief(), posts, [])
     with store.db() as con:
-        con.execute("UPDATE runs SET brief = ?", (json.dumps({"topics": [], "other": [], "writer_error": None}),))
+        con.execute("UPDATE runs SET brief = ?", (json.dumps({
+            "hype": {"summary": f"@hl_news [[{i['hl_news']}]] says a market listed.", "posts": [i["hl_news"]]},
+            "topics": [{"title": "Rates", "summary": f"@bob [[{i['bob']}]] says rates were cut [[123]].",
+                        "posts": [i["bob"]]}], "other": [], "writer_error": None}),))
     run = store.load_run("2025-10-12-0500-am")
-    assert run["brief"].hype is None and run["brief"].theses == []
-    assert "No theses in this brief" in page.theses_page(run, {"text": ""})
+    assert run["brief"].theses == [] and run["brief"].topics[0].key == []
+    main = page.brief_page(run, store.runs(), {"text": ""}).split("<main>", 1)[1]
+    assert "says a market listed." in main and "@bob says rates were cut." in main and "[[" not in main
+    assert main.count('<article class="card">') == 2  # each paragraph's pointed-at post, beside it
 
 
 def test_a_run_that_read_nothing_is_not_an_earlier_brief():
@@ -270,13 +278,37 @@ def test_the_window_strip_marks_every_post():
     assert page.window_strip(meta, {}) == ""  # nothing read, nothing drawn
 
 
-def test_margin_notes_are_numbered_and_built_from_the_post():
-    ents = entries()
+def test_stories_rank_by_how_many_people_talked():
+    """HYPE first, then the four stories most people posted in, open with their key posts; the rest a line each."""
+    tw = [xw_item(xw_tweet(100 + n, f"p{n}", f"post {n}")) for n in range(30)]
+    ents = parse.entries(xw_page(tw))[0]
     posts = brief.unique_posts(ents)
+    by = {p.handle: p.id for p in posts.values()}
+    group = lambda *ns: [by[f"p{n}"] for n in ns]
+    stories = [{"headline": f"S{k}", "gist": f"g{k}", "key": group(n[0]), "posts": group(*n)}
+               for k, n in enumerate([[0], [1, 2], [3, 4, 5], [6, 7, 8, 9], [10, 11], [12, 13, 14, 15, 16], [17]])]
+    hype = [{"headline": "H", "gist": "h", "key": [], "posts": group(20)}]
+    b = brief.parse_answer(json.dumps({"stories": stories, "hype": hype}), posts)
+    main = page.brief_main(b, posts, {}, META)
+    order = re.findall(r"<h3>(\w+)</h3>", main)
+    assert order == ["H", "S5", "S3", "S2", "S1", "S4", "S0", "S6"]  # by people; a tie by order given
+    lead = main[:main.index('id="more"')]
+    assert lead.count('class="story lead"') == 5 and "1 more story<" in main and "2 stories from one person" in main
+    assert main.index('id="more"') < main.index("<h3>S4</h3>") < main.index('id="one"') < main.index("<h3>S0</h3>")
+    assert main.count('<details class="story line" id="t') == 3 and "<span class=\"n\">1 person</span>" in main
+    assert lead.count('<article class="card">') == 4  # the four's key posts; HYPE's story named none
+
+
+def test_a_key_post_is_the_post_as_written():
+    posts = brief.unique_posts(entries())
     bob = next(x for x in posts.values() if x.handle == "bob")
-    notes = page.Notes()
-    html = page.linked(f"Rates were cut [[{bob.id}]] and again [[{bob.id}]]; a made-up one [[999]].", posts, notes)
-    assert notes.n == 2 and html.count('class="sn"') == 2 and '<span class="num">2</span>' in html
-    assert "@bob</a>" in html and "&lt;script&gt;" in html and "<script>" not in html  # the post's words, escaped
-    assert "t.co" not in html.split('class="sn"')[1]  # its links left out of the note
-    assert page.linked(f"x [[{bob.id}]]", posts).count('class="sn"') == 0  # no notes asked: the ↗ alone
+    html = page.card(bob)
+    assert "&lt;script&gt;" in html and "<script>" not in html  # its words, escaped
+    assert f'href="https://x.com/bob/status/{bob.id}"' in html and ">example.com/a</a>" in html
+    dave = next(x for x in posts.values() if x.handle == "dave")
+    assert "reposted by @dave" in page.card(dave) and "@alice" in page.card(dave)
+
+
+def test_x_entities_are_escaped_once():
+    p = parse.Post(id="1", handle="q", name="Q", created_ms=0, text="16% -&gt; 43% &amp; <b>")
+    assert "16% -&gt; 43% &amp; &lt;b&gt;" in page.rich_text(p) and "&amp;gt;" not in page.rich_text(p)

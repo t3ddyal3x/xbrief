@@ -4,7 +4,7 @@
 
     /                   the newest brief
     /b/<name>           one brief (2026-10-12-0857-am)
-    /theses, /b/<name>/theses   the newest brief's theses, or one brief's
+    /theses, /b/<name>/theses   the same brief (the Theses tab is now the brief's Theses part)
     /history            every brief, and the schedule
     /sites              what the sites on the list posted, each read and summarised (sites.py)
     /search?q=&since=&until=    every post kept: words, @accounts, dates
@@ -224,17 +224,14 @@ class Handler(BaseHTTPRequestHandler):
             m = RUN_NAME.match(path)
             if path in ("/", "/theses") or m:
                 name = m.group(1) if m else store.latest_name()
-                tab = "theses" if path == "/theses" or (m and m.group(2)) else "brief"
-                lv = live(name)
+                lv = live(name)  # /theses: the tab it once had, now the brief's own Theses part
                 if name is None:
-                    return self._html(page.empty_page(lv, lv["running"], tab))
+                    return self._html(page.empty_page(lv, lv["running"]))
                 run = store.load_run(name)
                 if run is None:
-                    return self._html(page.shell("X brief", page.rail(tab, lv, running=lv["running"]),
+                    return self._html(page.shell("X brief", page.topbar("brief", lv, running=lv["running"]),
                                                  '<p class="empty">No brief by that name. <a href="/history">Every '
                                                  'brief</a>.</p>'), 404)
-                if tab == "theses":
-                    return self._html(page.theses_page(run, lv, lv["running"]))
                 return self._html(page.brief_page(run, store.runs(), lv, lv["running"]))
             if path == "/history":
                 lv = live()
