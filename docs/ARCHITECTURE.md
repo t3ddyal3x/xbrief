@@ -68,6 +68,13 @@ operator's account was served the old one, whose Following-tab request (`NmDBT3A
 HomeLatestTimeline`) is defined in a mapped chunk (`shared~bundle.Compose~bundle.HomeTimeline~bundle.LoggedInMain`),
 not in main.js. `parse.py` reads both layouts.
 
+**X Articles** (found 2026-10-15): an Article post's text is only its t.co link; the feed carries the Article's
+`title` and `preview_text` (its opening ~280 characters) under `article.article_results.result`, never the body.
+Until 2026-10-15 both were dropped, so the brief saw a bare link (goodalexander's "Is CoreWeave Going to Die").
+`Post.article` now keeps them; the writer is told it has the opening only, search reaches them, the page shows the
+title as the link with the opening under it. 26 kept posts were given theirs from the raw files that day. The new
+app's layout for an Article is unseen; `parse._article` reads the old one's path.
+
 ## The twscrape fork (retired the same day, kept)
 `t3ddyal3x/twscrape`, branch `xbrief` (0897080, one commit on v0.20.1), at `~/Developer/forks/twscrape`. Reviewing
 v0.20.1 found that it loaded **x.com/tesla** with the account's cookies every run to compute the anti-bot id, that

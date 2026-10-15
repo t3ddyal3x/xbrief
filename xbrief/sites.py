@@ -239,7 +239,9 @@ def _named(pat: re.Pattern, text: str, topics: list[str]) -> list[str]:
 
 def _said(p) -> str:
     """A post's own words, what it reposts, and what it quotes."""
-    return "\n".join(x.text for x in (p, p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote) if x and x.text)
+    xs = [x for x in (p, p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote) if x]
+    return "\n".join([x.text for x in xs if x.text]
+                     + [f'{x.article.get("title") or ""}\n{x.article.get("preview") or ""}' for x in xs if x.article])
 
 
 def people_posts(sources: list[dict] | None = None, words: list[str] | None = None,

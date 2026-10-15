@@ -312,3 +312,14 @@ def test_a_key_post_is_the_post_as_written():
 def test_x_entities_are_escaped_once():
     p = parse.Post(id="1", handle="q", name="Q", created_ms=0, text="16% -&gt; 43% &amp; <b>")
     assert "16% -&gt; 43% &amp; &lt;b&gt;" in page.rich_text(p) and "&amp;gt;" not in page.rich_text(p)
+
+
+def test_an_x_article_shows_its_title_and_opening_everywhere():
+    art = {"title": "Is <It> Going to Die", "preview": "TLDR: no.", "url": "https://x.com/i/article/77"}
+    p = parse.Post(id="77", handle="ga", name="GA", created_ms=0, text="https://t.co/art",
+                   links=[{"short": "https://t.co/art", "url": art["url"], "display": "x.com/i/article/77"}], article=art)
+    h = page.rich_text(p)
+    assert h == '<a class="art" href="https://x.com/i/article/77" rel="noreferrer">Is &lt;It&gt; Going to Die</a>\nTLDR: no.…'
+    assert json.loads(brief._line(p))["article"] == {"title": "Is <It> Going to Die", "opening": "TLDR: no."}
+    store.save_run("r", "am", {"started_ms": 1}, brief.Brief(), {p.id: p}, [])
+    assert [x.id for x, _ in store.search("tldr")[0]] == ["77"] and store.search("die")[0]

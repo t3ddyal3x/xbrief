@@ -147,6 +147,11 @@ def unique_posts(entries: list[Entry], after_id: int = 0) -> dict[str, Post]:
     return out
 
 
+def _art(p: Post) -> dict:
+    """An X Article as the writer sees it: its title and the opening the feed carries (not the whole of it)."""
+    return {"title": p.article.get("title") or "", "opening": p.article.get("preview") or ""}
+
+
 def _line(p: Post) -> str:
     d: dict = {"id": p.id, "who": f"@{p.handle}", "name": p.name,
                "when": time.strftime("%a %H:%M", time.localtime(p.created_ms / 1000))}
@@ -155,12 +160,18 @@ def _line(p: Post) -> str:
         if ln.get("short"):
             text = text.replace(ln["short"], ln["url"])
     d["text"] = text
+    if p.article:
+        d["article"] = _art(p)
     if p.reply_to_handle:
         d["reply_to"] = f"@{p.reply_to_handle}"
     if p.retweet_of:
         d["reposts"] = {"who": f"@{p.retweet_of.handle}", "text": p.retweet_of.text}
+        if p.retweet_of.article:
+            d["reposts"]["article"] = _art(p.retweet_of)
     if p.quote:
         d["quotes"] = {"who": f"@{p.quote.handle}", "text": p.quote.text}
+        if p.quote.article:
+            d["quotes"]["article"] = _art(p.quote)
     if p.media:
         d["media"] = [m["type"] for m in p.media]
     if p.unreadable:

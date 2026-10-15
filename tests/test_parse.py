@@ -69,3 +69,13 @@ def test_page_without_timeline_is_empty():
 def test_post_round_trips_through_dict():
     p = parse.post_from_result(xw_tweet(1, "a", "t", quote=xw_tweet(0, "b", "q")))
     assert parse.Post.from_dict(p.to_dict()) == p
+
+
+def test_an_x_article_keeps_its_title_and_opening():
+    t = lg_tweet(10, "ga", "https://t.co/art", urls=[{"url": "https://t.co/art", "expanded_url": "https://x.com/i/article/77",
+                                                   "display_url": "x.com/i/article/77"}])
+    t["article"] = {"article_results": {"result": {"rest_id": "77", "title": "Is It Going to Die", "preview_text": "TLDR: no."}}}
+    p = parse.entries(lg_page([lg_item(t)]))[0][0].posts[0]
+    assert p.article == {"title": "Is It Going to Die", "preview": "TLDR: no.", "url": "https://x.com/i/article/77"}
+    assert parse.Post.from_dict(p.to_dict()).article == p.article
+    assert parse.entries(lg_page([lg_item(lg_tweet(9, "b", "plain"))]))[0][0].posts[0].article is None

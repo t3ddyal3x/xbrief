@@ -152,6 +152,7 @@ border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transfo
 .post .meta a{color:var(--dim);text-decoration:none}.post .meta a:hover{color:var(--ink)}
 .post .meta b{color:var(--ink0);font-weight:600}
 .post .t{white-space:pre-wrap;overflow-wrap:anywhere}
+.t .art{font-weight:600;color:var(--ink0)}
 .post .q{margin:.6rem 0 0;padding:.6rem .9rem;background:var(--panel);border-radius:10px;font-size:14px}
 .imgs{display:flex;flex-wrap:wrap;gap:.45rem;margin-top:.6rem}
 .imgs a{position:relative;display:block}

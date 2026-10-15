@@ -40,6 +40,7 @@ class Post:
     quote: "Post | None" = None
     retweet_of: "Post | None" = None
     unreadable: str | None = None  # why the post could not be read
+    article: dict | None = None  # an X Article the post carries: {title, preview, url}; the feed has its opening only
 
     @property
     def url(self) -> str:
@@ -133,6 +134,18 @@ def _media_item(m: dict) -> dict | None:
     return {"type": kind, "url": url}
 
 
+def _article(r: dict, links: list[dict]) -> dict | None:
+    """An X Article's title and the opening the feed carries with it. Its full text is on its own page, which the
+    job never opens (rule 1)."""
+    a = g(r, "article", "article_results", "result")
+    if not isinstance(a, dict) or not (a.get("title") or a.get("preview_text")):
+        return None
+    url = next((ln["url"] for ln in links if "/i/article/" in (ln.get("url") or "")), None)
+    if not url and str(a.get("rest_id") or "").isdigit():
+        url = f"https://x.com/i/article/{a['rest_id']}"
+    return {"title": a.get("title") or "", "preview": a.get("preview_text") or "", "url": url}
+
+
 def post_from_result(result: dict | None, depth: int = 0) -> Post | None:
     r = _unwrap(result)
     if not isinstance(r, dict):
@@ -170,6 +183,7 @@ def post_from_result(result: dict | None, depth: int = 0) -> Post | None:
     post = Post(
         id=pid, handle=handle, name=name, created_ms=int(created), text=text, links=links, media=media,
         reply_to_id=str(reply_to_id) if reply_to_id else None, reply_to_handle=reply_to_handle,
+        article=_article(r, links),
     )
     if depth < 2:
         post.quote = post_from_result(quoted, depth + 1) if quoted else None

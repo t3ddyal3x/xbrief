@@ -101,6 +101,9 @@ def _body(p: Post) -> str:
     for inner in (p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote):
         if inner:
             parts.append(inner.text)
+    for x in (p, p.retweet_of, p.quote):
+        if x and x.article:
+            parts += [x.article.get("title") or "", x.article.get("preview") or ""]
     parts += [ln.get("url") or "" for ln in p.links]
     return "\n".join(x for x in parts if x)
 

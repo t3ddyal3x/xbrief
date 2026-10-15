@@ -47,6 +47,13 @@ def rich_text(p: Post) -> str:
     """The post's text, escaped, with its t.co links shown as their real address. X sends the text with &, < and >
     already as entities ("16% -&gt; 43%"); they are read back first, so they are escaped once, not twice."""
     text = esc(html.unescape(p.text or ""))
+    art = p.article
+    if art:  # an X Article: its title (the link) and the opening the feed carries, where its link stood
+        url = safe_url(art.get("url")) or p.url
+        block = (f'<a class="art" href="{esc(url)}" rel="noreferrer">{esc(art.get("title") or "Article")}</a>'
+                 + (f'\n{esc(art["preview"])}…' if art.get("preview") else ""))
+        short = next((ln.get("short") for ln in p.links if ln.get("short") and ln.get("url") == art.get("url")), None)
+        text = text.replace(esc(short), block) if short and esc(short) in text else (text.rstrip() + "\n" + block).lstrip()
     for ln in p.links:
         short, url = ln.get("short"), safe_url(ln.get("url"))
         if short and url:

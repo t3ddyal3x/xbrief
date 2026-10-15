@@ -230,3 +230,12 @@ well-formed-list test names it. App restarted.
 **Found**: the first check's write-up failed — `claude -p` now says Fable 5.1 requires usage credits. The failed
 row was deleted so the next check reads the newest post again. No other source has had a new post since.
 **Next**: the operator buys credits or picks another summary model (never Sonnet); then Check now.
+
+## 2026-10-15 (X Articles kept)
+**Ran** a read at the operator's ask (11:15, 105 posts) for goodalexander's CRWV post: an X Article, shown as a
+bare link because the parser dropped an Article's title and opening.
+**Fixed**: `Post.article` keeps them (parse, writer line, search, page: title as the link, opening under it, the
+Sites people-column match). 26 kept posts given theirs from the raw files (store backed up first, in the session's
+scratchpad); the 11:15 brief rewritten, and the CRWV article is now its own thesis. The full article was read for the
+operator in their own Chrome, by hand; the job still never opens it (rule 1).
+**Next**: the Fable credits question from the entry above.
