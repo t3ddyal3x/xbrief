@@ -46,6 +46,7 @@ SITES_AFTER = "07:00"  # the daily check runs at the first look after this, loca
 RAW_KEEP_DAYS = 30
 MAX_PAGES = 20  # hard cap a run: a Recent page holds ~85 entries, a day is ~5 pages (hand run 2026-10-12)
 MAX_MINUTES = 40  # hard cap on one run's scrolling
+MAX_ARTICLES = 12  # X Articles a run opens and reads whole, newest first (a day held 2 on 2026-10-15)
 FIRST_RUN_HOURS = 24  # with no earlier run, read back this far (operator, 2026-10-12: a full day)
 
 # Each scheduled run starts at a random minute inside its window, the laptop's own time. These are the

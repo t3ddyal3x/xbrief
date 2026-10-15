@@ -16,13 +16,15 @@ After a code change: `./bin/restart` (compiles and tests before it restarts the 
 finish). After a change to `browser.py` or `collect.py`, also `bin/tests --browser` (the real Brave against a fake x.com, about a minute).
 
 ## Rules
-1. **Read only, and only the Following tab.** The job opens x.com/home, closes a Premium offer with Escape, clicks
-   Following, and turns the mouse wheel. It never posts, likes, follows, replies, accepts a notice or terms, or opens
-   another page. No "look busy" activity.
+1. **Read only: the Following tab, then each new Article's post.** The job opens x.com/home, closes a Premium offer
+   with Escape, clicks Following, and turns the mouse wheel. After a read that ended on its own terms it opens the
+   page of each post in the brief that carries an X Article (newest first, at most `config.MAX_ARTICLES`, a few
+   seconds each) and keeps what that page fetches, so the writer reads every Article whole (operator, 2026-10-15).
+   It never posts, likes, follows, replies, accepts a notice or terms, or opens any other page. No "look busy" activity.
 2. **Nothing runs inside the page.** Only the Page, Network, DOM and Input domains; no Runtime, no injected script,
    no request the page did not make itself.
-3. **Anything X pushes back with ends the run**: an error status on the feed, a login or challenge page, a feed that
-   stops loading, a notice in the way. Stop, retry nothing, say so at the top of the brief (`collect.py`).
+3. **Anything X pushes back with ends the run**: an error status on the feed or a post's page, a login or challenge
+   page, a feed that stops loading, a notice in the way. Stop, retry nothing, say so at the top of the brief (`collect.py`).
 4. **Direct, never the tunnel or a proxy**: the job's profile has no extension and the Mac no system proxy. The
    tree's one stated exception to its tunnel rule (`../docs/ARCHITECTURE.md` §2.6).
 5. **The login is never read or printed by a session.** `~/Data/xbrief-data/secrets/` holds the job's Brave
@@ -56,7 +58,7 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
 `bin/install-agent` · `bin/xbrief serve` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
-`bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief login` (opens a window for the operator) ·
+`bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief articles <raw.json.gz>` (read a saved run's Articles, then rebrief) · `bin/xbrief login` (opens a window for the operator) ·
 `bin/xbrief sites` (check the sites now).
 
 ## Traps

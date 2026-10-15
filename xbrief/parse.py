@@ -40,7 +40,7 @@ class Post:
     quote: "Post | None" = None
     retweet_of: "Post | None" = None
     unreadable: str | None = None  # why the post could not be read
-    article: dict | None = None  # an X Article the post carries: {title, preview, url}; the feed has its opening only
+    article: dict | None = None  # an X Article the post carries: {title, preview, url}, and `text` once read whole
 
     @property
     def url(self) -> str:
@@ -240,3 +240,83 @@ def entries(page: dict) -> tuple[list[Entry], str | None]:
             if p:
                 out.append(Entry(eid, sidx, [p], _is_promoted(eid, c)))
     return out, bottom
+
+
+# ── X Articles, read whole off the post's own page ──────────────────────────────────────────────────
+
+ARTICLE_LIMIT = 60_000  # characters of an Article kept: the longest seen (2026-10-15) was 25,000
+HEADS = {"header-one": "## ", "header-two": "### ", "unordered-list-item": "- ", "blockquote": "> "}
+
+
+def _tweet_results(o, out: list) -> list:
+    """Every post result anywhere in a response, nested ones too (TweetResultByRestId, TweetResultsByRestIds,
+    TweetDetail all carry them under different paths)."""
+    if isinstance(o, dict):
+        if o.get("__typename") == "Tweet":
+            out.append(o)
+        for v in o.values():
+            _tweet_results(v, out)
+    elif isinstance(o, list):
+        for v in o:
+            _tweet_results(v, out)
+    return out
+
+
+def article_text(a: dict, embedded: dict[str, Post]) -> str:
+    """An Article's body (its `content_state`: Draft.js blocks and an entity map) as plain text: headings and lists
+    marked, each image as its caption, each post it embeds as that post's words (when the page fetched it), each
+    link's address after its paragraph."""
+    cs = a.get("content_state") or {}
+    em = cs.get("entityMap") or {}
+    ents = ({str(e.get("key")): e.get("value") or {} for e in em if isinstance(e, dict)} if isinstance(em, list)
+            else {str(k): v or {} for k, v in em.items()})
+    out, n = [], 0
+    for b in cs.get("blocks") or []:
+        kind, text = b.get("type"), (b.get("text") or "").strip()
+        n = n + 1 if kind == "ordered-list-item" else 0
+        refs = [ents.get(str(r.get("key"))) or {} for r in b.get("entityRanges") or []]
+        if kind == "atomic":
+            for e in refs:
+                d = e.get("data") or {}
+                if e.get("type") == "TWEET":
+                    p = embedded.get(str(d.get("tweetId")))
+                    out.append(f"[a post by @{p.handle}: {p.text}]" if p and not p.unreadable else "[an embedded post]")
+                elif e.get("type") == "MEDIA":
+                    out.append(f"[image: {d['caption'].strip()}]" if (d.get("caption") or "").strip() else "[image]")
+            continue
+        if not text:
+            continue
+        urls = [(e.get("data") or {}).get("url") for e in refs if e.get("type") == "LINK"]
+        tail = "".join(f" ({u})" for u in urls if u)
+        out.append((f"{n}. " if n else HEADS.get(kind, "")) + text + tail)
+    return "\n\n".join(out)[:ARTICLE_LIMIT]
+
+
+def articles_in(responses: list[dict]) -> dict[str, str]:
+    """Post id → its Article's whole text, for every post in these responses whose Article body came with it."""
+    raw = [r for resp in responses for r in _tweet_results(resp, [])]
+    embedded = {p.id: p for p in (post_from_result(r, depth=2) for r in raw) if p and p.id}
+    out: dict[str, str] = {}
+    for r in raw:
+        a = g(r, "article", "article_results", "result") or {}
+        pid = str(r.get("rest_id") or "")
+        if pid and pid not in out and (a.get("content_state") or {}).get("blocks"):
+            out[pid] = article_text(a, embedded)
+    return out
+
+
+def with_article(p: Post) -> list[Post]:
+    """The post, and what it reposts or quotes, that carry an Article."""
+    return [x for x in (p, p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote) if x and x.article]
+
+
+def attach_articles(entries: list[Entry], texts: dict[str, str]) -> int:
+    """Give each post whose Article was read its whole text (`article["text"]`). Returns how many got one."""
+    n = 0
+    for e in entries:
+        for p in e.posts:
+            for x in with_article(p):
+                if x.id in texts:
+                    x.article["text"] = texts[x.id]
+                    n += 1
+    return n

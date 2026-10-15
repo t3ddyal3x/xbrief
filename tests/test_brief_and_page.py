@@ -323,3 +323,31 @@ def test_an_x_article_shows_its_title_and_opening_everywhere():
     assert json.loads(brief._line(p))["article"] == {"title": "Is <It> Going to Die", "opening": "TLDR: no."}
     store.save_run("r", "am", {"started_ms": 1}, brief.Brief(), {p.id: p}, [])
     assert [x.id for x, _ in store.search("tldr")[0]] == ["77"] and store.search("die")[0]
+
+
+def test_an_article_read_whole_reaches_the_writer_leads_the_theses_and_is_marked():
+    from builders import post_page, with_article
+
+    ents, posts, i, answer = matters()
+    body = [{"type": "unstyled", "text": "Short but whole. ARTICLE END", "entityRanges": []}]
+    t = with_article(xw_tweet(15, "ga", "https://t.co/a"), title="Is It Going to Die")
+    pages = [xw_page([xw_item(t)])]
+    arts = {t["rest_id"]: [post_page(with_article(json.loads(json.dumps(t)), blocks=body))]}
+    ents2 = cli.entries_of(pages)
+    assert parse.attach_articles(ents2, parse.articles_in([pg for v in arts.values() for pg in v])) == 1
+    ga = ents2[0].posts[0]
+    line = json.loads(brief._line(ga))
+    assert line["article"] == {"title": "Is It Going to Die", "text": "Short but whole. ARTICLE END"}
+    assert "with \"text\" you have all of it" in brief.PROMPT
+    posts[ga.id] = ga
+    a = json.loads(answer)
+    a["theses"].append({"posts": [ga.id], "hype": False, "claim": "It will not die.", "steps": ["Washout."],
+                        "if_it_holds": "", "weak_spots": "", "wrong_if": ""})
+    b = brief.parse_answer(json.dumps(a), posts)
+    assert b.theses[0].claim == "It will not die."  # an Article first, however short, then long form first
+    html = page.thesis_html(b.theses[0], posts, {}, "th0")
+    assert '<span class="n">Article · @ga</span>' in html
+    meta = {**META, "boundary_id": 0}
+    name = cli.publish(pages, meta, "am", ask=lambda t: "{}", articles=arts)
+    run = store.load_run(name)
+    assert run["posts"][ga.id].article["text"].endswith("ARTICLE END") and store.search("whole")[0]

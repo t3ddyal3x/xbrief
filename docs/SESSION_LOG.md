@@ -243,3 +243,18 @@ operator in their own Chrome, by hand; the job still never opens it (rule 1).
 ## 2026-10-15 (Sites summaries on Opus)
 **Changed** `config.SITE_MODEL` to Opus at the operator's word ("just stick with opus"), since Fable needs paid
 credits. Checked the sites: Evanss6's "Have Fun Staying Poor" written up.
+
+## 2026-10-15 (Articles read whole)
+**Built** at the operator's word ("they 100% need to be fully read"): after a clean feed read the job opens each new
+Article post's own page and keeps what it fetches (`collect.read_articles`, at most `config.MAX_ARTICLES`); the
+parser turns the Article's body into text (`parse.article_text`: headings, lists, image captions, embedded posts,
+links); the writer reads it whole and is told when it only has the opening; Articles lead the theses, marked
+"Article"; search reaches the whole text; the page's run line says "Reading Articles · n of m". Rule 1 and 3 widened
+(CLAUDE.md). New `xbrief articles <raw>` reads a saved run's Articles, then rebriefs it.
+**Probe** (one page, the job's Brave): goodalexander's CoreWeave Article arrives whole in `TweetResultByRestId`.
+**Ran** `xbrief articles` on the 11:15 run: 2 read whole; the brief rewritten, both Articles at the top of the theses
+with write-ups from the full text.
+**Checked**: offline tests (new: article text, the job opening Articles, X pushing back on one, the cap, the writer
+and thesis order); `bin/tests --browser`.
+**Not done**: the 24 Articles in briefs before today keep their opening only; `xbrief articles <raw>` per raw file
+reads them if wanted.

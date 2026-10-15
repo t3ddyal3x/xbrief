@@ -79,3 +79,29 @@ def test_an_x_article_keeps_its_title_and_opening():
     assert p.article == {"title": "Is It Going to Die", "preview": "TLDR: no.", "url": "https://x.com/i/article/77"}
     assert parse.Post.from_dict(p.to_dict()).article == p.article
     assert parse.entries(lg_page([lg_item(lg_tweet(9, "b", "plain"))]))[0][0].posts[0].article is None
+
+
+def test_an_article_read_whole():
+    from builders import post_page, with_article, xw_tweet
+
+    blocks = [{"type": "unstyled", "text": "TLDR: no.", "entityRanges": []},
+              {"type": "header-one", "text": "Why", "entityRanges": []},
+              {"type": "ordered-list-item", "text": "first", "entityRanges": []},
+              {"type": "ordered-list-item", "text": "second", "entityRanges": []},
+              {"type": "unstyled", "text": "Source: FT", "entityRanges": [{"key": 2, "offset": 0, "length": 10}]},
+              {"type": "atomic", "text": " ", "entityRanges": [{"key": 0, "offset": 0, "length": 1}]},
+              {"type": "atomic", "text": " ", "entityRanges": [{"key": 1, "offset": 0, "length": 1}]},
+              {"type": "atomic", "text": " ", "entityRanges": [{"key": 3, "offset": 0, "length": 1}]},
+              {"type": "unordered-list-item", "text": "a point", "entityRanges": []}]
+    emb = xw_tweet(-50, "citrini", "Oh it's over")
+    ents = [{"key": "0", "value": {"type": "MEDIA", "data": {"caption": "CDS at 11%"}}},
+            {"key": "1", "value": {"type": "TWEET", "data": {"tweetId": emb["rest_id"]}}},
+            {"key": "2", "value": {"type": "LINK", "data": {"url": "https://ft.com/x"}}},
+            {"key": "3", "value": {"type": "TWEET", "data": {"tweetId": "404"}}}]
+    t = with_article(xw_tweet(10, "ga", "https://t.co/a"), blocks=blocks, entities=ents)
+    text = parse.articles_in([post_page(t, emb)])[t["rest_id"]]
+    assert text == ("TLDR: no.\n\n## Why\n\n1. first\n\n2. second\n\nSource: FT (https://ft.com/x)\n\n[image: CDS at 11%]"
+                    "\n\n[a post by @citrini: Oh it's over]\n\n[an embedded post]\n\n- a point")
+    assert parse.articles_in([post_page(with_article(xw_tweet(9, "b", "x")))]) == {}  # the feed's copy: no body
+    ents_ = parse.entries(xw_page([xw_item(with_article(xw_tweet(10, "ga", "https://t.co/a")))]))[0]
+    assert parse.attach_articles(ents_, {t["rest_id"]: text}) == 1 and ents_[0].posts[0].article["text"] == text

@@ -58,6 +58,8 @@ def live(at: str | None = None, now: dt.datetime | None = None) -> dict:
         phase = pr.get("phase") or "starting"
         if phase == "reading":
             text = f"Reading · {pr.get('pages', 0)} pages · {pr.get('posts', 0)} posts"
+        elif phase == "reading Articles":
+            text = f"Reading Articles · {pr.get('articles', 0) + 1} of {pr.get('of', 0)}"
         elif phase == "writing the brief" and pr.get("writing_ms"):  # the long part: say how long it has run
             mins = max(0, now_ms - pr["writing_ms"]) // 60_000
             text = f"Writing the brief · {pr.get('posts', 0)} posts" + (f" · {mins} min" if mins else "")

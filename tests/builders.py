@@ -110,3 +110,17 @@ def lg_page(entries, bottom="CUR"):
     es = entries + ([{"entryId": "cursor-bottom-1", "sortIndex": "0", "content": {"entryType": "TimelineTimelineCursor",
                      "cursorType": "Bottom", "value": bottom}}] if bottom else [])
     return {"data": {"home": {"home_timeline_urt": {"instructions": [{"type": "TimelineAddEntries", "entries": es}]}}}}
+
+
+def with_article(tweet, title="A Title", preview="The opening.", blocks=None, entities=None):
+    """The post carries an X Article; with `blocks` the Article's body too (as its own page fetches it)."""
+    a = {"rest_id": "9" + tweet["rest_id"], "title": title, "preview_text": preview}
+    if blocks is not None:
+        a["content_state"] = {"blocks": blocks, "entityMap": entities or []}
+    tweet["article"] = {"article_results": {"result": a}}
+    return tweet
+
+
+def post_page(tweet, *embedded):
+    """What TweetResultByRestId answers for a post's own page; TweetResultsByRestIds' list for embedded posts."""
+    return {"data": {"tweetResult": {"result": tweet}, "more": [{"result": t} for t in embedded]}}

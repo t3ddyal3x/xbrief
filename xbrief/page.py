@@ -215,7 +215,8 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
              + (f'<div class="view"><h4>Claude\'s view</h4>{view}</div>' if view else "")
              + folded(t.posts[1:], posts, thr) + '</div>')
     key = said(t.posts[:1], posts)
-    who = f'<span class="n">@{esc(shown.handle)}</span>' if shown else ""
+    art = shown and (shown.article or (shown.quote and shown.quote.article))
+    who = f'<span class="n">{"Article · " if art else ""}@{esc(shown.handle)}</span>' if shown else ""
     return (f'<details class="story line thesis" id="{sid}"><summary><h3>{esc(t.claim)}</h3>{who}</summary>'
             f'<div class="body{" two" if key else ""}">{words}{key}</div></details>')
 

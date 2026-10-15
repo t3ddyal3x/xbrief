@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import json
 import math
+import pathlib
 import random
 import re
 import time
@@ -24,6 +25,9 @@ TIMELINE = re.compile(r"/graphql/[\w-]+/HomeLatestTimeline(?:Query)?(?:[?#]|$)")
 # Paths of the main page. Logged out (the landing page, a login flow) or held up (a lock, a challenge):
 BLOCKED = re.compile(r"^/(?:$|i/flow/|login|logout|account/access)", re.I)
 UPSELL = re.compile(r"^/i/premium_sign_up", re.I)  # an offer a person closes with Escape
+# what a post's own page fetches; an Article's whole body comes in the first (2026-10-15), embedded posts in the second
+ARTICLE_API = re.compile(r"/graphql/[\w-]+/(?:TweetResultByRestId|TweetResultsByRestIds|TweetDetail)(?:Query)?(?:[?#]|$)")
+ARTICLE_WAIT_S = 20
 
 
 def path_of(url: str) -> str:
@@ -52,9 +56,12 @@ class Result:
     build: str = ""  # "legacy" (x.com/i/api) or "xweb" (api.x.com), read off the feed request the page made
     ranked: bool = False  # the Following tab is sorted by Popular (enableRanking), not Recent
     reread_site: bool = False
+    articles: dict[str, list[dict]] = field(default_factory=dict)  # post id → what its own page fetched
+    articles_read: int = 0  # Articles read whole
+    articles_left: int = 0  # Articles past config.MAX_ARTICLES, left at their opening
 
     def meta(self) -> dict:
-        d = {k: v for k, v in self.__dict__.items() if k != "pages"}
+        d = {k: v for k, v in self.__dict__.items() if k not in ("pages", "articles")}
         d["page_count"] = len(self.pages)
         return d
 
@@ -116,6 +123,9 @@ class Feed:
         self.main_url = ""
         self.main_frame: str | None = None
         self.ranked: bool | None = None  # from the feed request's own variables; None until one is seen
+        self.article_for: str | None = None  # the post whose page is open, while Articles are read
+        self.art_tracked: dict[str, str] = {}  # requestId → that post's id
+        self.article_pages: dict[str, list[dict]] = {}
 
     async def pump(self, seconds: float) -> None:
         """Handle the browser's events for `seconds` (or until the page has a problem)."""
@@ -142,6 +152,10 @@ class Feed:
             if TIMELINE.search(url):
                 self.tracked[p["requestId"]] = url
                 self.ranked = bool(self.ranked) or ranking_of(p.get("request") or {})
+            elif self.article_for and ARTICLE_API.search(url):
+                self.art_tracked[p["requestId"]] = self.article_for
+        elif p.get("requestId") in self.art_tracked:
+            await self._article_event(m, p)
         elif m == "Network.responseReceived" and p.get("requestId") in self.tracked:
             status = (p.get("response") or {}).get("status", 0)
             if status != 200:
@@ -181,6 +195,34 @@ class Feed:
         elif m == "xbrief.closed":
             self.problem = f"the browser closed ({p.get('error', '')})"[:200]
 
+
+    async def _article_event(self, m: str, p: dict) -> None:
+        """A post's own page, open to read its Article: X pushing back here ends the run like on the feed."""
+        if m == "Network.responseReceived":
+            status = (p.get("response") or {}).get("status", 0)
+            if status != 200:
+                self.problem = f"X answered a post's page with HTTP {status}" + (" (rate limited)" if status == 429 else "")
+        elif m == "Network.loadingFinished":
+            pid = self.art_tracked.pop(p["requestId"])
+            body = await self.b.send("Network.getResponseBody", {"requestId": p["requestId"]})
+            text = body.get("body") or ""
+            if body.get("base64Encoded"):
+                import base64
+
+                text = base64.b64decode(text).decode("utf-8", "replace")
+            try:
+                page = json.loads(text)
+            except ValueError:
+                self.problem = "X answered a post's page with something other than JSON"
+                return
+            if not page.get("data"):
+                errs = "; ".join(str(e.get("message", e)) for e in (page.get("errors") or []))[:300]
+                self.problem = f"X answered a post's page without the post ({errs or 'no errors given'})"
+                return
+            self.article_pages.setdefault(pid, []).append(page)
+        elif m == "Network.loadingFailed":
+            self.art_tracked.pop(p["requestId"], None)
+            self.problem = f"a post's page failed to load ({p.get('errorText', 'no reason given')})"
 
     def _at(self, url: str) -> None:
         self.main_url = url
@@ -278,7 +320,13 @@ async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None =
         if feed.ranked:
             await _choose_recent(browser, feed, rng)
         res.build = build_of(feed.urls[0])
-        await _read(browser, feed, res, first, rng, sleep)
+        try:
+            await _read(browser, feed, res, first, rng, sleep)
+        except Stop as s:
+            res.stop, res.normal, res.gap = s.why, s.normal, s.gap
+        if not feed.problem and (res.normal or res.stop.startswith("stopped at the cap")):  # ended on its own
+            # terms (caught up, the end, a cap), never after X pushed back or the feed stalled: now its Articles
+            await read_articles(browser, feed, res, wanted(feed.pages, res.boundary_id), rng, sleep)
     except Stop as s:
         res.stop, res.normal, res.gap = s.why, s.normal, s.gap
     except Exception as e:  # anything else ends the run, says what it was, and is never retried
@@ -289,6 +337,7 @@ async def run(rng: random.Random | None = None, sleep=None, now_ms: int | None =
         except Exception:
             pass
     res.pages = feed.pages
+    res.articles = feed.article_pages
     res.ranked = bool(feed.ranked)
     if feed.pages and not res.build:
         res.build = build_of(feed.urls[0])
@@ -380,6 +429,82 @@ async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Rando
             await feed.pump(0)
 
 
+def wanted(pages: list[dict], after_id: int) -> list[parse.Post]:
+    """The Articles the brief will hold, newest post first, each once: posts newer than the last brief (as
+    brief.unique_posts takes them) that carry an Article, or repost or quote one."""
+    out: dict[str, parse.Post] = {}
+    for pg in pages:
+        for e in parse.entries(pg)[0]:
+            if e.promoted or (after_id and e.newest_id <= after_id):
+                continue
+            for p in e.posts:
+                for x in parse.with_article(p):
+                    if x.id.isdigit() and x.handle:
+                        out.setdefault(x.id, x)
+    return sorted(out.values(), key=lambda x: -int(x.id))
+
+
+async def read_articles(browser, feed: Feed, res: Result, posts: list[parse.Post], rng: random.Random, sleep) -> None:
+    """Open each post's own page, as a person opens an Article from the feed, and keep what the page fetches: the
+    Article whole. At most config.MAX_ARTICLES a run. X pushing back ends the reading, and the run says so at the
+    top of the brief; what was already read is kept."""
+    res.articles_left = max(0, len(posts) - config.MAX_ARTICLES)
+    try:
+        for i, post in enumerate(posts[:config.MAX_ARTICLES]):
+            feed.progress("reading Articles", articles=i, of=min(len(posts), config.MAX_ARTICLES))
+            feed.article_for = post.id
+            await browser.send("Page.navigate", {"url": f"https://x.com/{post.handle}/status/{post.id}"})
+            t0 = time.monotonic()
+            while (post.id not in parse.articles_in(feed.article_pages.get(post.id) or []) and not feed.problem
+                   and time.monotonic() - t0 < ARTICLE_WAIT_S):
+                await feed.pump(0.5)
+            _check(feed)
+            if post.id not in parse.articles_in(feed.article_pages.get(post.id) or []):
+                raise Stop(f"@{post.handle}'s Article did not load")
+            res.articles_read += 1
+            pause = rng.uniform(4, 12)  # a person reads a while before the next one
+            if sleep is asyncio.sleep:
+                await feed.pump(pause)
+            else:
+                await sleep(pause)
+                await feed.pump(0)
+            _check(feed)
+    except Stop as s:
+        res.stop, res.normal = f"{res.stop}; then, reading Articles: {s.why}", False
+    finally:
+        feed.article_for = None
+
+
+async def articles_for_raw(path) -> int:
+    """Read whole the Articles of a saved run that its read did not (one from before 2026-10-15, or cut short), into
+    the same raw file; `xbrief rebrief` then writes its brief with them. Returns how many were read."""
+    raw = load_raw(path)
+    have = parse.articles_in([pg for v in (raw.get("articles") or {}).values() for pg in v])
+    posts = [p for p in wanted(raw["pages"], int(raw["meta"].get("boundary_id") or 0)) if p.id not in have]
+    if not posts:
+        return 0
+    from .browser import Browser
+
+    browser = Browser(config.PROFILE)
+    feed = Feed(browser)
+    res = Result(started_ms=int(time.time() * 1000), stop="saved run", normal=True)
+    try:
+        await browser.start()
+        await browser.send("Page.enable")
+        await browser.send("Network.enable", {"maxTotalBufferSize": 60_000_000, "maxResourceBufferSize": 8_000_000})
+        await read_articles(browser, feed, res, posts, random.Random(), asyncio.sleep)
+    finally:
+        await browser.close()
+    arts = raw.setdefault("articles", {})
+    for pid, pages in feed.article_pages.items():
+        arts.setdefault(pid, []).extend(pages)
+    raw["meta"]["articles_read"] = len(parse.articles_in([pg for v in arts.values() for pg in v]))
+    _write_raw(pathlib.Path(path), raw)
+    if not res.normal:
+        raise RuntimeError(res.stop.removeprefix("saved run; then, "))
+    return res.articles_read
+
+
 def _done(res: Result) -> Result:
     res.finished_ms = int(time.time() * 1000)
     if res.pages and res.newest_id > res.boundary_id:
@@ -392,16 +517,20 @@ def _done(res: Result) -> Result:
 def save_raw(res: Result, label: str) -> str:
     """One gzip file a run: a feed page is ~0.4 MB as JSON and compresses 7×, and 30 days of runs would otherwise
     near a gigabyte."""
-    import gzip
-
     config.RAW.mkdir(parents=True, exist_ok=True)
     stamp = time.strftime("%Y-%m-%d_%H%M", time.localtime(res.started_ms / 1000))
     path = config.RAW / f"{stamp}-{label}.json.gz"
+    _write_raw(path, {"meta": res.meta(), "pages": res.pages, "articles": res.articles})
+    return str(path)
+
+
+def _write_raw(path, raw: dict) -> None:
+    import gzip
+
     tmp = path.with_suffix(".part")
     with gzip.open(tmp, "wt", compresslevel=6) as f:
-        json.dump({"meta": res.meta(), "pages": res.pages}, f)
+        json.dump(raw, f)
     tmp.replace(path)
-    return str(path)
 
 
 def load_raw(path) -> dict:

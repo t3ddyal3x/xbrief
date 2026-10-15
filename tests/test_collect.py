@@ -18,7 +18,8 @@ class FakeBrowser:
     """Pages arrive one per `wheels_per_page` wheel turns after the Following tab is clicked."""
 
     def __init__(self, pages, *, remembered=False, status=200, nav_to=HOME, upsell=None, wheels_per_page=3,
-                 tab_found=True, latest_url=LATEST, ranked=False, has_menu=True, popular_pages=None):
+                 tab_found=True, latest_url=LATEST, ranked=False, has_menu=True, popular_pages=None, articles=None,
+                 art_status=200):
         self.pages, self.remembered, self.status, self.nav_to = list(pages), remembered, status, nav_to
         self.upsell, self.wheels_per_page, self.tab_found, self.latest_url = upsell, wheels_per_page, tab_found, latest_url
         self.events = asyncio.Queue()
@@ -30,6 +31,7 @@ class FakeBrowser:
         self.menu_open = False
         self.last_xpath = ""
         self.page_wheels = 0  # wheel turns before the page's end is near (0: always at the end)
+        self.articles, self.art_status, self.opened = dict(articles or {}), art_status, []  # post id → its page's answer
 
     async def start(self):
         self.started = True
@@ -56,6 +58,19 @@ class FakeBrowser:
 
     async def send(self, method, params=None):
         self.calls.append(method)
+        if method == "Page.navigate" and "/status/" in params["url"]:  # a post's own page
+            pid = params["url"].rsplit("/", 1)[-1]
+            self.opened.append(params["url"])
+            self.ev("Page.frameNavigated", frame={"id": "main", "url": params["url"]})
+            rid = f"a{pid}"
+            self.ev("Network.requestWillBeSent", requestId=rid,
+                    request={"url": f"https://x.com/i/api/graphql/Z/TweetResultByRestId?variables={pid}"})
+            self.ev("Network.responseReceived", requestId=rid, response={"status": self.art_status})
+            if self.art_status == 200 and pid in self.articles:
+                self.bodies[rid] = json.dumps(self.articles[pid])
+                self.ev("Network.loadingFinished", requestId=rid)
+            self.ev("Page.loadEventFired")
+            return {}
         if method == "Page.navigate":
             self.ev("Network.requestWillBeSent", requestId="ft", request={"url": "https://x.com/i/api/graphql/Q/HomeTimeline"})
             self.ev("Page.frameNavigated", frame={"id": "main", "url": self.nav_to})
@@ -315,3 +330,69 @@ def test_brief_leaves_out_what_an_earlier_brief_had():
 
 def test_snowflake_helpers_agree_with_builders():
     assert parse.snowflake_ms(sid(0)) == BASE_MS
+
+
+# ── X Articles: each opened on its own page after the feed, and kept whole ─────────────────────────────
+
+
+BODY = [{"type": "unstyled", "text": "The whole argument, to its end.", "entityRanges": []}]
+
+
+def article_feed():
+    from builders import with_article
+
+    a1 = with_article(xw_tweet(50, "ga", "https://t.co/a"))
+    a2 = with_article(xw_tweet(-90, "cp", "https://t.co/b"))  # quoted: its own page is the quoted post's
+    pages = [xw_page([xw_item(a1), xw_item(xw_tweet(45, "q", "read this", quote=a2)), xw_item(xw_tweet(20, "old", "x"))])]
+    return pages, a1, a2
+
+
+def test_articles_are_opened_after_the_feed_and_kept_whole():
+    from builders import post_page, with_article
+
+    set_state(20)
+    pages, a1, a2 = article_feed()
+    full = {t["rest_id"]: post_page(with_article(json.loads(json.dumps(t)), blocks=BODY)) for t in (a1, a2)}
+    b = FakeBrowser(pages, articles=full)
+    res = go(b)
+    assert res.normal and res.stop == "caught up" and res.articles_read == 2
+    assert b.opened == [f"https://x.com/ga/status/{a1['rest_id']}", f"https://x.com/cp/status/{a2['rest_id']}"]
+    texts = parse.articles_in([pg for v in res.articles.values() for pg in v])
+    assert texts == {a1["rest_id"]: "The whole argument, to its end.", a2["rest_id"]: "The whole argument, to its end."}
+    assert "articles" not in res.meta() and res.meta()["articles_read"] == 2
+    path = collect.save_raw(res, "am")
+    assert collect.load_raw(path)["articles"].keys() == res.articles.keys()
+
+
+def test_x_pushing_back_on_an_article_ends_the_reading_and_says_so():
+    set_state(20)
+    pages, a1, a2 = article_feed()
+    res = go(FakeBrowser(pages, art_status=429))
+    assert not res.normal and res.articles_read == 0 and len(res.pages) == 1
+    assert res.stop == "caught up; then, reading Articles: X answered a post's page with HTTP 429 (rate limited)"
+
+
+def test_an_article_page_without_its_body_ends_the_reading():
+    set_state(20)
+    pages, a1, a2 = article_feed()
+    collect.ARTICLE_WAIT_S, keep = 0.2, collect.ARTICLE_WAIT_S
+    try:
+        res = go(FakeBrowser(pages))
+    finally:
+        collect.ARTICLE_WAIT_S = keep
+    assert not res.normal and res.stop == "caught up; then, reading Articles: @ga's Article did not load"
+
+
+def test_no_article_is_opened_after_x_pushed_back_on_the_feed_or_past_the_cap(monkeypatch):
+    set_state(20)
+    pages, a1, a2 = article_feed()
+    b = FakeBrowser(pages, status=429)
+    go(b)
+    assert b.opened == []
+    from builders import post_page, with_article
+
+    monkeypatch.setattr(config, "MAX_ARTICLES", 1)
+    pages, a1, a2 = article_feed()
+    b = FakeBrowser(pages, articles={a1["rest_id"]: post_page(with_article(a1, blocks=BODY))})
+    res = go(b)
+    assert len(b.opened) == 1 and res.articles_read == 1 and res.articles_left == 1 and res.normal

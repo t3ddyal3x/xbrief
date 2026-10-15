@@ -1,4 +1,4 @@
-"""xbrief serve | run | rebrief | probe | login | status | sites. See README.md."""
+"""xbrief serve | run | rebrief | articles | probe | login | status | sites. See README.md."""
 
 from __future__ import annotations
 
@@ -47,9 +47,11 @@ def threads_of(entries: list[parse.Entry], posts: dict) -> list[list[str]]:
     return [[p.id for p in e.posts] for e in entries if len(e.posts) >= 3 and any(p.id in posts for p in e.posts)]
 
 
-def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude) -> str:
-    """Write the brief and store the run whole (store.save_run); the page reads it from there."""
+def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude, articles: dict | None = None) -> str:
+    """Write the brief and store the run whole (store.save_run); the page reads it from there. `articles`: what
+    each Article post's own page fetched (collect.read_articles), so the writer reads those Articles whole."""
     ents = entries_of(pages)
+    parse.attach_articles(ents, parse.articles_in([pg for v in (articles or {}).values() for pg in v]))
     b, posts = brief.write(ents, ask=ask, after_id=int(meta.get("boundary_id") or 0))
     started = dt.datetime.fromtimestamp((meta.get("started_ms") or time.time() * 1000) / 1000)
     name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}"
@@ -80,11 +82,12 @@ def cmd_run(a) -> int:
         res = asyncio.run(collect.run(hours=a.hours, progress=lambda phase, **kw: runner.write_progress(phase=phase, **kw)))
         path = collect.save_raw(res, label)
         log(f"read {len(res.pages)} pages ({res.build or 'no site'}): {res.stop}" + (" · GAP" if res.gap else "")
-            + f" · raw {os.path.basename(path)}")
+            + (f" · {res.articles_read} Articles read whole" if res.articles_read else "")
+            + (f", {res.articles_left} past the cap" if res.articles_left else "") + f" · raw {os.path.basename(path)}")
         n = len(brief.unique_posts(entries_of(res.pages), int(res.boundary_id or 0)))  # what the writer gets
         runner.write_progress(phase="writing the brief", stop=res.stop, normal=res.normal, posts=n,
                               writing_ms=int(time.time() * 1000))
-        name = publish(res.pages, res.meta(), label)
+        name = publish(res.pages, res.meta(), label, articles=res.articles)
         runner.write_progress(phase="done", done=True, name=name)
         pruned = collect.prune_raw()
         if pruned:
@@ -104,8 +107,24 @@ def label_of(raw_path) -> str:
 
 def cmd_rebrief(a) -> int:
     raw = collect.load_raw(a.raw)
-    publish(raw["pages"], raw["meta"], label_of(a.raw))
+    publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"))
     return 0
+
+
+def cmd_articles(a) -> int:
+    """Read whole, in the job's Brave, the Articles of a saved run that its read did not, then write its brief again."""
+    lock = runner.acquire()
+    if lock is None:
+        log("articles: a run is going; try again after it")
+        return 3
+    try:
+        n = asyncio.run(collect.articles_for_raw(a.raw))
+        log(f"articles {os.path.basename(a.raw)}: {n} read whole")
+        raw = collect.load_raw(a.raw)
+        publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"))
+        return 0
+    finally:
+        lock.close()
 
 
 def cmd_serve(a) -> int:
@@ -240,6 +259,9 @@ def main(argv=None) -> int:
     rb = sub.add_parser("rebrief", help="write the brief again from a saved raw file")
     rb.add_argument("raw")
     rb.set_defaults(fn=cmd_rebrief)
+    ar = sub.add_parser("articles", help="read whole the Articles of a saved run (opens their pages), then rebrief it")
+    ar.add_argument("raw")
+    ar.set_defaults(fn=cmd_articles)
     sub.add_parser("probe", help="open x.com/home once (hidden) and say whether the job is logged in").set_defaults(fn=cmd_probe)
     sub.add_parser("login", help="open the job's Brave profile so you can log in to X").set_defaults(fn=cmd_login)
     sub.add_parser("status", help="the last run and the login profile").set_defaults(fn=cmd_status)
