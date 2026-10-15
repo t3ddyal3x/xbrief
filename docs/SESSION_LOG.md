@@ -223,3 +223,10 @@ That was before the trivia line was added; the next brief is the first with it.
 **Checked**: offline tests (new: ranking, key-post cards, old briefs, entities); 2000 px light and dark, 1000 px,
 phone, through the write-refusing headless Brave.
 **Next**: the operator looks. Faces (step 5) not built.
+
+## 2026-10-15 (Evanss6 added to Sites)
+**Added** Evanss6 (evanss6.substack.com, its feed; people: Evan_ss6, already followed) to `config.SITES`; the
+well-formed-list test names it. App restarted.
+**Found**: the first check's write-up failed — `claude -p` now says Fable 5.1 requires usage credits. The failed
+row was deleted so the next check reads the newest post again. No other source has had a new post since.
+**Next**: the operator buys credits or picks another summary model (never Sonnet); then Check now.

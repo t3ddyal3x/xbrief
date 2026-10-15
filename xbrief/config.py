@@ -34,6 +34,8 @@ SITES = [
     # Capriole moved its updates to Substack in May 2026 (capriole.com/update-70 says so); the feed carries each post whole
     {"key": "capriole", "name": "Capriole", "home": "https://caprioleio.substack.com/",
      "list": "https://caprioleio.substack.com/feed", "kind": "rss", "x": ["caprioleio"]},
+    {"key": "evanss6", "name": "Evanss6", "home": "https://evanss6.substack.com/",
+     "list": "https://evanss6.substack.com/feed", "kind": "rss", "x": ["Evan_ss6"]},
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-fable-5-1"  # Fable for summaries (operator, 2026-10-12)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
