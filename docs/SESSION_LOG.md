@@ -258,3 +258,19 @@ with write-ups from the full text.
 and thesis order); `bin/tests --browser`.
 **Not done**: the 24 Articles in briefs before today keep their opening only; `xbrief articles <raw>` per raw file
 reads them if wanted.
+
+## 2026-10-16 (Articles: the double-check)
+**Found and fixed**, at the operator's ask to double-check the Article work:
+- A post wrapped for limited visibility hides its type; the Article reader would have missed its Article and ended
+  the reading (`parse._tweet_results`).
+- A quoted post's own quote (`nested_quoted_tweet_results`) was never read: 213 in a month's reads, one this
+  morning an Article (Chamath's private-credit deep dive). Now read, given to the writer, searched; 165 stored
+  posts updated from the raw files (store backed up first).
+- Articles first and the "Article" mark looked one quote deep; now any depth (`parse.inner`).
+- A feed page cut off by leaving the tab would have read as X pushing back; the finished feed is now ignored.
+- A handle starting with "login"/"logout" would have read as X's login page (`collect.BLOCKED`).
+- Articles past the cap are said at the top of the brief; `xbrief articles` cut short still rebriefs.
+- An Article's title links to its post (checked to show it whole), not x.com/i/article/.
+**Ran**: the operator's 06:54 run (the pre-fix code) read 405 posts, no new Article found; with the fixes,
+`xbrief articles` read the nested one and the brief was rewritten; its theses re-sorted in place.
+**Checked**: offline tests; `bin/tests --browser`.

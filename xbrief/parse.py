@@ -177,7 +177,8 @@ def post_from_result(result: dict | None, depth: int = 0) -> Post | None:
         media = [x for x in (_media_item(m) for m in g(leg, "extended_entities", "media") or g(leg, "entities", "media") or []) if x]
         reply_to_id = leg.get("in_reply_to_status_id_str")
         reply_to_handle = leg.get("in_reply_to_screen_name")
-        quoted = g(r, "quoted_status_result", "result")
+        # a quoted post's own quote comes as nested_quoted_tweet_results (213 in a month's reads, 2026-10-16)
+        quoted = g(r, "quoted_status_result", "result") or g(r, "nested_quoted_tweet_results", "result")
         retweeted = g(leg, "retweeted_status_result", "result")
 
     post = Post(
@@ -185,7 +186,7 @@ def post_from_result(result: dict | None, depth: int = 0) -> Post | None:
         reply_to_id=str(reply_to_id) if reply_to_id else None, reply_to_handle=reply_to_handle,
         article=_article(r, links),
     )
-    if depth < 2:
+    if depth < 3:  # a repost of a quote of a quote is the deepest X sends
         post.quote = post_from_result(quoted, depth + 1) if quoted else None
         post.retweet_of = post_from_result(retweeted, depth + 1) if retweeted else None
     return post
@@ -254,6 +255,8 @@ def _tweet_results(o, out: list) -> list:
     if isinstance(o, dict):
         if o.get("__typename") == "Tweet":
             out.append(o)
+        elif o.get("__typename") == "TweetWithVisibilityResults" and isinstance(o.get("tweet"), dict):
+            out.append(o["tweet"])  # the post inside carries no __typename of its own
         for v in o.values():
             _tweet_results(v, out)
     elif isinstance(o, list):
@@ -305,9 +308,18 @@ def articles_in(responses: list[dict]) -> dict[str, str]:
     return out
 
 
+def inner(p: Post) -> list[Post]:
+    """The post and everything inside it: what it reposts, what that quotes, and what a quote quotes."""
+    out = [p]
+    for x in (p.retweet_of, p.quote):
+        if x:
+            out += inner(x)
+    return out
+
+
 def with_article(p: Post) -> list[Post]:
-    """The post, and what it reposts or quotes, that carry an Article."""
-    return [x for x in (p, p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote) if x and x.article]
+    """The post, and what it reposts or quotes at any depth, that carry an Article."""
+    return [x for x in inner(p) if x.article]
 
 
 def attach_articles(entries: list[Entry], texts: dict[str, str]) -> int:

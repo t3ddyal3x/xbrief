@@ -23,7 +23,7 @@ from . import config, parse
 TIMELINE = re.compile(r"/graphql/[\w-]+/HomeLatestTimeline(?:Query)?(?:[?#]|$)")
 # logged out (the landing page, a login flow) or held up (a lock, a challenge)
 # Paths of the main page. Logged out (the landing page, a login flow) or held up (a lock, a challenge):
-BLOCKED = re.compile(r"^/(?:$|i/flow/|login|logout|account/access)", re.I)
+BLOCKED = re.compile(r"^/(?:$|i/flow/|(?:login|logout)(?:[/?#]|$)|account/access)", re.I)
 UPSELL = re.compile(r"^/i/premium_sign_up", re.I)  # an offer a person closes with Escape
 # what a post's own page fetches; an Article's whole body comes in the first (2026-10-15), embedded posts in the second
 ARTICLE_API = re.compile(r"/graphql/[\w-]+/(?:TweetResultByRestId|TweetResultsByRestIds|TweetDetail)(?:Query)?(?:[?#]|$)")
@@ -123,6 +123,7 @@ class Feed:
         self.main_url = ""
         self.main_frame: str | None = None
         self.ranked: bool | None = None  # from the feed request's own variables; None until one is seen
+        self.feed_done = False  # the feed is read: its requests still in flight are cut off by leaving the tab
         self.article_for: str | None = None  # the post whose page is open, while Articles are read
         self.art_tracked: dict[str, str] = {}  # requestId → that post's id
         self.article_pages: dict[str, list[dict]] = {}
@@ -147,6 +148,9 @@ class Feed:
 
     async def handle(self, ev: dict) -> None:
         m, p = ev.get("method"), ev.get("params") or {}
+        if self.feed_done and (p.get("requestId") in self.tracked or TIMELINE.search((p.get("request") or {}).get("url", ""))):
+            self.tracked.pop(p.get("requestId"), None)  # the browser's doing, not X's
+            return
         if m == "Network.requestWillBeSent":
             url = (p.get("request") or {}).get("url", "")
             if TIMELINE.search(url):
@@ -449,6 +453,7 @@ async def read_articles(browser, feed: Feed, res: Result, posts: list[parse.Post
     Article whole. At most config.MAX_ARTICLES a run. X pushing back ends the reading, and the run says so at the
     top of the brief; what was already read is kept."""
     res.articles_left = max(0, len(posts) - config.MAX_ARTICLES)
+    feed.feed_done = True
     try:
         for i, post in enumerate(posts[:config.MAX_ARTICLES]):
             feed.progress("reading Articles", articles=i, of=min(len(posts), config.MAX_ARTICLES))
@@ -501,7 +506,7 @@ async def articles_for_raw(path) -> int:
     raw["meta"]["articles_read"] = len(parse.articles_in([pg for v in arts.values() for pg in v]))
     _write_raw(pathlib.Path(path), raw)
     if not res.normal:
-        raise RuntimeError(res.stop.removeprefix("saved run; then, "))
+        raise Stop(res.stop.removeprefix("saved run; then, "))
     return res.articles_read
 
 

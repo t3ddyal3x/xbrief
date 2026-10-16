@@ -15,7 +15,7 @@ import re
 import time
 from urllib.parse import quote, urlencode
 
-from . import config
+from . import config, parse
 from .brief import Brief, Thesis, Topic
 from .parse import Post
 
@@ -48,9 +48,8 @@ def rich_text(p: Post) -> str:
     already as entities ("16% -&gt; 43%"); they are read back first, so they are escaped once, not twice."""
     text = esc(html.unescape(p.text or ""))
     art = p.article
-    if art:  # an X Article: its title (the link) and the opening the feed carries, where its link stood
-        url = safe_url(art.get("url")) or p.url
-        block = (f'<a class="art" href="{esc(url)}" rel="noreferrer">{esc(art.get("title") or "Article")}</a>'
+    if art:  # an X Article: its title, linking to the post (whose page shows it whole), and its opening
+        block = (f'<a class="art" href="{esc(p.url)}" rel="noreferrer">{esc(art.get("title") or "Article")}</a>'
                  + (f'\n{esc(art["preview"])}…' if art.get("preview") else ""))
         short = next((ln.get("short") for ln in p.links if ln.get("short") and ln.get("url") == art.get("url")), None)
         text = text.replace(esc(short), block) if short and esc(short) in text else (text.rstrip() + "\n" + block).lstrip()
@@ -215,7 +214,7 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
              + (f'<div class="view"><h4>Claude\'s view</h4>{view}</div>' if view else "")
              + folded(t.posts[1:], posts, thr) + '</div>')
     key = said(t.posts[:1], posts)
-    art = shown and (shown.article or (shown.quote and shown.quote.article))
+    art = shown and any(x.article for x in parse.inner(shown))
     who = f'<span class="n">{"Article · " if art else ""}@{esc(shown.handle)}</span>' if shown else ""
     return (f'<details class="story line thesis" id="{sid}"><summary><h3>{esc(t.claim)}</h3>{who}</summary>'
             f'<div class="body{" two" if key else ""}">{words}{key}</div></details>')
@@ -271,6 +270,9 @@ def status_html(meta: dict, b: Brief) -> str:
         lines.append(f"<b>The read stopped early:</b> {esc(meta.get('stop'))}.")
     if meta.get("gap"):
         lines.append("<b>Gap:</b> some posts between the last brief and this one were not read.")
+    if meta.get("articles_left"):
+        lines.append(f"<b>Articles:</b> {meta['articles_left']} past the cap of {config.MAX_ARTICLES} were read from "
+                     "their opening only.")
     if meta.get("ranked"):
         lines.append("<b>Popular order:</b> X is sorting the Following tab by Popular, which can leave posts out. "
                      "Set it to Recent to get every post.")

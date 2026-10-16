@@ -87,6 +87,13 @@ probe that found the layout: goodalexander's CoreWeave Article, 133 blocks, 28,0
 charts, 3 embedded posts. Charts themselves are not read, only their captions. `xbrief articles <raw>` reads a saved
 run's Articles the same way, then rebriefs it.
 
+**A quoted post's own quote** comes as `nested_quoted_tweet_results`, not `quoted_status_result` (found 2026-10-16:
+213 in a month's reads, one of them an Article). Until then it was dropped: the writer never saw what a quoted post
+quoted. `parse` reads it (a repost of a quote of a quote is the deepest); `parse.inner` lists a post and all inside
+it, and the writer, search, Sites and the Article reader go through it. 165 stored posts were given theirs.
+**A post wrapped for limited visibility** (`TweetWithVisibilityResults`) holds a post with no `__typename` (92 of
+92 in five raw files); the Article reader unwraps it, or it would miss the Article and end the reading.
+
 ## The twscrape fork (retired the same day, kept)
 `t3ddyal3x/twscrape`, branch `xbrief` (0897080, one commit on v0.20.1), at `~/Developer/forks/twscrape`. Reviewing
 v0.20.1 found that it loaded **x.com/tesla** with the account's cookies every run to compute the anti-bot id, that

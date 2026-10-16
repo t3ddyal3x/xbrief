@@ -20,7 +20,7 @@ import json
 import re
 import sqlite3
 
-from . import config
+from . import config, parse
 from .brief import Brief, Hype, Thesis, Topic
 from .parse import Post
 
@@ -98,11 +98,10 @@ def db():
 
 def _body(p: Post) -> str:
     parts = [p.text]
-    for inner in (p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote):
-        if inner:
-            parts.append(inner.text)
-    for x in (p, p.retweet_of, p.quote):
-        if x and x.article:
+    xs = parse.inner(p)
+    parts += [x.text for x in xs[1:]]
+    for x in xs:
+        if x.article:
             parts += [x.article.get("title") or "", x.article.get("text") or x.article.get("preview") or ""]
     parts += [ln.get("url") or "" for ln in p.links]
     return "\n".join(x for x in parts if x)

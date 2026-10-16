@@ -30,6 +30,7 @@ import time
 from dataclasses import dataclass, field
 
 from . import config
+from . import parse
 from .parse import Entry, Post
 
 SUMMARY_WORDS = 110  # the most a topic's paragraph may run to (briefs before 2026-10-14's re-work)
@@ -156,6 +157,16 @@ def _art(p: Post) -> dict:
     return {"title": p.article.get("title") or "", "opening": p.article.get("preview") or ""}
 
 
+def _inside(p: Post) -> dict:
+    """A post another one reposts or quotes: who, its words, its Article, and what it quotes in turn."""
+    d: dict = {"who": f"@{p.handle}", "text": p.text}
+    if p.article:
+        d["article"] = _art(p)
+    if p.quote:
+        d["quotes"] = _inside(p.quote)
+    return d
+
+
 def _line(p: Post) -> str:
     d: dict = {"id": p.id, "who": f"@{p.handle}", "name": p.name,
                "when": time.strftime("%a %H:%M", time.localtime(p.created_ms / 1000))}
@@ -169,13 +180,9 @@ def _line(p: Post) -> str:
     if p.reply_to_handle:
         d["reply_to"] = f"@{p.reply_to_handle}"
     if p.retweet_of:
-        d["reposts"] = {"who": f"@{p.retweet_of.handle}", "text": p.retweet_of.text}
-        if p.retweet_of.article:
-            d["reposts"]["article"] = _art(p.retweet_of)
+        d["reposts"] = _inside(p.retweet_of)
     if p.quote:
-        d["quotes"] = {"who": f"@{p.quote.handle}", "text": p.quote.text}
-        if p.quote.article:
-            d["quotes"]["article"] = _art(p.quote)
+        d["quotes"] = _inside(p.quote)
     if p.media:
         d["media"] = [m["type"] for m in p.media]
     if p.unreadable:
@@ -264,9 +271,8 @@ def _shown(p: Post) -> Post:
 
 
 def _article(p: Post) -> dict:
-    """The Article a post carries, reposts or quotes, or {}."""
-    s = _shown(p)
-    return s.article or (s.quote and s.quote.article) or {}
+    """The Article a post carries, reposts or quotes at any depth, or {}."""
+    return next((x.article for x in parse.inner(p) if x.article), {})
 
 
 def write(entries: list[Entry], ask=ask_claude, after_id: int = 0) -> tuple[Brief, dict[str, Post]]:

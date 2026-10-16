@@ -319,7 +319,7 @@ def test_an_x_article_shows_its_title_and_opening_everywhere():
     p = parse.Post(id="77", handle="ga", name="GA", created_ms=0, text="https://t.co/art",
                    links=[{"short": "https://t.co/art", "url": art["url"], "display": "x.com/i/article/77"}], article=art)
     h = page.rich_text(p)
-    assert h == '<a class="art" href="https://x.com/i/article/77" rel="noreferrer">Is &lt;It&gt; Going to Die</a>\nTLDR: no.…'
+    assert h == '<a class="art" href="https://x.com/ga/status/77" rel="noreferrer">Is &lt;It&gt; Going to Die</a>\nTLDR: no.…'
     assert json.loads(brief._line(p))["article"] == {"title": "Is <It> Going to Die", "opening": "TLDR: no."}
     store.save_run("r", "am", {"started_ms": 1}, brief.Brief(), {p.id: p}, [])
     assert [x.id for x, _ in store.search("tldr")[0]] == ["77"] and store.search("die")[0]
@@ -351,3 +351,32 @@ def test_an_article_read_whole_reaches_the_writer_leads_the_theses_and_is_marked
     name = cli.publish(pages, meta, "am", ask=lambda t: "{}", articles=arts)
     run = store.load_run(name)
     assert run["posts"][ga.id].article["text"].endswith("ARTICLE END") and store.search("whole")[0]
+
+
+def test_articles_past_the_cap_are_said_at_the_top():
+    assert "2 past the cap" in page.status_html({**META, "articles_left": 2}, brief.Brief())
+    assert "Articles" not in page.status_html({**META, "articles_left": 0}, brief.Brief())
+
+
+def test_the_writer_sees_what_a_quoted_post_quotes():
+    inner = parse.Post(id="3", handle="zee", name="", created_ms=0, text="deep",
+                       article={"title": "T", "preview": "P", "url": ""})
+    mid = parse.Post(id="2", handle="chamath", name="", created_ms=0, text="this", quote=inner)
+    p = parse.Post(id="1", handle="rt", name="", created_ms=0, text="RT", retweet_of=parse.Post(
+        id="4", handle="bob", name="", created_ms=0, text="look", quote=mid))
+    line = json.loads(brief._line(p))
+    assert line["reposts"]["quotes"]["quotes"] == {"who": "@zee", "text": "deep", "article": {"title": "T", "opening": "P"}}
+
+
+def test_an_article_quoted_two_deep_still_leads_and_is_marked():
+    art = parse.Post(id="3", handle="chamath", name="", created_ms=0, text="x",
+                     article={"title": "Deep Dive", "preview": "", "url": "", "text": "whole"})
+    p = parse.Post(id="1", handle="nic", name="", created_ms=0, text="RT", retweet_of=parse.Post(
+        id="4", handle="kawz", name="", created_ms=0, text="only 4%", quote=parse.Post(
+            id="2", handle="chamath", name="", created_ms=0, text="this", quote=art)))
+    long = parse.Post(id="5", handle="essay", name="", created_ms=0, text="long " * 900)
+    posts = {"1": p, "5": long}
+    ans = {"theses": [{"posts": ["5"], "claim": "Long."}, {"posts": ["1"], "claim": "Only 4% costs 15%."}]}
+    b = brief.parse_answer(json.dumps(ans), posts)
+    assert [t.claim for t in b.theses] == ["Only 4% costs 15%.", "Long."]
+    assert '<span class="n">Article · @kawz</span>' in page.thesis_html(b.theses[0], posts, {}, "th0")

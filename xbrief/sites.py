@@ -27,7 +27,7 @@ import time
 import urllib.request
 from urllib.parse import urlparse
 
-from . import brief, config, runner, store
+from . import brief, config, parse, runner, store
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
 MAX_BYTES = 8_000_000
@@ -239,7 +239,7 @@ def _named(pat: re.Pattern, text: str, topics: list[str]) -> list[str]:
 
 def _said(p) -> str:
     """A post's own words, what it reposts, and what it quotes."""
-    xs = [x for x in (p, p.retweet_of, p.quote, p.retweet_of and p.retweet_of.quote) if x]
+    xs = parse.inner(p)
     return "\n".join([x.text for x in xs if x.text]
                      + [f'{x.article.get("title") or ""}\n{x.article.get("preview") or ""}' for x in xs if x.article])
 

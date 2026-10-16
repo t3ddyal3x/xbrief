@@ -396,3 +396,31 @@ def test_no_article_is_opened_after_x_pushed_back_on_the_feed_or_past_the_cap(mo
     b = FakeBrowser(pages, articles={a1["rest_id"]: post_page(with_article(a1, blocks=BODY))})
     res = go(b)
     assert len(b.opened) == 1 and res.articles_read == 1 and res.articles_left == 1 and res.normal
+
+
+def test_a_handle_that_starts_with_login_is_not_the_login_page():
+    blocked = [u for u in ("/", "/login", "/logout", "/i/flow/login", "/account/access", "/login?x=1",
+                           "/loginov/status/1", "/logoutdude/status/2", "/ga/status/3") if collect.BLOCKED.search(u)]
+    assert blocked == ["/", "/login", "/logout", "/i/flow/login", "/account/access", "/login?x=1"]
+
+
+def test_a_feed_page_cut_off_by_opening_an_article_is_not_x_pushing_back():
+    from builders import post_page, with_article
+
+    set_state(20)
+    pages, a1, a2 = article_feed()
+    full = {t["rest_id"]: post_page(with_article(json.loads(json.dumps(t)), blocks=BODY)) for t in (a1, a2)}
+    b = FakeBrowser(pages, articles=full)
+    real_send = b.send
+
+    async def send(method, params=None):  # a next feed page asked for just before the read stopped
+        if method == "Page.navigate" and "/status/" in (params or {}).get("url", "") and not b.opened:
+            b.ev("Network.requestWillBeSent", requestId="late", request={"url": LATEST, "method": "POST", "postData": "{}"})
+            r = await real_send(method, params)
+            b.ev("Network.loadingFailed", requestId="late", errorText="net::ERR_ABORTED")
+            return r
+        return await real_send(method, params)
+
+    b.send = send
+    res = go(b)
+    assert res.normal and res.stop == "caught up" and res.articles_read == 2

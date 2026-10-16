@@ -105,3 +105,25 @@ def test_an_article_read_whole():
     assert parse.articles_in([post_page(with_article(xw_tweet(9, "b", "x")))]) == {}  # the feed's copy: no body
     ents_ = parse.entries(xw_page([xw_item(with_article(xw_tweet(10, "ga", "https://t.co/a")))]))[0]
     assert parse.attach_articles(ents_, {t["rest_id"]: text}) == 1 and ents_[0].posts[0].article["text"] == text
+
+
+def test_an_article_in_a_post_wrapped_for_limited_visibility_is_found():
+    from builders import post_page, with_article, xw_tweet
+
+    t = with_article(xw_tweet(10, "ga", "x"), blocks=[{"type": "unstyled", "text": "whole", "entityRanges": []}])
+    inner = {k: v for k, v in t.items() if k != "__typename"}  # as X sends it: no __typename inside the wrapper
+    wrapped = {"__typename": "TweetWithVisibilityResults", "tweet": inner}
+    assert parse.articles_in([post_page(wrapped)]) == {t["rest_id"]: "whole"}
+
+
+def test_a_quote_inside_a_quote_is_read_and_its_article_found():
+    from builders import with_article
+
+    art = with_article(lg_tweet(-200, "zee", "https://t.co/z"), title="Private credit bubble?")
+    mid = lg_tweet(-100, "chamath", "this")
+    mid["nested_quoted_tweet_results"] = {"result": art}  # as X sends a quoted post's own quote
+    top = lg_tweet(10, "bob", "look", quote=mid)
+    p = parse.entries(lg_page([lg_item(lg_tweet(11, "rt", "RT", retweet=top))]))[0][0].posts[0]
+    assert p.retweet_of.quote.quote.handle == "zee"  # a repost of a quote of a quote
+    assert [x.handle for x in parse.inner(p)] == ["rt", "bob", "chamath", "zee"]
+    assert [x.article["title"] for x in parse.with_article(p)] == ["Private credit bubble?"]

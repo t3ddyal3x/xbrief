@@ -118,11 +118,16 @@ def cmd_articles(a) -> int:
         log("articles: a run is going; try again after it")
         return 3
     try:
-        n = asyncio.run(collect.articles_for_raw(a.raw))
-        log(f"articles {os.path.basename(a.raw)}: {n} read whole")
+        code = 0
+        try:
+            n = asyncio.run(collect.articles_for_raw(a.raw))
+            log(f"articles {os.path.basename(a.raw)}: {n} read whole")
+        except collect.Stop as s:  # what was read before X pushed back is kept, and the brief written with it
+            log(f"articles {os.path.basename(a.raw)}: stopped: {s.why}")
+            code = 1
         raw = collect.load_raw(a.raw)
         publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"))
-        return 0
+        return code
     finally:
         lock.close()
 
