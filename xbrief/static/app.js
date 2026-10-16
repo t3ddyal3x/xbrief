@@ -1,8 +1,39 @@
-// xbrief's one script: the Brief now button, the top bar's live line, the schedule form, the Sites tab's check. The
-// server builds every page; this only talks to /api/run, /api/status, /api/settings and /api/sites, and writes text
-// (never markup) into the page.
+// xbrief's one script: the Brief now button, the top bar's live line, the schedule form, the Sites tab's check, and
+// a long video's summary opened in the middle of the screen. The server builds every page; this only talks to
+// /api/run, /api/status, /api/settings and /api/sites, and writes text (never markup) into the page: the pop-up is
+// made of copies of the server's own nodes.
 (() => {
   "use strict";
+
+  // A long video's line opens its summary in a pop-up at reading width; the line itself still opens in place
+  // when the script does not run. Esc, the backdrop or Close shuts it.
+  const peek = document.createElement("dialog");
+  peek.className = "peek";
+  document.body.append(peek);
+  document.addEventListener("click", (e) => {
+    const line = e.target.closest(".vid > summary");
+    if (!line) return;
+    e.preventDefault();
+    const vid = line.parentElement;
+    const head = document.createElement("header");
+    const what = document.createElement("p");
+    what.className = "what";
+    what.append(...[...line.childNodes].map((n) => n.cloneNode(true)));
+    if (vid.dataset.by) what.append(` · ${vid.dataset.by}`);
+    const shut = document.createElement("button");
+    shut.type = "button";
+    shut.className = "shut";
+    shut.textContent = "Close";
+    shut.addEventListener("click", () => peek.close());
+    head.append(what, shut);
+    const body = document.createElement("div");
+    body.className = "pbody";
+    body.append(...[...vid.children].filter((n) => n !== line).map((n) => n.cloneNode(true)));
+    peek.replaceChildren(head, body);
+    peek.showModal();
+    peek.scrollTop = 0;
+  });
+  peek.addEventListener("click", (e) => { if (e.target === peek) peek.close(); });
   const live = document.getElementById("live");
   const run = document.getElementById("run");
   const at = document.body.dataset.at || "";

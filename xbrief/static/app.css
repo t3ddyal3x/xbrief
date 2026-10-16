@@ -129,10 +129,11 @@ padding:.8rem 0;cursor:pointer;list-style:none}
 /* the chevron on everything that opens */
 summary{list-style:none}
 summary::-webkit-details-marker{display:none}
-.story.line>summary::before,.fold>summary::before{content:"";justify-self:start;display:inline-block;width:.4rem;height:.4rem;
+.story.line>summary::before,.fold>summary::before,.vid>summary::before{content:"";justify-self:start;display:inline-block;width:.4rem;height:.4rem;
 border-right:1.5px solid var(--dim);border-bottom:1.5px solid var(--dim);transform:rotate(-45deg);transition:transform .15s}
 .story.line>summary::before{position:relative;top:-.15em}
-.story.line[open]>summary::before,.fold[open]>summary::before{transform:rotate(45deg)}
+.story.line[open]>summary::before,.fold[open]>summary::before,.vid[open]>summary::before{transform:rotate(45deg)}
+.vid>summary::before{margin-right:.55rem;position:relative;top:-.12em}
 
 /* a thesis opened: the argument, what follows, Claude's view under its own label */
 .thesis h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:1.2rem 0 .55rem}
@@ -243,5 +244,24 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 .vid h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:.8rem 0 .4rem}
 .vid .src{font-size:12.5px;color:var(--dim)}.vid .src a{color:var(--dim)}
 .card .vid{white-space:normal}
+/* …and opened, in the middle of the screen at reading width: Claude's words in Iowan, like the brief's own */
+.peek{width:min(46rem,calc(100vw - 32px));max-height:min(88vh,64rem);padding:0;border:1px solid var(--rule);
+border-radius:14px;background:var(--paper);color:var(--ink);box-shadow:0 24px 70px rgba(0,0,0,.35);overflow:auto;
+overscroll-behavior:contain}
+.peek::backdrop{background:color-mix(in srgb,var(--paper) 55%,rgba(0,0,0,.55));backdrop-filter:blur(3px)}
+.peek header{position:sticky;top:0;display:flex;align-items:baseline;gap:1rem;padding:1.1rem 1.75rem .9rem;
+background:var(--paper);border-bottom:1px solid var(--rule);font:14px/1.4 var(--f-ui);color:var(--dim)}
+.peek .what{margin:0;flex:1;min-width:0}.peek .what b{color:var(--ink0);font-weight:600}
+.peek .shut{font:13.5px/1 var(--f-ui);color:var(--dim);background:none;border:1px solid var(--rule);border-radius:7px;
+padding:.4rem .7rem;cursor:pointer}.peek .shut:hover{color:var(--ink0);border-color:var(--tick)}
+.peek .pbody{padding:1.3rem 1.75rem 1.6rem;font:17.5px/1.62 var(--f-read)}
+.peek .pbody>p:first-child{font-size:20px;line-height:1.55;color:var(--ink0);margin:0 0 1.1rem}
+.peek ol,.peek ul{padding-left:1.4rem;margin:0 0 1rem}.peek li{margin:0 0 .55rem;padding-left:.2rem}
+.peek ol li::marker{font:13px var(--f-num);color:var(--dim)}
+.peek h4{font:600 11.5px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin:1.6rem 0 .7rem}
+.peek .view{margin:1.6rem 0 0;padding:.9rem 1.1rem;border-left:3px solid var(--rule);background:var(--panel);border-radius:0 8px 8px 0}
+.peek .view b{display:block;font:600 11.5px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:.5rem}
+.peek .src{margin:1.4rem 0 0;font:13.5px/1.5 var(--f-ui);color:var(--dim)}.peek .src a{color:var(--ink2)}
+@media (max-width:600px){.peek header{padding:.9rem 1rem .75rem}.peek .pbody{padding:1rem 1rem 1.3rem}}
 .video .tx{max-width:46rem;overflow-wrap:anywhere;font:15px/1.65 var(--f-ui);color:var(--ink);margin-top:1.2rem}
 .video .tx p{margin:0 0 .9rem}

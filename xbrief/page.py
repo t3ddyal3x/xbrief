@@ -88,7 +88,7 @@ def vids(p: Post) -> str:
         calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
         key = v.get("key") or ""
         out.append(
-            f'<details class="vid"><summary><b>Video</b> · {mins(v.get("duration_s"))}'
+            f'<details class="vid" data-by="@{esc(p.handle)}"><summary><b>Video</b> · {mins(v.get("duration_s"))}'
             + (f' · {esc(v["title"])}' if v.get("title") else "") + "</summary>"
             + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "")
             + (f"<ol>{pts}</ol>" if pts else "") + (f"<h4>Calls</h4><ul>{calls}</ul>" if calls else "")
