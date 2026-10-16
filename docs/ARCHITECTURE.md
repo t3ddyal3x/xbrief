@@ -155,6 +155,10 @@ and the writer gets that summary, not the transcript, so a morning of podcasts c
 video's transcript and summary are kept in `videos/<key>.json` (a failure is not kept, so the next brief retries);
 the post keeps them too, so search reaches the words, and `/video/<key>` shows the transcript. At most
 `config.MAX_VIDEOS` a brief; what is past the cap or failed is said at the top of the brief.
+Always English (operator, 2026-10-16, "everything in english always"): left to guess, Whisper heard Taiki Maeda's
+91-minute English interview with a Malaysian guest as Malay and wrote nine-tenths of it in Malay; its summary
+read fine, but the transcript and search did not. Whisper now runs with `language="en"`, and X's captions are
+used only from an English track, else Whisper.
 
 ## The Sites tab (2026-10-14)
 The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,

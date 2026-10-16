@@ -121,10 +121,10 @@ def vtt_text(vtt: str) -> list[str]:
 
 
 def x_captions(stream: str, get=http_get) -> str | None:
-    """X's own captions of a video, from its stream index; None when X made none."""
+    """X's own English captions of a video, from its stream index; None when X made none in English, so Whisper
+    writes it in English instead."""
     master = get(stream)
-    subs = _media_lines(master, "SUBTITLES")
-    line = next((ln for ln in subs if 'LANGUAGE="en"' in ln), subs[0] if subs else None)
+    line = next((ln for ln in _media_lines(master, "SUBTITLES") if 'LANGUAGE="en"' in ln), None)
     if not line or not _uri(line):
         return None
     pl_url = urljoin(stream, _uri(line))

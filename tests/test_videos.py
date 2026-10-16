@@ -9,7 +9,7 @@ import pytest
 
 from builders import BASE_MS, lg_item, lg_page, lg_tweet, xw_item, xw_page, xw_tweet
 
-from xbrief import brief, cli, config, page, parse, store, videos
+from xbrief import brief, cli, config, page, parse, store, videos, whisper
 
 STREAM = "https://video.twimg.com/amplify_video/77/pl/abc.m3u8?tag=29"
 MASTER = """#EXTM3U
@@ -139,6 +139,22 @@ def test_an_x_video_without_captions_gets_whisper_on_its_audio_track_only():
     assert ff[0] == config.FFMPEG and ff[ff.index("-i") + 1] == "https://video.twimg.com/amplify_video/77/pl/mp4a/64000/a64.m3u8"
     assert "-vn" in ff and run.cmds[1][1:3] == ["-m", "xbrief.whisper"]
     assert doc["source"] == "Whisper large-v3" and doc["transcript"].startswith("spoken")
+
+
+def test_captions_in_another_language_are_passed_over_for_whisper_in_english(monkeypatch, tmp_path):
+    master = MASTER.replace('LANGUAGE="en"', 'LANGUAGE="ms"').replace('NAME="en ', 'NAME="ms ')
+    run = FakeRun()
+    doc = videos.read(x_item(), get=fake_get(x_pages(master)), run=run, ask=lambda t: SUMMARY)
+    assert doc["source"] == "Whisper large-v3" and run.cmds[1][1:3] == ["-m", "xbrief.whisper"]
+    seen = {}
+
+    def transcribe(audio, **kw):
+        seen.update(kw)
+        return {"language": kw["language"], "text": " said ", "segments": [{"start": 0.0, "text": " said "}]}
+
+    monkeypatch.setitem(__import__("sys").modules, "mlx_whisper", type("M", (), {"transcribe": staticmethod(transcribe)}))
+    whisper.main("a.m4a", str(tmp_path / "out.json"))
+    assert seen["language"] == "en" and json.loads((tmp_path / "out.json").read_text())["text"] == "said"
 
 
 def test_a_youtube_video_gets_whisper_and_a_short_or_live_one_is_left_out():

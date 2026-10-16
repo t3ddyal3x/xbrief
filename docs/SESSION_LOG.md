@@ -287,3 +287,11 @@ search reaches the transcript. mlx-whisper 0.4.3 pinned into xbrief's venv (the 
 failed. The writer left Shane Parrish's interview post unsummarised; the prompt now says a post with an Article or a
 video summary is never left out.
 **Checked**: offline tests (new `test_videos.py`).
+
+## 2026-10-16 (videos always in English)
+**Found** on checking the morning's brief: Whisper, left to guess the language, wrote nine-tenths of Taiki Maeda's
+91-minute English interview with a Malaysian guest in Malay. Its summary read fine; the transcript and search did not.
+**Built** on the operator's word ("everything in english always"): Whisper runs with `language="en"`; X's captions
+are used only from an English track, else Whisper. Old transcript renamed aside in `videos/` (`.malay-2026-10-16.bak`).
+**Ran**: rebrief of 2026-10-16_0654-am; the interview re-transcribed in 710 s, 18,543 words, no Malay left.
+**Checked**: offline tests (new test: other-language captions go to Whisper, Whisper told English); the page and search.

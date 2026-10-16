@@ -57,8 +57,9 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
 
 13. **Long videos are read from their words, never their picture** (`videos.py`): a video of `config.VIDEO_MIN_S`
     or longer in a brief's posts (X's own, or a YouTube link) is transcribed and summarised before the writer runs.
-    An X video: X's own captions where X made them, else Whisper large-v3 (MLX, local) on its audio track alone. A
-    YouTube video: Whisper on its audio (yt-dlp), since YouTube refuses captions to scripts here. Public files,
+    An X video: X's own English captions where X made them, else Whisper large-v3 (MLX, local) on its audio track
+    alone. A YouTube video: Whisper on its audio (yt-dlp), since YouTube refuses captions to scripts here. Every
+    transcript is English: Whisper is told the language, never left to guess (operator, 2026-10-16). Public files,
     direct, outside the browser; the audio is deleted once transcribed. The summariser is `config.SITE_MODEL`
     (Opus, never Sonnet); the writer gets the summary, the page and search the whole transcript (`/video/<key>`).
     Transcripts are untrusted like posts (rule 7). Each is kept in `videos/` by key, so a rebrief never redoes one.
