@@ -25,15 +25,54 @@
     shut.className = "shut";
     shut.textContent = "Close";
     shut.addEventListener("click", () => peek.close());
-    head.append(what, shut);
     const body = document.createElement("div");
     body.className = "pbody";
     body.append(...[...vid.children].filter((n) => n !== line).map((n) => n.cloneNode(true)));
+    const copy = document.createElement("button");
+    copy.type = "button";
+    copy.className = "shut";
+    copy.textContent = "Copy";
+    copy.addEventListener("click", async () => {
+      copy.textContent = await copied(plain(what, body)) ? "Copied" : "Copy failed";
+      setTimeout(() => { copy.textContent = "Copy"; }, 1600);
+    });
+    head.append(what, copy, shut);
     peek.replaceChildren(head, body);
     peek.showModal();
     peek.scrollTop = 0;
   });
   peek.addEventListener("click", (e) => { if (e.target === peek) peek.close(); });
+
+  // The summary as plain text: its line, the gist, the points numbered, the calls, Claude's view, the link.
+  function plain(what, body) {
+    const out = [what.textContent.trim(), ""];
+    for (const n of body.children) {
+      if (n.matches("ol")) [...n.children].forEach((li, i) => out.push(`${i + 1}. ${li.textContent.trim()}`));
+      else if (n.matches("ul")) [...n.children].forEach((li) => out.push(`- ${li.textContent.trim()}`));
+      else if (n.matches(".view")) out.push(`Claude's view: ${n.textContent.replace(/^\s*Claude's view\s*/, "").trim()}`);
+      else if (n.matches(".src")) {
+        const a = n.querySelector('a[rel="noreferrer"]');
+        if (a) out.push(a.href);
+        continue;
+      } else out.push(n.textContent.trim());
+      out.push("");
+    }
+    return out.join("\n").trim();
+  }
+
+  async function copied(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      const t = Object.assign(document.createElement("textarea"), { value: text });
+      peek.append(t);
+      t.select();
+      const ok = document.execCommand("copy");
+      t.remove();
+      return ok;
+    }
+  }
   const live = document.getElementById("live");
   const run = document.getElementById("run");
   const at = document.body.dataset.at || "";

@@ -159,6 +159,17 @@ Always English (operator, 2026-10-16, "everything in english always"): left to g
 91-minute English interview with a Malaysian guest as Malay and wrote nine-tenths of it in Malay; its summary
 read fine, but the transcript and search did not. Whisper now runs with `language="en"`, and X's captions are
 used only from an English track, else Whisper.
+Podcasts (2026-10-16): The Stalwart's post of Jeff Yan on Odd Lots linked Spotify, which xbrief did not read, so the
+brief had no summary of it. Spotify's audio is its own, but every show not exclusive to Spotify has a public feed:
+Spotify's embed page gives the episode's title, show and length; Apple's podcast directory (a free, keyless search)
+gives the show's feed; the feed's item of the same title gives the audio and, on many shows, the publisher's own
+transcript (`podcast:transcript`; Odd Lots has one on 1,284 of 1,288 episodes). Measured on that episode: Bloomberg's
+transcript and Whisper large-v3 agree on 97.4% of Bloomberg's words; Bloomberg's has "Odd Lots" where Whisper heard
+"loblots", marks each speaker's turn, and leaves out the ads Whisper transcribed. So the show's own English transcript
+first, else Whisper on the feed's audio, the rule X's captions follow. An Apple Podcasts link goes to Apple's lookup
+for the same. A title the feed does not list is said, never guessed at. On the page a podcast is "Podcast", "listen".
+The summary opens in a pop-up at reading width with Copy (operator, 2026-10-16: the line opening in place in a
+400 px card was hard to read, and was not seen to open).
 
 ## The Sites tab (2026-10-14)
 The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,

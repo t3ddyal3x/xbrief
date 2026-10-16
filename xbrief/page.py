@@ -88,15 +88,19 @@ def vids(p: Post) -> str:
         calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
         key = v.get("key") or ""
         out.append(
-            f'<details class="vid" data-by="@{esc(p.handle)}"><summary><b>Video</b> · {mins(v.get("duration_s"))}'
-            + (f' · {esc(v["title"])}' if v.get("title") else "") + "</summary>"
+            f'<details class="vid" data-by="@{esc(p.handle)}"><summary><b>{kind(v)}</b> · {mins(v.get("duration_s"))}'
+            + "".join(f" · {esc(v[k])}" for k in ("show", "title") if v.get(k)) + "</summary>"
             + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "")
             + (f"<ol>{pts}</ol>" if pts else "") + (f"<h4>Calls</h4><ul>{calls}</ul>" if calls else "")
             + (f'<p class="view"><b>Claude\'s view</b> {esc(s["view"])}</p>' if s.get("view") else "")
             + f'<p class="src">Transcript: {esc(v.get("source") or "")} · '
             + f'<a href="/video/{quote(key)}">read it</a> · <a href="{esc(safe_url(v.get("url")) or p.url)}" '
-            + 'rel="noreferrer">watch</a></p></details>')
+            + f'rel="noreferrer">{"listen" if v.get("kind") == "podcast" else "watch"}</a></p></details>')
     return "".join(out)
+
+
+def kind(v: dict) -> str:
+    return "Podcast" if v.get("kind") == "podcast" else "Video"
 
 
 def marked(text: str, words: list[str]) -> str:
@@ -240,7 +244,8 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
              + folded(t.posts[1:], posts, thr) + '</div>')
     key = said(t.posts[:1], posts)
     inner = parse.inner(shown) if shown else []
-    mark = "Article · " if any(x.article for x in inner) else "Video · " if any(x.videos for x in inner) else ""
+    vs = [v for x in inner for v in x.videos]
+    mark = "Article · " if any(x.article for x in inner) else f"{kind(vs[0])} · " if vs else ""
     who = f'<span class="n">{mark}@{esc(shown.handle)}</span>' if shown else ""
     return (f'<details class="story line thesis" id="{sid}"><summary><h3>{esc(t.claim)}</h3>{who}</summary>'
             f'<div class="body{" two" if key else ""}">{words}{key}</div></details>')
@@ -636,25 +641,31 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
 
 
 def paragraphs(text: str, most: int = 120) -> list[str]:
-    """A transcript in paragraphs: a break at the first sentence's end after `most` * 2/3 words, or at `most`
-    words where a stretch has no full stop (X's captions are often unpunctuated)."""
-    out, cur = [], []
-    for w in text.split():
-        cur.append(w)
-        if (len(cur) >= most * 2 // 3 and w[-1] in ".?!") or len(cur) >= most:
-            out.append(" ".join(cur))
-            cur = []
-    return out + ([" ".join(cur)] if cur else [])
+    """A transcript in paragraphs: one at each line (a show's transcript has a line a speaker's turn), and within a
+    line a break at the first sentence's end after `most` * 2/3 words, or at `most` words where a stretch has no full
+    stop (X's captions are often unpunctuated)."""
+    out = []
+    for line in text.splitlines():
+        cur: list[str] = []
+        for w in line.split():
+            cur.append(w)
+            if (len(cur) >= most * 2 // 3 and w[-1] in ".?!") or len(cur) >= most:
+                out.append(" ".join(cur))
+                cur = []
+        out += [" ".join(cur)] if cur else []
+    return out
 
 
 def video_page(doc: dict, live: dict, running: bool = False) -> str:
     """One long video's whole transcript, as it was read, with its summary above it."""
+    pod = doc.get("kind") == "podcast"
     title = doc.get("title") or f"A video posted by @{doc.get('by', '')}"
-    head = (f'<h2>{esc(title)}</h2><p class="hits">Posted by @{esc(doc.get("by", ""))} · {mins(doc.get("duration_s"))} · '
+    head = (f'<h2>{esc(title)}</h2><p class="hits">{esc(doc["show"]) + " · " if doc.get("show") else ""}'
+            f'Posted by @{esc(doc.get("by", ""))} · {mins(doc.get("duration_s"))} · '
             f'transcript: {esc(doc.get("source") or "none")} · <a href="{esc(safe_url(doc.get("url")) or "")}" '
-            'rel="noreferrer">watch</a></p>')
+            f'rel="noreferrer">{"listen" if pod else "watch"}</a></p>')
     v = Post(id="", handle=doc.get("by", ""), name="", created_ms=0, text="",
-             videos=[{**{k: doc.get(k) for k in ("key", "kind", "url", "duration_s", "title", "source", "summary")}}])
+             videos=[{**{k: doc.get(k) for k in ("key", "kind", "url", "duration_s", "show", "title", "source", "summary")}}])
     body = '<div class="tx">' + "".join(f"<p>{esc(x)}</p>" for x in paragraphs(
         doc.get("transcript") or doc.get("skip") or doc.get("error") or "")) + "</div>"
     return shell(title, topbar("", live, running=running), f'<section class="video">{head}{vids(v)}{body}</section>')

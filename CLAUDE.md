@@ -59,7 +59,10 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     or longer in a brief's posts (X's own, or a YouTube link) is transcribed and summarised before the writer runs.
     An X video: X's own English captions where X made them, else Whisper large-v3 (MLX, local) on its audio track
     alone. A YouTube video: Whisper on its audio (yt-dlp), since YouTube refuses captions to scripts here. Every
-    transcript is English: Whisper is told the language, never left to guess (operator, 2026-10-16). Public files,
+    transcript is English: Whisper is told the language, never left to guess (operator, 2026-10-16). A podcast
+    episode a post links on Spotify or Apple Podcasts: found by title in the show's public feed (its address from
+    Apple's directory), read from the show's own English transcript where the feed has one, else Whisper on the
+    feed's audio; Spotify gives only the title, show and length. Public files,
     direct, outside the browser; the audio is deleted once transcribed. The summariser is `config.SITE_MODEL`
     (Opus, never Sonnet); the writer gets the summary, the page and search the whole transcript (`/video/<key>`).
     Transcripts are untrusted like posts (rule 7). Each is kept in `videos/` by key, so a rebrief never redoes one.

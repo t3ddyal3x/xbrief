@@ -200,7 +200,7 @@ def test_a_brief_with_a_long_video_gives_the_writer_its_summary_and_shows_it():
     line = json.loads(brief._line(p))
     assert line["videos"] == [{"length": "20 min", "gist": "A speech on <b>crypto</b> law.", "points": ["They won."],
                                "calls": ["Long ETH into 2027"]}] and "transcript" not in json.dumps(line)
-    assert '("videos"): its summary was written from the video\'s whole transcript' in brief.PROMPT
+    assert '("videos"): its summary was written from the whole transcript' in brief.PROMPT
     assert "a long video's summary always has something to say" in brief.PROMPT
     b = brief.parse_answer(json.dumps({"theses": [{"posts": [p.id], "claim": "Law changed."}]}), {p.id: p})
     html = page.thesis_html(b.theses[0], {p.id: p}, {}, "th0")
@@ -237,3 +237,90 @@ def test_a_transcript_reads_in_paragraphs():
     text = " ".join(["word"] * 79 + ["end."] + ["more"] * 130)
     paras = page.paragraphs(text)
     assert [len(p.split()) for p in paras] == [80, 120, 10] and paras[0].endswith("end.")
+
+
+# ── podcasts ──
+
+SP_ID = "5AqOmZDGZcMj1OyBLWvcXW"
+FEED = "https://feeds.example.com/oddlots.rss"
+EMBED = ('<html><script id="__NEXT_DATA__" type="application/json">' + json.dumps({"props": {"pageProps": {"state": {
+    "data": {"entity": {"title": "Jeff Yan’s Plan for Hyperliquid", "subtitle": "Odd Lots", "duration": 3480111}}}}}})
+         + "</script></html>")
+SEARCH = "https://itunes.apple.com/search?term=Odd+Lots&media=podcast&entity=podcast&limit=10"
+DIRECTORY = json.dumps({"results": [{"collectionName": "Odd Lot Improv", "feedUrl": "https://other.example/rss"},
+                                    {"collectionName": "Odd Lots", "feedUrl": FEED}]})
+SHOW_VTT = """WEBVTT - Jeff Yan's Plan
+
+0:00:02.750 --> 0:00:04.430
+<v Speaker 1>Hello and welcome to Odd Lots.
+
+0:00:04.890 --> 0:00:05.590
+<v Speaker 1>I'm Joe.
+
+0:00:05.890 --> 0:00:06.430
+<v Speaker 2>And I'm Tracy. """ + "we talk about markets " * 10 + """
+"""
+
+
+def rss(transcripts=True, title="Jeff Yan's Plan for Hyperliquid"):
+    tx = ('<podcast:transcript url="https://api.example/t.srt" type="application/srt" language="en"/>'
+          '<podcast:transcript url="https://api.example/t.vtt" type="text/vtt" language="en"/>'
+          '<podcast:transcript url="https://api.example/es.vtt" type="text/vtt" language="es"/>') if transcripts else ""
+    return f"""<?xml version="1.0"?><rss xmlns:podcast="https://podcastindex.org/namespace/1.0"><channel>
+<item><title>Another Episode</title><enclosure url="https://cdn.example/other.mp3" type="audio/mpeg"/></item>
+<item><title>{title}</title><enclosure url="https://cdn.example/jy.mp3" type="audio/mpeg"/>{tx}</item>
+</channel></rss>"""
+
+
+def sp_post():
+    return {"1": parse.Post("1", "TheStalwart", "NEW ODD LOTS", 0, "", links=[
+        {"url": f"https://open.spotify.com/episode/{SP_ID}?si=6r5vLG4ARt68WLAtkQNK3Q&utm_source=copy-link"},
+        {"url": f"https://open.spotify.com/intl-de/episode/{SP_ID}"},
+        {"url": "https://podcasts.apple.com/us/podcast/jeff-yans-plan/id1056200096?i=1000796459553"}])}
+
+
+def test_spotify_and_apple_episode_links_are_found_each_once():
+    assert [(w["key"], w["kind"]) for w in videos.wanted(sp_post())] == [(f"sp-{SP_ID}", "podcast"), ("ap-1000796459553", "podcast")]
+    assert videos.wanted(sp_post())[1]["show_id"] == "1056200096"
+
+
+def test_a_spotify_episode_is_read_from_the_shows_own_english_transcript_with_its_speakers():
+    get = fake_get({f"https://open.spotify.com/embed/episode/{SP_ID}": EMBED, SEARCH: DIRECTORY, FEED: rss(),
+                    "https://api.example/t.vtt": SHOW_VTT})
+    run, asked = FakeRun(), []
+    doc = videos.read(videos.wanted(sp_post())[0], get=get, run=run, ask=lambda t: asked.append(t) or SUMMARY)
+    assert doc["show"] == "Odd Lots" and doc["title"] == "Jeff Yan’s Plan for Hyperliquid" and doc["duration_s"] == 3480
+    assert doc["source"] == "the show's own" and run.cmds == []  # no audio, no Whisper
+    assert doc["transcript"].splitlines()[:2] == ["Speaker 1: Hello and welcome to Odd Lots. I'm Joe.",
+                                                 "Speaker 2: And I'm Tracy. " + " ".join(["we talk about markets"] * 10)]
+    assert "https://api.example/es.vtt" not in get.asked and '"show": "Odd Lots"' in asked[0]
+    assert page.paragraphs(doc["transcript"])[0] == "Speaker 1: Hello and welcome to Odd Lots. I'm Joe."
+
+
+def test_an_apple_episode_without_a_transcript_gets_whisper_on_the_feeds_audio():
+    lookup = json.dumps({"results": [{"wrapperType": "track", "collectionName": "Odd Lots", "feedUrl": FEED},
+                                     {"wrapperType": "podcastEpisode", "trackId": 1000796459553, "collectionName": "Odd Lots",
+                                      "trackName": "Jeff Yan's Plan for Hyperliquid", "trackTimeMillis": 3480000, "feedUrl": FEED}]})
+    get = fake_get({"https://itunes.apple.com/lookup?id=1056200096&entity=podcastEpisode&limit=300": lookup,
+                    FEED: rss(transcripts=False)})
+    run = FakeRun()
+    doc = videos.read(videos.wanted(sp_post())[1], get=get, run=run, ask=lambda t: SUMMARY)
+    ff = run.cmds[0]
+    assert ff[0] == config.FFMPEG and ff[ff.index("-i") + 1] == "https://cdn.example/jy.mp3" and "-vn" in ff
+    assert doc["source"] == "Whisper large-v3" and doc["summary"]["gist"]
+
+
+def test_an_episode_no_public_feed_lists_is_said_and_a_short_one_left_out():
+    get = fake_get({f"https://open.spotify.com/embed/episode/{SP_ID}": EMBED, SEARCH: DIRECTORY, FEED: rss(title="Something else")})
+    doc = videos.read(videos.wanted(sp_post())[0], get=get, run=FakeRun(), ask=lambda t: SUMMARY)
+    assert doc["error"] == "ValueError: no public feed of Odd Lots lists this episode" and videos.kept(f"sp-{SP_ID}") is None
+    short = fake_get({f"https://open.spotify.com/embed/episode/{SP_ID}": EMBED.replace("3480111", "300000"), SEARCH: DIRECTORY})
+    assert videos.read(videos.wanted(sp_post())[0], get=short, run=FakeRun())["skip"] == "shorter than 10 minutes"
+
+
+def test_a_podcast_shows_as_one_on_the_post():
+    p = parse.Post("1", "TheStalwart", "", 0, "", videos=[{"key": f"sp-{SP_ID}", "kind": "podcast", "url": "https://open.spotify.com/x",
+                                                          "duration_s": 3480, "show": "Odd Lots", "title": "Jeff Yan",
+                                                          "source": "the show's own", "summary": json.loads(SUMMARY)}])
+    h = page.vids(p)
+    assert "<b>Podcast</b> · 58 min · Odd Lots · Jeff Yan</summary>" in h and ">listen</a>" in h

@@ -295,3 +295,16 @@ video summary is never left out.
 are used only from an English track, else Whisper. Old transcript renamed aside in `videos/` (`.malay-2026-10-16.bak`).
 **Ran**: rebrief of 2026-10-16_0654-am; the interview re-transcribed in 710 s, 18,543 words, no Malay left.
 **Checked**: offline tests (new test: other-language captions go to Whisper, Whisper told English); the page and search.
+
+## 2026-10-16 (podcasts; the summary in a pop-up)
+**Found**: The Stalwart's post of Jeff Yan on Odd Lots linked Spotify, which xbrief did not read: no summary. The
+operator could not see that the Video line opens, and found the summary hard to read in the 400 px card.
+**Measured**: Odd Lots' public feed carries Bloomberg's own transcript (1,284 of 1,288 episodes); on the Jeff Yan
+episode it and Whisper large-v3 agree on 97.4% of Bloomberg's words; Bloomberg's gets the names, marks speakers,
+drops the ads.
+**Built**: Spotify and Apple Podcasts episode links are read like long videos (`videos._podcast`): the show's feed
+from Apple's directory, the episode by title, the show's own English transcript, else Whisper on the feed's audio;
+shown as Podcast, listen. The Video/Podcast line has the page's open arrow and opens its summary in a pop-up at
+reading width (`dialog.peek`), with Copy (plain text: line, gist, numbered points, calls, Claude's view, link).
+**Ran**: rebrief of 2026-10-16_0654-am; Jeff Yan's episode from the show's transcript in 23 s, 10,597 words.
+**Checked**: offline tests (new podcast tests); the pop-up and Copy in headless Brave (guarded), dark and light.
