@@ -12,7 +12,7 @@ import re
 import sys
 import time
 
-from . import brief, collect, config, parse, runner, store
+from . import brief, collect, config, parse, runner, store, videos
 
 LABELS = {"am": "morning", "pm": "evening"}
 
@@ -47,11 +47,18 @@ def threads_of(entries: list[parse.Entry], posts: dict) -> list[list[str]]:
     return [[p.id for p in e.posts] for e in entries if len(e.posts) >= 3 and any(p.id in posts for p in e.posts)]
 
 
-def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude, articles: dict | None = None) -> str:
+def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude, articles: dict | None = None,
+            read_videos=None) -> str:
     """Write the brief and store the run whole (store.save_run); the page reads it from there. `articles`: what
-    each Article post's own page fetched (collect.read_articles), so the writer reads those Articles whole."""
+    each Article post's own page fetched (collect.read_articles), so the writer reads those Articles whole.
+    `read_videos(posts)`: the long videos of the brief's posts, transcribed and summarised (videos.read_all)."""
     ents = entries_of(pages)
     parse.attach_articles(ents, parse.articles_in([pg for v in (articles or {}).values() for pg in v]))
+    if read_videos:
+        docs, left = read_videos(brief.unique_posts(ents, int(meta.get("boundary_id") or 0)))
+        videos.attach(ents, docs)
+        meta = {**meta, "videos_read": sum(1 for d in docs.values() if d.get("summary")), "videos_left": left,
+                "videos_failed": [f"{k}: {d['error']}" for k, d in docs.items() if d.get("error")]}
     b, posts = brief.write(ents, ask=ask, after_id=int(meta.get("boundary_id") or 0))
     started = dt.datetime.fromtimestamp((meta.get("started_ms") or time.time() * 1000) / 1000)
     name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}"
@@ -87,7 +94,13 @@ def cmd_run(a) -> int:
         n = len(brief.unique_posts(entries_of(res.pages), int(res.boundary_id or 0)))  # what the writer gets
         runner.write_progress(phase="writing the brief", stop=res.stop, normal=res.normal, posts=n,
                               writing_ms=int(time.time() * 1000))
-        name = publish(res.pages, res.meta(), label, articles=res.articles)
+
+        def read_videos(posts):
+            out = videos.read_all(posts, progress=lambda phase, **kw: runner.write_progress(phase=phase, **kw), log=log)
+            runner.write_progress(phase="writing the brief", writing_ms=int(time.time() * 1000))  # the clock restarts
+            return out
+
+        name = publish(res.pages, res.meta(), label, articles=res.articles, read_videos=read_videos)
         runner.write_progress(phase="done", done=True, name=name)
         pruned = collect.prune_raw()
         if pruned:
@@ -107,7 +120,8 @@ def label_of(raw_path) -> str:
 
 def cmd_rebrief(a) -> int:
     raw = collect.load_raw(a.raw)
-    publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"))
+    publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"),
+            read_videos=lambda posts: videos.read_all(posts, log=log))
     return 0
 
 
@@ -126,7 +140,8 @@ def cmd_articles(a) -> int:
             log(f"articles {os.path.basename(a.raw)}: stopped: {s.why}")
             code = 1
         raw = collect.load_raw(a.raw)
-        publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"))
+        publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"),
+                read_videos=lambda posts: videos.read_all(posts, log=log))
         return code
     finally:
         lock.close()

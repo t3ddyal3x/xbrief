@@ -74,6 +74,31 @@ def imgs(p: Post, most: int = 4) -> str:
     return f'<div class="imgs">{"".join(out)}</div>' if out else ""
 
 
+def mins(s) -> str:
+    return f"{round((s or 0) / 60)} min"
+
+
+def vids(p: Post) -> str:
+    """A post's long videos: one line each (Video, its length, its title) that opens to the summary of its whole
+    transcript, Claude's view under its own label, and where the transcript came from, with a link to read it."""
+    out = []
+    for v in p.videos:
+        s = v.get("summary") or {}
+        pts = "".join(f"<li>{esc(x)}</li>" for x in s.get("points") or [])
+        calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
+        key = v.get("key") or ""
+        out.append(
+            f'<details class="vid"><summary><b>Video</b> · {mins(v.get("duration_s"))}'
+            + (f' · {esc(v["title"])}' if v.get("title") else "") + "</summary>"
+            + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "")
+            + (f"<ol>{pts}</ol>" if pts else "") + (f"<h4>Calls</h4><ul>{calls}</ul>" if calls else "")
+            + (f'<p class="view"><b>Claude\'s view</b> {esc(s["view"])}</p>' if s.get("view") else "")
+            + f'<p class="src">Transcript: {esc(v.get("source") or "")} · '
+            + f'<a href="/video/{quote(key)}">read it</a> · <a href="{esc(safe_url(v.get("url")) or p.url)}" '
+            + 'rel="noreferrer">watch</a></p></details>')
+    return "".join(out)
+
+
 def marked(text: str, words: list[str]) -> str:
     """Escaped post text with each searched word marked where a word begins with it, as the search matches; never
     inside a link's markup or an escape."""
@@ -100,11 +125,11 @@ def post_html(p: Post, also: str = "", words: list[str] | None = None) -> str:
     if shown.quote and not shown.quote.unreadable:
         q = shown.quote
         quote = (f'<div class="q"><div class="meta"><a href="{esc(q.url)}" rel="noreferrer">@{esc(q.handle)}</a>'
-                 f'<span>{day(q.created_ms)}</span></div><div class="t">{marked(rich_text(q), words)}</div>{imgs(q)}</div>')
+                 f'<span>{day(q.created_ms)}</span></div><div class="t">{marked(rich_text(q), words)}</div>{imgs(q)}{vids(q)}</div>')
     name = f'<b>{esc(shown.name)}</b>' if shown.name and shown.name != shown.handle else ""
     return (f'<div class="post"><div class="meta">{name}<a href="{esc(shown.url)}" rel="noreferrer">@{esc(shown.handle)}</a>'
             f'<span>{day(shown.created_ms)}</span>{lead}{reply}{also}</div>'
-            f'<div class="t">{marked(rich_text(shown), words)}</div>{imgs(shown)}{quote}</div>')
+            f'<div class="t">{marked(rich_text(shown), words)}</div>{imgs(shown)}{vids(shown)}{quote}</div>')
 
 
 def topic_posts(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> list[Post]:
@@ -174,9 +199,9 @@ def card(p: Post) -> str:
            + (f'<span>reposted by @{esc(p.handle)}</span>' if p.retweet_of else ""))
     q = shown.quote
     quote = (f'<div class="q"><p class="who"><a href="{esc(q.url)}" rel="noreferrer">@{esc(q.handle)}</a></p>'
-             f'<div class="t">{tight(q)}</div></div>' if q and not q.unreadable else "")
+             f'<div class="t">{tight(q)}</div>{vids(q)}</div>' if q and not q.unreadable else "")
     return (f'<article class="card"><p class="who">{who}</p><div class="t">{tight(shown)}</div>'
-            f'{imgs(shown, 1)}{quote}</article>')
+            f'{imgs(shown, 1)}{vids(shown)}{quote}</article>')
 
 
 def said(ids: list[str], posts: dict[str, Post]) -> str:
@@ -214,8 +239,9 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
              + (f'<div class="view"><h4>Claude\'s view</h4>{view}</div>' if view else "")
              + folded(t.posts[1:], posts, thr) + '</div>')
     key = said(t.posts[:1], posts)
-    art = shown and any(x.article for x in parse.inner(shown))
-    who = f'<span class="n">{"Article · " if art else ""}@{esc(shown.handle)}</span>' if shown else ""
+    inner = parse.inner(shown) if shown else []
+    mark = "Article · " if any(x.article for x in inner) else "Video · " if any(x.videos for x in inner) else ""
+    who = f'<span class="n">{mark}@{esc(shown.handle)}</span>' if shown else ""
     return (f'<details class="story line thesis" id="{sid}"><summary><h3>{esc(t.claim)}</h3>{who}</summary>'
             f'<div class="body{" two" if key else ""}">{words}{key}</div></details>')
 
@@ -270,6 +296,11 @@ def status_html(meta: dict, b: Brief) -> str:
         lines.append(f"<b>The read stopped early:</b> {esc(meta.get('stop'))}.")
     if meta.get("gap"):
         lines.append("<b>Gap:</b> some posts between the last brief and this one were not read.")
+    if meta.get("videos_left"):
+        lines.append(f"<b>Videos:</b> {meta['videos_left']} long videos past the cap of {config.MAX_VIDEOS} were not "
+                     "transcribed.")
+    if meta.get("videos_failed"):
+        lines.append(f"<b>Videos not read:</b> {esc('; '.join(meta['videos_failed']))[:600]}.")
     if meta.get("articles_left"):
         lines.append(f"<b>Articles:</b> {meta['articles_left']} past the cap of {config.MAX_ARTICLES} were read from "
                      "their opening only.")
@@ -602,3 +633,28 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
             f'<p class="note">New sites are added in xbrief/config.py (SITES): an RSS feed or a sitemap.</p></section>')
     return shell("X brief · sites", topbar("sites", live, running=running), main,
                  side=side_html(xposts or [], posts, handles, q, words))
+
+
+def paragraphs(text: str, most: int = 120) -> list[str]:
+    """A transcript in paragraphs: a break at the first sentence's end after `most` * 2/3 words, or at `most`
+    words where a stretch has no full stop (X's captions are often unpunctuated)."""
+    out, cur = [], []
+    for w in text.split():
+        cur.append(w)
+        if (len(cur) >= most * 2 // 3 and w[-1] in ".?!") or len(cur) >= most:
+            out.append(" ".join(cur))
+            cur = []
+    return out + ([" ".join(cur)] if cur else [])
+
+
+def video_page(doc: dict, live: dict, running: bool = False) -> str:
+    """One long video's whole transcript, as it was read, with its summary above it."""
+    title = doc.get("title") or f"A video posted by @{doc.get('by', '')}"
+    head = (f'<h2>{esc(title)}</h2><p class="hits">Posted by @{esc(doc.get("by", ""))} · {mins(doc.get("duration_s"))} · '
+            f'transcript: {esc(doc.get("source") or "none")} · <a href="{esc(safe_url(doc.get("url")) or "")}" '
+            'rel="noreferrer">watch</a></p>')
+    v = Post(id="", handle=doc.get("by", ""), name="", created_ms=0, text="",
+             videos=[{**{k: doc.get(k) for k in ("key", "kind", "url", "duration_s", "title", "source", "summary")}}])
+    body = '<div class="tx">' + "".join(f"<p>{esc(x)}</p>" for x in paragraphs(
+        doc.get("transcript") or doc.get("skip") or doc.get("error") or "")) + "</div>"
+    return shell(title, topbar("", live, running=running), f'<section class="video">{head}{vids(v)}{body}</section>')

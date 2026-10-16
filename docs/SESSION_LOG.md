@@ -274,3 +274,16 @@ reads them if wanted.
 **Ran**: the operator's 06:54 run (the pre-fix code) read 405 posts, no new Article found; with the fixes,
 `xbrief articles` read the nested one and the brief was rewritten; its theses re-sorted in place.
 **Checked**: offline tests; `bin/tests --browser`.
+
+## 2026-10-16 (long videos)
+**Measured** (plan `docs/plans/2026-10-16_videos.md`): X makes its own captions for many videos, as good as Whisper
+large-v3 (97.5% and 95.3% of words the same on two); YouTube refuses captions to scripts here.
+**Built** on the operator's answers (10 minutes or more; X's captions, else Whisper on the audio track; YouTube by
+Whisper): `videos.py` reads each long video of a brief's posts before the writer, summarises it alone (Opus), keeps
+it in `videos/`; the writer gets the summary; the post shows it (Video · length, opens to gist, points, calls,
+Claude's view, a link to the transcript at `/video/<key>`); videos lead the theses with Articles, marked Video;
+search reaches the transcript. mlx-whisper 0.4.3 pinned into xbrief's venv (the weights are the shared HF cache).
+**Ran** on this morning's brief: 7 long videos (3 by X's captions, 31–45 s each; 4 by Whisper, 78–855 s), none
+failed. The writer left Shane Parrish's interview post unsummarised; the prompt now says a post with an Article or a
+video summary is never left out.
+**Checked**: offline tests (new `test_videos.py`).

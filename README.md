@@ -6,7 +6,9 @@ Your own Brave reads your Following tab on a Brave profile kept for this job, in
 the way you would, and keeps the posts x.com itself loads. Claude reads each post whole and puts what matters first:
 everything said about HYPE and Hyperliquid, then the stories most of your people talked about, then the rest a line
 each, then every post that argues a claim (a thesis). An X Article is opened and read to its end, and leads the
-theses, marked Article. Each story has a headline that says what happened, a sentence
+theses, marked Article. A video of 10 minutes or more (on X, or a YouTube link) is transcribed whole (X's own
+captions where it has them, else Whisper on the audio) and summarised on the post, marked Video; the whole
+transcript is a click away and search reaches it. Each story has a headline that says what happened, a sentence
 or two, and the posts that carry it shown beside it as their authors wrote them. Every story folds out to all its
 posts, threads in full, and anything that fits no story is listed at the end, never dropped.
 Free: no X API, and the writing runs on your Claude subscription.

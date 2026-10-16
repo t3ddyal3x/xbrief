@@ -35,7 +35,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from . import config, page, runner, sites, store
+from . import config, page, runner, sites, store, videos
 
 STATIC = Path(__file__).resolve().parent / "static"
 FILES = {"/app.css": ("app.css", "text/css; charset=utf-8"), "/app.js": ("app.js", "text/javascript; charset=utf-8")}
@@ -60,6 +60,9 @@ def live(at: str | None = None, now: dt.datetime | None = None) -> dict:
             text = f"Reading · {pr.get('pages', 0)} pages · {pr.get('posts', 0)} posts"
         elif phase == "reading Articles":
             text = f"Reading Articles · {pr.get('articles', 0) + 1} of {pr.get('of', 0)}"
+        elif phase == "transcribing videos":
+            text = f"Transcribing videos · {pr.get('videos', 0) + 1} of {pr.get('of', 0)}"
+            return {"running": True, "kind": "on", "text": text, "slow": True}
         elif phase == "writing the brief" and pr.get("writing_ms"):  # the long part: say how long it has run
             mins = max(0, now_ms - pr["writing_ms"]) // 60_000
             text = f"Writing the brief · {pr.get('posts', 0)} posts" + (f" · {mins} min" if mins else "")
@@ -235,6 +238,13 @@ class Handler(BaseHTTPRequestHandler):
                                                  '<p class="empty">No brief by that name. <a href="/history">Every '
                                                  'brief</a>.</p>'), 404)
                 return self._html(page.brief_page(run, store.runs(), lv, lv["running"]))
+            if path.startswith("/video/"):
+                doc = videos.kept(path.removeprefix("/video/"))
+                lv = live()
+                if doc is None:
+                    return self._html(page.shell("X brief", page.topbar("", lv, running=lv["running"]),
+                                                 '<p class="empty">No video by that name.</p>'), 404)
+                return self._html(page.video_page(doc, lv, lv["running"]))
             if path == "/history":
                 lv = live()
                 return self._html(page.history_page(store.runs(), store.settings(),

@@ -140,6 +140,22 @@ headline, `summary` the gist, `hype` marks HYPE's), so a brief from before still
 the posts its `[[post id]]` marks pointed at are its key posts. The writer no longer orders stories: the page ranks
 them by how many people posted in each (Nuzzel's measure), then by posts.
 
+## Long videos (2026-10-16)
+The operator: transcript summaries for X and YouTube videos, only those of 10 minutes or more, the fastest way, never
+downloading a video to run Whisper on it. Measured first (`docs/plans/2026-10-16_videos.md`): X makes its own
+captions for many videos, an "en (auto-generated)" WebVTT track listed in the stream index the feed names, fetched
+in a fraction of a second, and as good as Whisper large-v3 (97.5% and 95.3% of words the same on a 20- and a
+74-minute video; each got names the other missed). Half the long videos one morning had none. YouTube refused its
+captions to scripts (HTTP 429) and its transcript panel did not open in Chrome; its audio came in seconds.
+So (`videos.py`, after the read and the Articles, before the writer): X's captions where they exist; else Whisper
+large-v3 (MLX, `python -m xbrief.whisper`, its own process) on the video's 64 kbps audio track, copied by ffmpeg,
+never the picture; YouTube by Whisper on yt-dlp's audio. Whisper ran 12–16 times faster than real time here. Each
+transcript is summarised alone by Opus (`config.SITE_MODEL`, the Sites prompt's shape: gist, points, calls, view),
+and the writer gets that summary, not the transcript, so a morning of podcasts cannot overflow its prompt. Each
+video's transcript and summary are kept in `videos/<key>.json` (a failure is not kept, so the next brief retries);
+the post keeps them too, so search reaches the words, and `/video/<key>` shows the transcript. At most
+`config.MAX_VIDEOS` a brief; what is past the cap or failed is said at the top of the brief.
+
 ## The Sites tab (2026-10-14)
 The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,
 checked daily, not their X accounts (reading a profile page would break rule 1). `sites.py`:

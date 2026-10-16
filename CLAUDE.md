@@ -55,6 +55,14 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     Each write-up keeps its article's text (`text`), so the tab's search reaches the article, not only the summary.
     Unsearched, the people's column holds only posts naming one of their write-ups' `topics` (`sites.people_posts`).
 
+13. **Long videos are read from their words, never their picture** (`videos.py`): a video of `config.VIDEO_MIN_S`
+    or longer in a brief's posts (X's own, or a YouTube link) is transcribed and summarised before the writer runs.
+    An X video: X's own captions where X made them, else Whisper large-v3 (MLX, local) on its audio track alone. A
+    YouTube video: Whisper on its audio (yt-dlp), since YouTube refuses captions to scripts here. Public files,
+    direct, outside the browser; the audio is deleted once transcribed. The summariser is `config.SITE_MODEL`
+    (Opus, never Sonnet); the writer gets the summary, the page and search the whole transcript (`/video/<key>`).
+    Transcripts are untrusted like posts (rule 7). Each is kept in `videos/` by key, so a rebrief never redoes one.
+
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
 `bin/install-agent` · `bin/xbrief serve` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
@@ -78,6 +86,6 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
 - **A heredoc that names a file under `secrets/` is blocked by the guard**, even prose fed to python. Use the Edit tool.
 
 ## Where things live
-`xbrief/` (config, browser, collect, parse, brief, cli, sites; the app: server, page, store, runner, static/) · `tests/`
+`xbrief/` (config, browser, collect, parse, brief, cli, sites, videos, whisper; the app: server, page, store, runner, static/) · `tests/`
 (`fake_x.py`, `test_browser_live.py`, `test_app.py`, `test_sites.py`) · `ops/launchd/com.xbrief.app.plist` · `ops/caddy/xbrief.caddy`
-· data `~/Data/xbrief-data/` (secrets/brave, raw/, xbrief.db, run.lock, sites.lock, progress.json, logs/, state.json, venv/).
+· data `~/Data/xbrief-data/` (secrets/brave, raw/, videos/, xbrief.db, run.lock, sites.lock, progress.json, logs/, state.json, venv/).

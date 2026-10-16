@@ -3,9 +3,12 @@ name = "xbrief"
 version = "0.1.0"
 description = "A twice-daily brief of what the accounts I follow on X posted, read from my own Following tab"
 requires-python = ">=3.12"
-# The reading is done by the operator's own Brave over the DevTools protocol; websockets is the one library.
+# The reading is done by the operator's own Brave over the DevTools protocol (websockets). A long video without
+# X's own captions, and every YouTube video, is transcribed here by Whisper large-v3 on MLX (mlx-whisper; its
+# weights are the Hugging Face cache's, shared with the Telegram voice notes). yt-dlp and ffmpeg are Homebrew's.
 dependencies = [
   "websockets==15.0.1",
+  "mlx-whisper==0.4.3",
 ]
 
 [project.optional-dependencies]

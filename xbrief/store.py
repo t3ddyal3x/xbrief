@@ -101,6 +101,8 @@ def _body(p: Post) -> str:
     xs = parse.inner(p)
     parts += [x.text for x in xs[1:]]
     for x in xs:
+        for v in x.videos:  # the whole transcript, so search reaches what was said
+            parts += [v.get("title") or "", (v.get("summary") or {}).get("gist") or "", v.get("transcript") or ""]
         if x.article:
             parts += [x.article.get("title") or "", x.article.get("text") or x.article.get("preview") or ""]
     parts += [ln.get("url") or "" for ln in p.links]

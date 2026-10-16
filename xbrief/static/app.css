@@ -234,3 +234,14 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 .search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
 .search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+
+/* a long video on a post: one line that opens to the summary of its whole transcript (videos.py) */
+.vid{margin-top:.6rem;border:1px solid var(--rule);border-radius:9px;padding:.45rem .75rem;font:14px/1.5 var(--f-ui)}
+.vid>summary{cursor:pointer;color:var(--dim)}.vid>summary b{color:var(--ink0);font-weight:600}
+.vid>summary:hover{color:var(--ink0)}
+.vid p,.vid ol,.vid ul{margin:.5rem 0}.vid ol,.vid ul{padding-left:1.2rem}
+.vid h4{font:600 11px/1 var(--f-ui);text-transform:uppercase;letter-spacing:.09em;color:var(--dim);margin:.8rem 0 .4rem}
+.vid .src{font-size:12.5px;color:var(--dim)}.vid .src a{color:var(--dim)}
+.card .vid{white-space:normal}
+.video .tx{max-width:46rem;overflow-wrap:anywhere;font:15px/1.65 var(--f-ui);color:var(--ink);margin-top:1.2rem}
+.video .tx p{margin:0 0 .9rem}

@@ -12,6 +12,8 @@ a placeholder with its id, never dropped silently.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 
@@ -41,6 +43,8 @@ class Post:
     retweet_of: "Post | None" = None
     unreadable: str | None = None  # why the post could not be read
     article: dict | None = None  # an X Article the post carries: {title, preview, url}, and `text` once read whole
+    videos: list[dict] = field(default_factory=list)  # long videos transcribed (videos.py): {key, kind, url,
+    # duration_s, title, transcript, source}
 
     @property
     def url(self) -> str:
@@ -131,7 +135,13 @@ def _media_item(m: dict) -> dict | None:
     if not url:
         return None
     kind = m.get("type") or "photo"
-    return {"type": kind, "url": url}
+    item = {"type": kind, "url": url}
+    vi = m.get("video_info") or {}
+    if kind == "video" and vi:  # its length and its stream index (.m3u8: X's captions, the audio track)
+        item["id"] = str(m.get("id_str") or "")
+        item["duration_s"] = round((vi.get("duration_millis") or 0) / 1000)
+        item["stream"] = next((v.get("url") for v in vi.get("variants") or [] if ".m3u8" in (v.get("url") or "")), None)
+    return item
 
 
 def _article(r: dict, links: list[dict]) -> dict | None:
@@ -332,3 +342,16 @@ def attach_articles(entries: list[Entry], texts: dict[str, str]) -> int:
                     x.article["text"] = texts[x.id]
                     n += 1
     return n
+
+
+YOUTUBE = re.compile(r"(?:youtube\.com/(?:watch\?(?:[^#\s]*&)?v=|live/|shorts/|embed/)|youtu\.be/)([A-Za-z0-9_-]{11})")
+
+
+def youtube_ids(p: Post) -> list[str]:
+    """The YouTube videos a post links to, each once, in order."""
+    out: list[str] = []
+    for ln in p.links:
+        m = YOUTUBE.search(ln.get("url") or "")
+        if m and m.group(1) not in out:
+            out.append(m.group(1))
+    return out
