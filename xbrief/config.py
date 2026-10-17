@@ -37,6 +37,8 @@ SITES = [
      "list": "https://caprioleio.substack.com/feed", "kind": "rss", "x": ["caprioleio"]},
     {"key": "evanss6", "name": "Evanss6", "home": "https://evanss6.substack.com/",
      "list": "https://evanss6.substack.com/feed", "kind": "rss", "x": ["Evan_ss6"]},
+    {"key": "chumba", "name": "The Cookie Chumbles", "home": "https://chumbawamba22.substack.com/",
+     "list": "https://chumbawamba22.substack.com/feed", "kind": "rss"},
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going

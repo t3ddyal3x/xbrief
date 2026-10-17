@@ -308,3 +308,10 @@ shown as Podcast, listen. The Video/Podcast line has the page's open arrow and o
 reading width (`dialog.peek`), with Copy (plain text: line, gist, numbered points, calls, Claude's view, link).
 **Ran**: rebrief of 2026-10-16_0654-am; Jeff Yan's episode from the show's transcript in 23 s, 10,597 words.
 **Checked**: offline tests (new podcast tests); the pop-up and Copy in headless Brave (guarded), dark and light.
+
+## 2026-10-17 (a fifth site)
+**Built**: The Cookie Chumbles (chumbawamba22.substack.com, by "chumba", no X handle on the Substack) added to
+`config.SITES` as an RSS source; the list test names it.
+**Ran**: `bin/xbrief sites`: its first check learned its two posts and read the newest, "The Most Spectacularly
+Wrong Thesis" (2026-04-29).
+**Checked**: offline tests; restart; doctor clean.

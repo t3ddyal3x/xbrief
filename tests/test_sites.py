@@ -165,7 +165,7 @@ def test_the_sites_page(monkeypatch):
 
 
 def test_the_real_list_is_well_formed():
-    assert {s["key"] for s in config.SITES} == {"sigil", "zeeprime", "capriole", "evanss6"}
+    assert {s["key"] for s in config.SITES} == {"sigil", "zeeprime", "capriole", "evanss6", "chumba"}
     for s in config.SITES:
         assert s["kind"] in ("rss", "sitemap") and s["list"].startswith("https://") and s["home"].startswith("https://")
 
