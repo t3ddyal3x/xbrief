@@ -324,3 +324,57 @@ def test_a_podcast_shows_as_one_on_the_post():
                                                           "source": "the show's own", "summary": json.loads(SUMMARY)}])
     h = page.vids(p)
     assert "<b>Podcast</b> · 58 min · Odd Lots · Jeff Yan</summary>" in h and ">listen</a>" in h
+
+
+def test_one_recording_posted_in_several_places_is_read_once_from_the_best_of_them():
+    lookup = json.dumps({"results": [{"wrapperType": "podcastEpisode", "trackId": 1000796459553, "collectionName": "Odd Lots",
+                                      "trackName": "Jeff Yan's Plan for Hyperliquid", "trackTimeMillis": 3480000, "feedUrl": FEED}]})
+    get = fake_get({f"https://open.spotify.com/embed/episode/{SP_ID}": EMBED, SEARCH: DIRECTORY, FEED: rss(),
+                    "https://api.example/t.vtt": SHOW_VTT,
+                    "https://itunes.apple.com/lookup?id=1056200096&entity=podcastEpisode&limit=300": lookup, **x_pages()})
+    posts = sp_post()
+    posts["1"].links.append({"url": "https://www.youtube.com/watch?v=abcdefghijk"})  # the same, a second off
+    posts["2"] = parse.Post("2", "TheStalwart", "", 0, "", media=[  # the same on X: no title, same poster
+        {"type": "video", "url": "u", "id": "77", "duration_s": 3480, "stream": STREAM}])
+    posts["3"] = parse.Post("3", "TheStalwart", "", 0, "", links=[{"url": "https://youtu.be/otherothero"}])
+    class Run(FakeRun):  # each YouTube video its own title
+        def __call__(self, cmd, **kw):
+            if cmd[0] == config.YT_DLP and "--print" in cmd and "otherothero" in cmd[-1]:
+                self.cmds.append(cmd)
+                return type("R", (), {"stdout": f"{self.other}\tFalse\tA Different Episode Entirely\n"})()
+            return super().__call__(cmd, **kw)
+
+    run = Run(info="3481\tFalse\tJeff Yan’s Plan for Hyperliquid (full episode)")
+    run.other = 2000
+    asked, lines = [], []
+    docs, left = videos.read_all(posts, get=get, run=run, ask=lambda t: asked.append(t) or SUMMARY, log=lines.append)
+    assert left == 0 and len(asked) == 2  # the episode once, the other video once
+    assert docs[f"sp-{SP_ID}"]["source"] == "the show's own" and not docs[f"sp-{SP_ID}"].get("same_as")
+    for k in ("ap-1000796459553", "yt-abcdefghijk", "x-77"):
+        assert docs[k]["same_as"] == f"sp-{SP_ID}" and docs[k]["summary"] and videos.kept(k)["same_as"] == f"sp-{SP_ID}"
+    assert not docs["yt-otherothero"].get("same_as")
+    assert sum("not read again" in ln for ln in lines) == 3
+    whispered = [c for c in run.cmds if c[1:3] == ["-m", "xbrief.whisper"]]
+    assert len(whispered) == 1  # only the other video's audio
+    ents = [parse.Entry("e", "1", [posts["1"]]), parse.Entry("e2", "2", [posts["2"]])]
+    assert videos.attach(ents, docs) == 2 and len(posts["1"].videos) == 1  # one recording once on a post
+    again = videos.read_all(posts, get=fake_get({}), run=FakeRun(), ask=lambda t: 1 / 0)[0]  # all kept: nothing fetched
+    assert again["x-77"]["same_as"] == f"sp-{SP_ID}"
+    shutil.rmtree(config.VIDEOS)
+    run.other, asked[:] = 3481, []  # the other video as long as the episode, by the same poster: its title keeps it
+    for order in (posts, {"2": posts["2"], "1": posts["1"], "3": posts["3"]}):  # apart, and the X video, which both
+        shutil.rmtree(config.VIDEOS, ignore_errors=True)                      # match, is read on its own
+        docs = videos.read_all(order, get=get, run=run, ask=lambda t: asked.append(t) or SUMMARY)[0]
+        assert docs["x-77"]["summary"] and not docs["x-77"].get("same_as") and not docs["yt-otherothero"].get("same_as")
+        assert docs["yt-abcdefghijk"]["same_as"] == docs["ap-1000796459553"]["same_as"] == f"sp-{SP_ID}"
+    assert len(asked) == 6
+
+
+def test_the_same_recording_is_told_by_its_length_and_title_or_poster():
+    a = {"key": "yt-a", "by": "Pomp", "duration_s": 3613, "title": "Is Bitcoin Ready To Rip While Wall Street Breaks?"}
+    assert videos.same(a, {**a, "key": "sp-b", "by": "x", "title": a["title"] + " | Jordi Visser"})
+    assert videos.same(a, {"key": "x-c", "by": "pomp", "duration_s": 3612.6})
+    assert not videos.same(a, {"key": "x-c", "by": "pomp", "duration_s": 3615})
+    assert not videos.same(a, {"key": "x-c", "by": "someone", "duration_s": 3613})
+    assert not videos.same(a, {**a, "key": "yt-d", "title": "Is Bitcoin Ready To Dump?"})
+    assert not videos.same(a, {**a, "key": "yt-e", "title": "Is"})  # too short a title to call the same

@@ -13,6 +13,11 @@ says (operator, 2026-10-16). Only videos of config.VIDEO_MIN_S or longer, at mos
 Public files, fetched direct, outside the browser. Each video's transcript and summary are kept in config.VIDEOS by
 key, so a rebrief never fetches or transcribes again; the audio is deleted once transcribed. A transcript is text
 spoken by other people, untrusted like a post's (CLAUDE.md rule 7).
+
+One recording posted in several places (a show's episode on X, YouTube, Spotify and Apple) is read once (`same`):
+each place's title and length are learnt first, then the one with the best transcript is read (`RANK`) and the
+others keep a copy of its transcript and summary, marked `same_as` (operator, 2026-10-18: Pomp's episode was
+transcribed four times).
 """
 
 from __future__ import annotations
@@ -40,6 +45,8 @@ KEY = re.compile(r"^(?:x|yt|sp|ap)-[A-Za-z0-9_-]{1,40}$")
 SPOTIFY = re.compile(r"open\.spotify\.com/(?:intl-[a-z-]+/)?episode/([A-Za-z0-9]{22})")
 APPLE = re.compile(r"podcasts\.apple\.com/[^?#\s]*/id(\d+)\?(?:[^#\s]*&)?i=(\d+)")
 PODCAST_NS = "{https://podcastindex.org/namespace/1.0}"
+SAME_S = 1  # one recording's length in two places, seconds apart at most (X, YouTube, Spotify, Apple agreed to the second)
+RANK = {"podcast": 0, "x": 1, "youtube": 2}  # read first: a show's own transcript, then X's captions, then Whisper
 
 PROMPT = """You read the transcript of one long video or podcast episode that a post on X carries (an interview, a
 talk, a podcast, a stream), so I do not have to watch it. Below, after the line BEGIN VIDEO, are who posted it, its
@@ -271,18 +278,9 @@ def feed_audio(url: str, out: Path, run=subprocess.run) -> Path:
 
 
 def _podcast(doc: dict, tmp: Path, get, run) -> None:
-    if doc.get("episode_id"):
-        ep = apple_episode(doc["show_id"], doc["episode_id"], get)
-    else:
-        ep = spotify_episode(doc["key"].removeprefix("sp-"), get)
-        ep["feeds"] = show_feeds(ep["show"], get)
-    doc.update(title=ep["title"], show=ep["show"], duration_s=ep["duration_s"])
-    if not ep["duration_s"] or ep["duration_s"] < config.VIDEO_MIN_S:
-        doc["skip"] = f"shorter than {config.VIDEO_MIN_S // 60} minutes"
-        return
-    found = next((f for f in (feed_episode(u, ep["title"], get) for u in ep["feeds"]) if f), None)
+    found = next((f for f in (feed_episode(u, doc["title"], get) for u in doc["feeds"]) if f), None)
     if not found:
-        raise ValueError(f"no public feed of {ep['show']} lists this episode")
+        raise ValueError(f"no public feed of {doc['show']} lists this episode")
     text = show_transcript(found["transcripts"], get)
     if text:
         doc["transcript"], doc["source"] = text, "the show's own"
@@ -316,6 +314,38 @@ def kept(key: str) -> dict | None:
         return None
 
 
+def identify(doc: dict, get=http_get, run=subprocess.run) -> None:
+    """A video's title, show and length, learnt before any transcript (one small request; an X video's length came
+    with the feed), so `same` can tell one recording posted in several places. A live or short one is skipped."""
+    if doc["kind"] == "podcast" and "feeds" not in doc:
+        if doc.get("episode_id"):
+            ep = apple_episode(doc["show_id"], doc["episode_id"], get)
+        else:
+            ep = spotify_episode(doc["key"].removeprefix("sp-"), get)
+            ep["feeds"] = show_feeds(ep["show"], get)
+        doc.update(title=ep["title"], show=ep["show"], duration_s=ep["duration_s"], feeds=ep["feeds"])
+    elif doc["kind"] == "youtube" and "title" not in doc:
+        info = yt_info(doc["url"], run)
+        doc.update(title=info["title"], duration_s=info["duration_s"])
+        if info["live"]:
+            doc["skip"] = "live now"
+            return
+    if not doc.get("duration_s") or doc["duration_s"] < config.VIDEO_MIN_S:
+        doc["skip"] = f"shorter than {config.VIDEO_MIN_S // 60} minutes"
+
+
+def same(a: dict, b: dict) -> bool:
+    """One recording posted in two places: its length to the second, and the same title where both have one (Spotify
+    adds the guest after a "|" that YouTube leaves off), else the same poster (an X video has no title)."""
+    da, db = a.get("duration_s"), b.get("duration_s")
+    if not da or not db or abs(da - db) > SAME_S:
+        return False
+    ta, tb = _norm(a.get("title")), _norm(b.get("title"))
+    if ta and tb:
+        return len(min(ta, tb, key=len)) >= 12 and (ta.startswith(tb) or tb.startswith(ta))
+    return (a.get("by") or "").casefold() == (b.get("by") or "").casefold()
+
+
 def _transcribe(doc: dict, get, run) -> None:
     with tempfile.TemporaryDirectory(prefix="xbrief-video-") as tmp:
         if doc["kind"] == "podcast":
@@ -327,15 +357,6 @@ def _transcribe(doc: dict, get, run) -> None:
                 return
             text = whisper(x_audio(doc["stream"], Path(tmp) / "audio.m4a", get, run), run)
         else:
-            info = yt_info(doc["url"], run)
-            doc["title"] = info["title"]
-            doc["duration_s"] = info["duration_s"]
-            if info["live"]:
-                doc["skip"] = "live now"
-                return
-            if not info["duration_s"] or info["duration_s"] < config.VIDEO_MIN_S:
-                doc["skip"] = f"shorter than {config.VIDEO_MIN_S // 60} minutes"
-                return
             text = whisper(yt_audio(doc["url"], Path(tmp), run), run)
         doc["transcript"], doc["source"] = text.strip(), "Whisper large-v3"
 
@@ -359,6 +380,10 @@ def read(item: dict, get=http_get, run=subprocess.run, ask=None) -> dict:
     doc.pop("error", None)
     try:
         if not doc.get("transcript"):
+            identify(doc, get, run)
+            if doc.get("skip"):
+                _save(doc)
+                return doc
             _transcribe(doc, get, run)
             if doc.get("transcript") or doc.get("skip"):
                 _save(doc)
@@ -369,29 +394,79 @@ def read(item: dict, get=http_get, run=subprocess.run, ask=None) -> dict:
                 doc["summary"] = summarise(doc, ask)
             _save(doc)
     except Exception as e:  # noqa: BLE001  one video failing never stops the brief
-        detail = getattr(e, "stderr", None)
-        detail = (detail.decode("utf-8", "replace") if isinstance(detail, bytes) else detail or "").strip()
-        doc["error"] = (f"{type(e).__name__}: {e}" + (f" ({detail.splitlines()[-1]})" if detail else ""))[:300]
+        doc["error"] = _error(e)
     return doc
+
+
+def _error(e: Exception) -> str:
+    detail = getattr(e, "stderr", None)
+    detail = (detail.decode("utf-8", "replace") if isinstance(detail, bytes) else detail or "").strip()
+    return (f"{type(e).__name__}: {e}" + (f" ({detail.splitlines()[-1]})" if detail else ""))[:300]
 
 
 # ── a brief's videos ────────────────────────────────────────────────────────────────────────────────
 
 
-def read_all(posts: dict[str, parse.Post], progress=None, log=None, **kw) -> tuple[dict[str, dict], int]:
-    """Every long video of these posts read (newest post first), at most config.MAX_VIDEOS; returns them by key,
-    and how many were past the cap."""
+def recordings(docs: list[dict]) -> list[list[dict]]:
+    """The places a brief's videos were posted, grouped by recording, newest post first. Titled places (YouTube,
+    Spotify, Apple) join a recording every one of its titled places agrees with; then an X video (no title) joins
+    only where exactly one recording matches it, else stands alone, so it never chains two recordings together."""
+    groups: list[list[dict]] = []
+    for d in docs:
+        if d.get("title"):
+            g = next((g for g in groups if all(same(d, o) for o in g if o.get("title"))), None)
+            g.append(d) if g is not None else groups.append([d])
+    for d in docs:
+        if not d.get("title"):
+            fits = [g for g in groups if any(same(d, o) for o in g)]
+            fits[0].append(d) if len(fits) == 1 else groups.append([d])
+    order = {d["key"]: i for i, d in enumerate(docs)}
+    return sorted(groups, key=lambda g: min(order[d["key"]] for d in g))
+
+
+def read_all(posts: dict[str, parse.Post], progress=None, log=None, get=http_get, run=subprocess.run,
+             ask=None) -> tuple[dict[str, dict], int]:
+    """Every long recording of these posts read once (newest post first), at most config.MAX_VIDEOS; returns each
+    place's video by key, and how many recordings were past the cap. Each place is identified first, so one recording
+    posted in several places is read from the best of them (`RANK`; the next if that fails) and copied to the rest."""
     progress = progress or (lambda phase, **k: None)
-    items = wanted(posts)
+    log = log or (lambda line: None)
     docs = {}
-    for i, item in enumerate(items[:config.MAX_VIDEOS]):
-        progress("transcribing videos", videos=i, of=min(len(items), config.MAX_VIDEOS))
-        t0 = time.monotonic()
-        docs[item["key"]] = d = read(item, **kw)
-        if log:
-            what = d.get("error") or d.get("skip") or f"{d.get('source')}, {len((d.get('transcript') or '').split())} words"
-            log(f"video {item['key']} (@{item['by']}): {what} · {time.monotonic() - t0:.0f} s")
-    return docs, max(0, len(items) - config.MAX_VIDEOS)
+    for item in wanted(posts):
+        d = docs[item["key"]] = {**item, **(kept(item["key"]) or {})}
+        if d.get("summary") or d.get("skip") or d.get("transcript"):
+            continue
+        progress("looking up videos", videos=len(docs) - 1)
+        try:
+            identify(d, get, run)
+        except Exception as e:  # noqa: BLE001
+            d["error"] = _error(e)
+            log(f"video {d['key']} (@{d['by']}): {d['error']}")
+        if d.get("skip"):
+            _save(d)
+    groups = recordings([d for d in docs.values() if not (d.get("skip") or d.get("error"))])
+    for i, g in enumerate(groups[:config.MAX_VIDEOS]):
+        progress("transcribing videos", videos=i, of=min(len(groups), config.MAX_VIDEOS))
+        done = next((d for d in g if d.get("summary")), None)
+        for d in [] if done else sorted(g, key=lambda d: (not d.get("transcript"), RANK[d["kind"]])):
+            t0 = time.monotonic()
+            docs[d["key"]] = r = read(d, get=get, run=run, ask=ask)
+            what = r.get("error") or r.get("skip") or f"{r.get('source')}, {len((r.get('transcript') or '').split())} words"
+            log(f"video {d['key']} (@{d['by']}): {what} · {time.monotonic() - t0:.0f} s")
+            if r.get("summary") or r.get("skip"):
+                done = r
+                break
+        if not (done and done.get("summary")):
+            continue
+        root = done.get("same_as") or done["key"]
+        for d in g:
+            if d["key"] != done["key"] and not docs[d["key"]].get("summary"):
+                docs[d["key"]] = c = {**{k: v for k, v in d.items() if k != "error"}, "same_as": root,
+                                      **{k: done.get(k) for k in ("transcript", "source", "summary")},
+                                      "title": d.get("title") or done.get("title"), "show": d.get("show") or done.get("show")}
+                _save(c)
+                log(f"video {d['key']} (@{d['by']}): the same as {root}, not read again")
+    return docs, max(0, len(groups) - config.MAX_VIDEOS)
 
 
 SHOWN = ("key", "kind", "url", "duration_s", "show", "title", "source", "summary", "transcript")
@@ -403,10 +478,11 @@ def attach(entries: list[parse.Entry], docs: dict[str, dict]) -> int:
     for e in entries:
         for p in e.posts:
             for x in parse.inner(p):
-                have = {v["key"] for v in x.videos}
+                have = {(docs.get(v["key"]) or {}).get("same_as") or v["key"] for v in x.videos}
                 for key, _ in _keys(x):
                     d = docs.get(key)
-                    if d and d.get("summary") and key not in have:
+                    if d and d.get("summary") and (d.get("same_as") or key) not in have:  # one recording once a post
                         x.videos.append({k: d.get(k) for k in SHOWN})
+                        have.add(d.get("same_as") or key)
                         n += 1
     return n

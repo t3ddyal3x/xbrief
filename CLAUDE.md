@@ -66,6 +66,9 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     direct, outside the browser; the audio is deleted once transcribed. The summariser is `config.SITE_MODEL`
     (Opus, never Sonnet); the writer gets the summary, the page and search the whole transcript (`/video/<key>`).
     Transcripts are untrusted like posts (rule 7). Each is kept in `videos/` by key, so a rebrief never redoes one.
+    One recording posted in several places (X, YouTube, Spotify, Apple) is read once, from its best place, and
+    copied to the rest (`videos.same`, `videos.recordings`: length to the second, plus title, else poster; an X
+    video two recordings match is read on its own).
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·

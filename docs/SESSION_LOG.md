@@ -315,3 +315,16 @@ reading width (`dialog.peek`), with Copy (plain text: line, gist, numbered point
 **Ran**: `bin/xbrief sites`: its first check learned its two posts and read the newest, "The Most Spectacularly
 Wrong Thesis" (2026-04-29).
 **Checked**: offline tests; restart; doctor clean.
+
+## 2026-10-18 (one recording, read once)
+**Found**: the 10-18 morning brief transcribed Pomp's Jordi Visser episode four times (X, YouTube, Spotify, Apple:
+all 3,613 s) and Saylor's ParaFi talk twice (X, YouTube: 2,607 s), about 25 of its 90 minutes.
+**Built**: every place a video was posted is identified first (title, show, length: one small request), grouped by
+recording (`videos.same`: length within 1 s, and the same title where both have one, else the same poster), and
+read once from its best place (the show's own transcript, then X's captions, then Whisper; the next if one fails);
+the others keep a copy marked `same_as`. An X video (no title) joins only where exactly one recording matches. The
+cap of 12 now counts recordings, not places. A post shows one recording once.
+**Checked**: on the last 17 kept videos the grouping finds exactly those two (Pomp's four, Saylor's two), nothing
+else; offline tests (new: read once from the best place, an ambiguous X video read alone, `same`).
+Also: the operator's Brave would not open: another session's headless Brave (a hung `--dump-dom`) had run for 40 h
+and the Brave icon switched to it. Stopped it.
