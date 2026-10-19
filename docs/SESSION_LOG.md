@@ -328,3 +328,12 @@ cap of 12 now counts recordings, not places. A post shows one recording once.
 else; offline tests (new: read once from the best place, an ambiguous X video read alone, `same`).
 Also: the operator's Brave would not open: another session's headless Brave (a hung `--dump-dom`) had run for 40 h
 and the Brave icon switched to it. Stopped it.
+
+## 2026-10-19 — the am brief stalled on a film; Whisper stopped by hand
+The page's am run (07:24) spent 50 min in Whisper on its ninth video, YouTube C8wix2kLcCk, "Raw Iron: Making of
+Pumping Iron" (2002, 4,460 s, mostly music and gym noise, posted by @TrungTPhan), against 890 s for a 22,774-word
+podcast the same morning. The Whisper process held the GPU at ~95% (per-process `accumulatedGPUTime`), which is
+what made the whole Mac lag. Stopped on the operator's word (`kill` of the `xbrief.whisper` child); the run logged the
+video as failed, as `videos.py` is built to, and wrote the brief at 09:03: 441 posts, 25 theses, 56 topics. Nothing
+in code changed. **Proposed, not built:** time Whisper out at a multiple of the audio's length instead of the flat
+4 h, so noise cannot hold the GPU for hours.
