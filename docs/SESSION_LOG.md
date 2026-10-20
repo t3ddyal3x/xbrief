@@ -345,3 +345,7 @@ from all three places it was posted: X 3,714 s, Spotify 3,718 s, Apple 3,808 s (
 **Changed**: one show's episode of one title is one recording at any length; otherwise lengths may differ by
 `SAME_S` = 5 s (was 1). Tests cover today's three copies, which now group as one. App restarted; the run going
 finishes on the old code, the next run reads such a recording once.
+**Changed, same day**: a brief's "Videos not read" box printed raw program errors. It now gives each video a line:
+who posted it, its title linked to the video, the reason in plain words (`videos.why`), and "Read since" with a link
+to the summary when a later run read it. `cli.publish` now keeps each failure's key, poster, kind, title, url and
+error; briefs from before keep "key: error" and are shown the same way.

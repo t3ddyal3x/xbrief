@@ -15,7 +15,7 @@ import re
 import time
 from urllib.parse import quote, urlencode
 
-from . import config, parse
+from . import config, parse, videos
 from .brief import Brief, Thesis, Topic
 from .parse import Post
 
@@ -294,6 +294,23 @@ def window_strip(meta: dict, posts: dict[str, Post]) -> str:
             f'<figcaption><span>{since}</span><span>{hhmm(hi)}</span></figcaption></figure>')
 
 
+def failed_html(f: dict | str) -> str:
+    """One video a brief could not read: who posted it, its title, why in plain words, and its summary when a later
+    run has read it. Briefs before 2026-10-20 kept only "key: error"."""
+    if isinstance(f, str):
+        key, _, err = f.partition(": ")
+        f = {"key": key, "error": err}
+    key = f.get("key") or ""
+    d = videos.kept(key) or {}
+    by, title = f.get("by") or d.get("by"), f.get("title") or d.get("title")
+    url = f.get("url") or d.get("url") or (f"https://www.youtube.com/watch?v={key[3:]}" if key.startswith("yt-") else None)
+    what = esc(title) if title else ("a podcast" if key[:3] in ("sp-", "ap-") else "a video")
+    if safe_url(url):
+        what = f'<a href="{esc(safe_url(url))}" rel="noreferrer">{what}</a>'
+    return ((f"@{esc(by)} · " if by else "") + what + f": {esc(videos.why(f.get('error')))}."
+            + (f' <a href="/video/{quote(key)}">Read since</a>.' if d.get("summary") else ""))
+
+
 def status_html(meta: dict, b: Brief) -> str:
     """Said only when something went wrong: how the read ended, a gap, the order, a missing summary."""
     lines = []
@@ -305,7 +322,7 @@ def status_html(meta: dict, b: Brief) -> str:
         lines.append(f"<b>Videos:</b> {meta['videos_left']} long videos past the cap of {config.MAX_VIDEOS} were not "
                      "transcribed.")
     if meta.get("videos_failed"):
-        lines.append(f"<b>Videos not read:</b> {esc('; '.join(meta['videos_failed']))[:600]}.")
+        lines.append("<b>Videos not read:</b>" + "".join(f"<br>{failed_html(f)}" for f in meta["videos_failed"]))
     if meta.get("articles_left"):
         lines.append(f"<b>Articles:</b> {meta['articles_left']} past the cap of {config.MAX_ARTICLES} were read from "
                      "their opening only.")

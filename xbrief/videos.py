@@ -402,6 +402,20 @@ def read(item: dict, get=http_get, run=subprocess.run, ask=None) -> dict:
     return doc
 
 
+def why(error: str | None) -> str:
+    """A video's failure in plain words, for the brief's status line (`_error` keeps the whole of it)."""
+    e = error or ""
+    if "live event will begin" in e or "Premieres in" in e:
+        return "a live stream that had not started yet"
+    if "died with <Sig" in e:
+        return "its transcription was stopped before it finished"
+    if "TimeoutExpired" in e or "timed out" in e:
+        return "it took too long and was stopped"
+    if m := re.search(r"\(ERROR: (?:\[\w+\] [\w-]+: )?(.+?)\)?$", e):
+        return m[1].rstrip(".")[:160]
+    return re.sub(r"^\w+: ", "", re.sub(r"Command '\[.*?\]'", "a command", e)).rstrip(".")[:160]
+
+
 def _error(e: Exception) -> str:
     detail = getattr(e, "stderr", None)
     detail = (detail.decode("utf-8", "replace") if isinstance(detail, bytes) else detail or "").strip()

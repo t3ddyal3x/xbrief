@@ -230,7 +230,27 @@ def test_publish_reads_the_videos_and_says_what_failed():
     assert code == 200 and "FinCEN listened." in html and "Transcript: X&#x27;s captions" in html
     assert call("GET", "/video/x-nope")[0] == 404
     assert "2 long videos past the cap" in page.status_html({**meta, "videos_left": 2}, brief.Brief())
-    assert "x-9: OSError" in page.status_html({**meta, "videos_failed": ["x-9: OSError: 403"]}, brief.Brief())
+    assert "a video: 403." in page.status_html({**meta, "videos_failed": ["x-9: OSError: 403"]}, brief.Brief())
+    live = ("CalledProcessError: Command '['/opt/homebrew/bin/yt-dlp', '--no-playlist']' returned non-zero exit status 1. "
+            "(ERROR: [youtube] nqnymbYYL3w: This live event will begin in 81 minutes.)")
+    html = page.status_html({**meta, "videos_failed": [f"yt-nqnymbYYL3w: {live}"]}, brief.Brief())
+    assert 'href="https://www.youtube.com/watch?v=nqnymbYYL3w"' in html and "a live stream that had not started yet" in html
+    assert "yt-dlp" not in html and "Read since" not in html
+    html = page.status_html({**meta, "videos_failed": [{"key": "x-77", "by": "pomp", "title": "Rip <or> dump",
+                                                        "url": "https://x.com/pomp/status/1", "error": "OSError: 403"}]},
+                            brief.Brief())
+    assert "@pomp · <a" in html and "Rip &lt;or&gt; dump</a>: 403." in html
+    assert '<a href="/video/x-77">Read since</a>' in html  # x-77 was read above
+
+
+def test_a_failure_is_said_in_plain_words():
+    assert videos.why("CalledProcessError: Command '['/x/python', '-m', 'xbrief.whisper', '/var/folders/qp/T/x.']' "
+                      "died with <Signa") == "its transcription was stopped before it finished"
+    assert videos.why("TimeoutExpired: Command '['ffmpeg']' timed out after 1800 seconds") == "it took too long and was stopped"
+    assert videos.why("ValueError: no public feed of Claims Denied lists this episode") == \
+        "no public feed of Claims Denied lists this episode"
+    assert videos.why("CalledProcessError: Command '['yt-dlp']' returned non-zero exit status 1. "
+                      "(ERROR: [youtube] abc: Video unavailable)") == "Video unavailable"
 
 
 def test_a_transcript_reads_in_paragraphs():

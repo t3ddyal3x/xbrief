@@ -58,7 +58,8 @@ def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude, art
         docs, left = read_videos(brief.unique_posts(ents, int(meta.get("boundary_id") or 0)))
         videos.attach(ents, docs)
         meta = {**meta, "videos_read": sum(1 for d in docs.values() if d.get("summary")), "videos_left": left,
-                "videos_failed": [f"{k}: {d['error']}" for k, d in docs.items() if d.get("error")]}
+                "videos_failed": [{k: d.get(k) for k in ("key", "by", "kind", "title", "url", "error")}
+                                  for d in docs.values() if d.get("error")]}
     b, posts = brief.write(ents, ask=ask, after_id=int(meta.get("boundary_id") or 0))
     started = dt.datetime.fromtimestamp((meta.get("started_ms") or time.time() * 1000) / 1000)
     name = f"{started.strftime('%Y-%m-%d-%H%M')}-{label}"
