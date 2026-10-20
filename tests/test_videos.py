@@ -374,7 +374,17 @@ def test_the_same_recording_is_told_by_its_length_and_title_or_poster():
     a = {"key": "yt-a", "by": "Pomp", "duration_s": 3613, "title": "Is Bitcoin Ready To Rip While Wall Street Breaks?"}
     assert videos.same(a, {**a, "key": "sp-b", "by": "x", "title": a["title"] + " | Jordi Visser"})
     assert videos.same(a, {"key": "x-c", "by": "pomp", "duration_s": 3612.6})
-    assert not videos.same(a, {"key": "x-c", "by": "pomp", "duration_s": 3615})
+    assert videos.same(a, {"key": "x-c", "by": "pomp", "duration_s": 3617})  # X 3714 s, Spotify 3718 s (2026-10-20)
+    assert not videos.same(a, {"key": "x-c", "by": "pomp", "duration_s": 3619})
     assert not videos.same(a, {"key": "x-c", "by": "someone", "duration_s": 3613})
     assert not videos.same(a, {**a, "key": "yt-d", "title": "Is Bitcoin Ready To Dump?"})
     assert not videos.same(a, {**a, "key": "yt-e", "title": "Is"})  # too short a title to call the same
+
+    ep = {"key": "sp-f", "by": "B_Madden4", "duration_s": 3718, "show": "Claims Denied: A Hospitalogy Podcast",
+          "title": "Members Leave Carriers, Not Brokers (with Will Johnson, Co-founder and CEO of Gyde)"}
+    assert videos.same(ep, {**ep, "key": "ap-g", "by": "someone", "duration_s": 3808})  # one show's episode: any length
+    assert not videos.same(ep, {**ep, "key": "ap-h", "duration_s": 3808, "show": "Another Show"})
+    assert not videos.same(ep, {**ep, "key": "ap-i", "duration_s": 3808, "title": "Members Leave Carriers"})
+    x = {"key": "x-j", "by": "b_madden4", "duration_s": 3714}
+    groups = videos.recordings([x, {**ep, "key": "ap-g", "duration_s": 3808}, ep])
+    assert [sorted(d["key"] for d in g) for g in groups] == [["ap-g", "sp-f", "x-j"]]  # the three places read once

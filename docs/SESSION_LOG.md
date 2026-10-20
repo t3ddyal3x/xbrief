@@ -337,3 +337,11 @@ what made the whole Mac lag. Stopped on the operator's word (`kill` of the `xbri
 video as failed, as `videos.py` is built to, and wrote the brief at 09:03: 441 posts, 25 theses, 56 topics. Nothing
 in code changed. **Proposed, not built:** time Whisper out at a multiple of the audio's length instead of the flat
 4 h, so noise cannot hold the GPU for hours.
+
+## 2026-10-20 — one podcast read three times
+The am run transcribed and summarised one B_Madden4 episode ("Members Leave Carriers, Not Brokers", Claims Denied)
+from all three places it was posted: X 3,714 s, Spotify 3,718 s, Apple 3,808 s (Apple's copy carries more ads).
+`videos.same` wanted lengths to the second, so no two matched; ~12 min of Whisper and two Opus calls wasted.
+**Changed**: one show's episode of one title is one recording at any length; otherwise lengths may differ by
+`SAME_S` = 5 s (was 1). Tests cover today's three copies, which now group as one. App restarted; the run going
+finishes on the old code, the next run reads such a recording once.

@@ -45,7 +45,7 @@ KEY = re.compile(r"^(?:x|yt|sp|ap)-[A-Za-z0-9_-]{1,40}$")
 SPOTIFY = re.compile(r"open\.spotify\.com/(?:intl-[a-z-]+/)?episode/([A-Za-z0-9]{22})")
 APPLE = re.compile(r"podcasts\.apple\.com/[^?#\s]*/id(\d+)\?(?:[^#\s]*&)?i=(\d+)")
 PODCAST_NS = "{https://podcastindex.org/namespace/1.0}"
-SAME_S = 1  # one recording's length in two places, seconds apart at most (X, YouTube, Spotify, Apple agreed to the second)
+SAME_S = 5  # one recording's length in two places, seconds apart at most (X 3714 s, Spotify 3718 s: 2026-10-20)
 RANK = {"podcast": 0, "x": 1, "youtube": 2}  # read first: a show's own transcript, then X's captions, then Whisper
 
 PROMPT = """You read the transcript of one long video or podcast episode that a post on X carries (an interview, a
@@ -335,12 +335,16 @@ def identify(doc: dict, get=http_get, run=subprocess.run) -> None:
 
 
 def same(a: dict, b: dict) -> bool:
-    """One recording posted in two places: its length to the second, and the same title where both have one (Spotify
-    adds the guest after a "|" that YouTube leaves off), else the same poster (an X video has no title)."""
+    """One recording posted in two places: one show's episode of one title, whatever its length (Apple's copy of an
+    episode ran 90 s longer than Spotify's, 2026-10-20); else its length within SAME_S, and the same title where both
+    have one (Spotify adds the guest after a "|" that YouTube leaves off), else the same poster (an X video has no title)."""
+    ta, tb = _norm(a.get("title")), _norm(b.get("title"))
+    sa, sb = _norm(a.get("show")), _norm(b.get("show"))
+    if ta and sa and ta == tb and sa == sb:
+        return True
     da, db = a.get("duration_s"), b.get("duration_s")
     if not da or not db or abs(da - db) > SAME_S:
         return False
-    ta, tb = _norm(a.get("title")), _norm(b.get("title"))
     if ta and tb:
         return len(min(ta, tb, key=len)) >= 12 and (ta.startswith(tb) or tb.startswith(ta))
     return (a.get("by") or "").casefold() == (b.get("by") or "").casefold()
