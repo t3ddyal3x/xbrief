@@ -494,7 +494,9 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
                     f'<span class="lb">{esc(LABELS.get(r["label"], r["label"]))}</span><span class="n">{n}</span>'
                     + (f'<span class="end {cls}">{esc(end)}</span>' if end else "") + '</li>')
     w = sett["windows"]
-    win = "".join(f'<div class="w"><span>{LABELS[k]}</span><input type="time" name="{k}0" value="{esc(w[k][0])}" '
+    off = sett.get("off") or []
+    win = "".join(f'<div class="w"><label><input type="checkbox" name="{k}on"{"" if k in off else " checked"}> '
+                  f'{LABELS[k]}</label><input type="time" name="{k}0" value="{esc(w[k][0])}" '
                   f'aria-label="{LABELS[k]} from" required><span>to</span><input type="time" name="{k}1" '
                   f'value="{esc(w[k][1])}" aria-label="{LABELS[k]} to" required></div>' for k in ("am", "pm"))
     slots = []
@@ -514,7 +516,7 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
               + '</section>')
     main = (briefs + f'<section id="schedule"><h2>Schedule</h2>'
             f'<form class="sched ctl" id="sched"><label><input type="checkbox" name="on"'
-            f'{" checked" if sett["schedule"] else ""}> Two briefs a day</label>{win}'
+            f'{" checked" if sett["schedule"] else ""}> On</label>{win}'
             f'<button type="submit">Save</button></form>'
             f'<p class="note" id="sched-msg">Each run starts at a random minute inside its window.</p>{today_line}</section>')
     return shell("X brief · history", topbar("history", live, running=running), main)

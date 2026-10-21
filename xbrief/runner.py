@@ -139,13 +139,18 @@ def pick_fire(day: dt.date, window: list[str], rng: random.Random, not_before: d
     return int(t.timestamp() * 1000)
 
 
+def windows(sett: dict) -> dict[str, list[str]]:
+    """The windows that run: each but those switched off on the page (`off`; operator, 2026-10-20: mornings only)."""
+    return {k: w for k, w in sett["windows"].items() if k not in (sett.get("off") or [])}
+
+
 def fill_day(day: dt.date, sett: dict, rng: random.Random, skip_ended_before: dt.datetime | None = None) -> None:
     """Make today's slots. With `skip_ended_before` (the schedule was just turned on or moved), a window too far gone
     to hold a run is recorded as skipped and the others draw their minute from what is left of the window, so turning
     it on neither starts the morning's run at night nor a run the moment it is saved."""
     key = day.isoformat()
     have = store.slots(key)
-    for label, window in sett["windows"].items():
+    for label, window in windows(sett).items():
         if label in have:
             continue
         cut = skip_ended_before
@@ -163,7 +168,7 @@ def due(now: dt.datetime, sett: dict, last_run_ms: int | None, rng: random.Rando
     fill_day(now.date(), sett, rng)
     key, now_ms = now.date().isoformat(), int(now.timestamp() * 1000)
     ready = sorted((s["fire_ms"], label) for label, s in store.slots(key).items()
-                   if s["fired_ms"] is None and s["fire_ms"] <= now_ms and label in sett["windows"])
+                   if s["fired_ms"] is None and s["fire_ms"] <= now_ms and label in windows(sett))
     if not ready:
         return None
     for _, label in ready[:-1]:

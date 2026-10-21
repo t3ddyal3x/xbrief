@@ -202,7 +202,7 @@ padding-right:.4rem;scrollbar-width:thin}
 .runs li.bad a{color:var(--dim);font-weight:500}
 .sched{font:14px var(--f-ui);display:grid;gap:.8rem;justify-items:start;margin:0 0 .9rem}
 .sched label{display:flex;gap:.6rem;align-items:center}
-.sched .w{display:grid;grid-template-columns:5.5rem auto auto auto;gap:.5rem;align-items:center;color:var(--dim)}
+.sched .w{display:grid;grid-template-columns:7rem auto auto auto;gap:.5rem;align-items:center;color:var(--dim)}
 .sched input[type=checkbox]{width:1rem;height:1rem;accent-color:var(--ink)}
 .sched input[type=time]{font-family:var(--f-num)}
 .sched .w2{display:flex;gap:.5rem}
@@ -233,7 +233,7 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 .story.line>summary{grid-template-columns:1.1rem minmax(0,1fr)}.story.line>summary .n{grid-column:2;padding:.2rem 0 0}
 .story.line>.body{padding-left:0}.story.line>.post{margin-left:0}
 .search{grid-template-columns:1fr 1fr}.search input[type=search]{grid-column:1/-1}
-.search .to{display:none}.sched .w{grid-template-columns:4.5rem auto auto auto}}
+.search .to{display:none}.sched .w{grid-template-columns:6.5rem auto auto auto}}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 
 /* a long video on a post: one line that opens to the summary of its whole transcript (videos.py) */

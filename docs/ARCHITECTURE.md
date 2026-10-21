@@ -23,7 +23,9 @@ standard library only, macro's loopback perimeter. Pages are built on the server
   (`runner.pick_fire`, same rule as `cli.jitter_seconds`), checked every 20 s. A window slept through runs on
   waking (as launchd would); two due at once run only the later and skip the earlier, which loses nothing because
   a run reads from where the last stopped; a slot within an hour of another run is skipped; turning it on or moving
-  it marks a window already over as skipped. Starts off.
+  it marks a window already over as skipped. Starts off. Each window has its own switch (`off`, 2026-10-20):
+  the operator turned the evening off and moved the morning to 05:00–05:45, so one brief a day covers the 24 hours
+  and is written before they wake (docs/plans/2026-10-20_early-run.md).
 - The two briefs of the static build were written again from their raw reads into the store; the old HTML folder
   `briefs/` went to the Trash.
 

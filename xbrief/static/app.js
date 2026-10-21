@@ -130,6 +130,7 @@
       const { ok, j } = await post("/api/settings", {
         schedule: f.on.checked,
         windows: { am: [f.am0.value, f.am1.value], pm: [f.pm0.value, f.pm1.value] },
+        off: ["am", "pm"].filter((k) => !f[k + "on"].checked),
       });
       if (!ok) {
         msg.textContent = j.error || "Not saved.";

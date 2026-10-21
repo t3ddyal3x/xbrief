@@ -45,7 +45,8 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     writes (`/api/run`, `/api/settings`, `/api/sites`) take a JSON body only, which a cross-site form cannot send.
 11. **The schedule is set on the page and lives in the store** (`store.settings`, `runner.due`), not in launchd.
     It starts off; a window slept through runs on waking, two due at once run only the later, and a slot within an
-    hour of another run is skipped.
+    hour of another run is skipped. A window can be switched off (`off`, its times kept): since 2026-10-20 the
+    operator runs mornings only, 05:00–05:45, and catches up with Brief now (rule 14).
 12. **The Sites tab reads public pages only, direct, and only on each source's own host** (`sites.same_host`): a
     plain GET of its RSS feed or sitemap and of each new post, no browser, no login. A source's first check only
     learns its list and reads the newest post. Page text is untrusted like post text (rule 7); its summariser is

@@ -10,7 +10,7 @@
     /search?q=&since=&until=    every post kept: words, @accounts, dates
     /api/status         what a run is doing, or when the next one starts (the page asks every few seconds)
     POST /api/run       {"hours": null | 1..168}: start a run now (409 while one is going)
-    POST /api/settings  {"schedule": bool, "windows": {"am": [from, to], "pm": [from, to]}}
+    POST /api/settings  {"schedule": bool, "windows": {"am": [from, to], "pm": [from, to]}, "off": ["pm"]}
     POST /api/sites     {"daily": bool} to set the daily check, or {"check": true} to check the sites now
     /api/sites          whether a site check is going, and when the last one ended
     /api/health         what the doctor reads
@@ -93,7 +93,8 @@ def live(at: str | None = None, now: dt.datetime | None = None) -> dict:
 
 
 def check_settings(body: dict) -> dict:
-    """The schedule as sent by the page, checked: two windows of HH:MM, each at least 20 minutes long."""
+    """The schedule as sent by the page, checked: two windows of HH:MM, each at least 20 minutes long, and the
+    ones switched off (their times kept)."""
     if not isinstance(body.get("schedule"), bool):
         raise ValueError("schedule must be true or false")
     wins = body.get("windows")
@@ -107,7 +108,10 @@ def check_settings(body: dict) -> dict:
         if b - a < 20:
             raise ValueError(f"the {page.LABELS[k]} window must run at least 20 minutes")
         out[k] = w
-    return {"schedule": body["schedule"], "windows": out}
+    off = body.get("off", [])
+    if not (isinstance(off, list) and set(off) <= set(config.WINDOWS)):
+        raise ValueError("off: the windows switched off")
+    return {"schedule": body["schedule"], "windows": out, "off": sorted(set(off))}
 
 
 class Handler(BaseHTTPRequestHandler):

@@ -127,6 +127,19 @@ def test_fire_times_land_inside_the_window():
         assert at(5, 30) <= t <= at(7, 15)
 
 
+def test_a_window_switched_off_never_runs_and_keeps_its_times():
+    rng, sett = random.Random(2), {**SETT, "off": ["pm"]}
+    assert runner.due(at(7, 20), sett, None, rng) == "am"
+    assert runner.due(at(20, 0), sett, None, rng) is None and set(store.slots(DAY.isoformat())) == {"am"}
+    ok = {"schedule": True, "windows": SETT["windows"], "off": ["pm"]}
+    code, _, body = call("POST", "/api/settings", ok)
+    assert code == 200 and json.loads(body)["settings"]["off"] == ["pm"]
+    assert store.settings()["windows"]["pm"] == ["17:00", "20:00"]
+    assert call("POST", "/api/settings", {**ok, "off": ["noon"]})[0] == 400
+    html = call("GET", "/history")[2]
+    assert '<input type="checkbox" name="amon" checked>' in html and '<input type="checkbox" name="pmon">' in html
+
+
 def test_each_slot_fires_once():
     rng = random.Random(2)
     assert runner.due(at(5, 0), SETT, None, rng) is None
