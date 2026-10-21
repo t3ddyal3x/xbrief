@@ -349,3 +349,15 @@ finishes on the old code, the next run reads such a recording once.
 who posted it, its title linked to the video, the reason in plain words (`videos.why`), and "Read since" with a link
 to the summary when a later run read it. `cli.publish` now keeps each failure's key, poster, kind, title, url and
 error; briefs from before keep "key: error" and are shown the same way.
+
+## 2026-10-20 — harden (whole app), on "the app is slow af"
+**Measured**: the pages are not slow at the server or in a clean browser: the front page (716 KB, 14,500 nodes)
+answers in 50 ms, paints in 0.13–0.25 s and scrolls at a steady 60 fps in headless Brave at 2000 px; search and Sites
+the same. The run is: the am Brief now took 75 min (read 13, videos 52, writer 10). Whisper holding the GPU (10-19)
+is the likely cause of the page feeling slow during a run; not measured.
+**Changed** (branch `harden-2026-10-20`, f24e0c7): a recording's summary is written while the next is transcribed
+(two at a time); a failed summary keeps its transcript for the next brief instead of re-transcribing from another
+place; Whisper is stopped past a third of the audio's length (min 10 min, was a flat 4 h) and that recording kept as
+not read, never retried. Tests: both new ones fail on the old code.
+**Left**: `collect._done` advances `state.json` before the brief is written, so a crash in publish leaves those posts
+to a rebrief of the raw file; not changed.
