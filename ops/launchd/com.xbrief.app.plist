@@ -23,5 +23,8 @@
   <key>ThrottleInterval</key><integer>30</integer>
   <key>StandardOutPath</key><string>__DATA__/logs/app.log</string>
   <key>StandardErrorPath</key><string>__DATA__/logs/app.log</string>
+  <!-- Interactive: without it launchd runs the server at utility priority (pri 20, often the efficiency cores)
+       and every page and cache rebuild took 2-4x longer (work/portmantou/docs/reviews/efficiency-portmantou-2026-10-20.md). -->
+  <key>ProcessType</key><string>Interactive</string>
 </dict>
 </plist>
