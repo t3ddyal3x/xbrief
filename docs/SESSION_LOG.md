@@ -361,3 +361,17 @@ place; Whisper is stopped past a third of the audio's length (min 10 min, was a 
 not read, never retried. Tests: both new ones fail on the old code.
 **Left**: `collect._done` advances `state.json` before the brief is written, so a crash in publish leaves those posts
 to a rebrief of the raw file; not changed.
+
+## 2026-10-20 (evening) — the brief before waking; a morning is one brief
+**Measured**: Whisper at utility priority (what every run inherited until the app's agent went Interactive at 17:37)
+took 90–100 s on a 10-minute clip, at normal priority 51–52 s, the same text. Runs since then transcribe at full speed.
+**Built** on the operator's word ("running this before i wake up and then running it again"; decisions in
+`docs/plans/2026-10-20_early-run.md`): a Brief now the same morning as the early run reads only what came after and
+writes the morning's brief again over both reads, under the early run's name (`cli.catching_up`, `combine`,
+`publish_raw`); nothing new leaves it and says so; the top bar says "Brief caught up.". Each schedule window has its
+own switch. **Set**: schedule on, morning 05:00–05:45, evening off (operator: "just run it in the morning").
+Branch `harden-2026-10-20` merged into main and deleted; app restarted.
+**Checked**: offline tests (new: catch-up as one brief, nothing new, rebrief of a read, another day or window, a
+window switched off). `bin/tests --browser`: the read passes; its never-in-front check failed because the operator was
+switching apps during it (it fails the same on the code before today's change).
+**Next**: look at the 10-21 brief: did the 05:00 run read with the display asleep, how long it took, then Brief now.
