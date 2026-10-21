@@ -408,3 +408,65 @@ def test_the_same_recording_is_told_by_its_length_and_title_or_poster():
     x = {"key": "x-j", "by": "b_madden4", "duration_s": 3714}
     groups = videos.recordings([x, {**ep, "key": "ap-g", "duration_s": 3808}, ep])
     assert [sorted(d["key"] for d in g) for g in groups] == [["ap-g", "sp-f", "x-j"]]  # the three places read once
+
+
+def test_a_summary_is_written_while_the_next_recording_is_transcribed():
+    import threading
+
+    second = threading.Event()  # the second recording's Whisper has started
+
+    class Run(FakeRun):
+        def __call__(self, cmd, **kw):
+            if cmd[1:3] == ["-m", "xbrief.whisper"] and "second" in self.yt:
+                second.set()
+            if cmd[0] == config.YT_DLP and "--print" not in cmd:
+                self.yt = cmd[-1]
+            return super().__call__(cmd, **kw)
+
+    def ask(text):  # the first summary ends only once the second recording is being transcribed
+        if "First Talk" in text:
+            assert second.wait(5), "the summary held up the next transcription"
+        return SUMMARY
+
+    run = Run()
+    run.yt = ""
+    run.info = "1500\tFalse\tFirst Talk"
+    posts = {"1": parse.Post("1", "a", "", 0, "", links=[{"url": "https://youtu.be/firstfirst1"}]),
+             "2": parse.Post("2", "b", "", 0, "", links=[{"url": "https://youtu.be/secondsecon"}])}
+    orig = videos.identify
+
+    def identify(doc, get, run_):  # each its own title
+        orig(doc, get, run_)
+        if "second" in doc["url"]:
+            doc["title"] = "Second Talk"
+
+    videos.identify, lines = identify, []
+    try:
+        docs, _ = videos.read_all(posts, run=run, ask=ask, log=lines.append)
+    finally:
+        videos.identify = orig
+    assert docs["yt-firstfirst1"]["summary"] and docs["yt-secondsecon"]["summary"]
+    assert all("summary" in ln for ln in lines) and len(lines) == 2
+
+
+def test_whisper_slower_than_a_third_of_the_audio_is_stopped_kept_and_never_tried_again():
+    class Slow(FakeRun):
+        def __call__(self, cmd, **kw):
+            if cmd[1:3] == ["-m", "xbrief.whisper"]:
+                self.timeout = kw["timeout"]
+                raise __import__("subprocess").TimeoutExpired(cmd, kw["timeout"])
+            return super().__call__(cmd, **kw)
+
+    run = Slow("4460\tFalse\tRaw Iron: Making of Pumping Iron")
+    item = {"key": "yt-C8wix2kLcCk", "kind": "youtube", "url": "https://www.youtube.com/watch?v=C8wix2kLcCk", "by": "t"}
+    doc = videos.read(item, run=run, ask=lambda t: 1 / 0)
+    assert run.timeout == 4460 / 3 and doc["skip"] == "too slow"
+    assert videos.why(doc["error"]) == "Whisper was stopped after 25 min on 74 min of audio: music or noise, not talk"
+    again = FakeRun()
+    docs, _ = videos.read_all({"1": parse.Post("1", "t", "", 0, "", links=[{"url": "https://youtu.be/C8wix2kLcCk"}])},
+                              run=again, ask=lambda t: 1 / 0)
+    assert again.cmds == [] and docs["yt-C8wix2kLcCk"]["error"] == doc["error"]  # kept: said again, not redone
+    run = Slow("300\tFalse\tShort")
+    with pytest.raises(videos.TooSlow):
+        videos.whisper(pathlib.Path("a.m4a"), run, 900)
+    assert run.timeout == videos.WHISPER_MIN_S  # however short the audio, the model's load is part of the time

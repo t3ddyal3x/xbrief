@@ -69,6 +69,8 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     One recording posted in several places (X, YouTube, Spotify, Apple) is read once, from its best place, and
     copied to the rest (`videos.same`, `videos.recordings`: one show's episode of one title at any length; else
     length within `SAME_S`, plus title, else poster; an X video two recordings match is read on its own).
+    A recording's summary is written while the next is transcribed. Whisper is stopped past a third of the audio's
+    length (`videos.WHISPER_PACE`; talk takes a ninth to a sixteenth), and that recording is kept as not read.
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·

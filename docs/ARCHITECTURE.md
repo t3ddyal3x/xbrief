@@ -170,6 +170,15 @@ first, else Whisper on the feed's audio, the rule X's captions follow. An Apple 
 for the same. A title the feed does not list is said, never guessed at. On the page a podcast is "Podcast", "listen".
 The summary opens in a pop-up at reading width with Copy (operator, 2026-10-16: the line opening in place in a
 400 px card was hard to read, and was not seen to open).
+**Faster, and never stuck** (2026-10-20, operator: "the app is slow af"): the 10-20 am run took 75 minutes, 52 of
+them on ten videos one after another, each transcribed and then summarised before the next began. Whisper works on
+the Mac's GPU and the summary on Claude's side, so a recording's summary is now written (two at a time) while the next
+is transcribed; the same transcripts and summaries, sooner. A summary that fails no longer sends the run to
+transcribe the same recording from another place; its transcript is kept and the next brief summarises it. Whisper was
+allowed 4 hours on any file: on 10-19 a 74-minute film of music and gym noise held the GPU for 50 minutes, lagging
+the whole Mac, until stopped by hand. Talk runs 9–16 times faster than real time here, so Whisper is now stopped past a
+third of the audio's length (at least 10 minutes), and that recording is kept as not read ("Whisper was stopped after
+25 min on 74 min of audio") and never tried again.
 
 ## The Sites tab (2026-10-14)
 The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,

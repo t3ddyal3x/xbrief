@@ -18,6 +18,13 @@ One recording posted in several places (a show's episode on X, YouTube, Spotify 
 each place's title and length are learnt first, then the one with the best transcript is read (`RANK`) and the
 others keep a copy of its transcript and summary, marked `same_as` (operator, 2026-10-18: Pomp's episode was
 transcribed four times).
+
+A recording's summary is written while the next one is transcribed: Whisper works on this Mac's GPU, the summary
+on Claude's side, so neither waits for the other (2026-10-20: a morning's ten summaries had added ~5 minutes to the
+run, one after another). Whisper is stopped when it runs slower than `WHISPER_PACE` times the audio's own length:
+on talk it runs 9-16 times faster than real time, and only music or noise holds it longer (2026-10-19: a 74-minute
+film held the GPU for 50 minutes, lagging the whole Mac, before it was stopped by hand). Such a recording is kept
+as not read and never tried again.
 """
 
 from __future__ import annotations
@@ -29,6 +36,7 @@ import subprocess
 import sys
 import tempfile
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 import unicodedata
 import urllib.request
 import xml.etree.ElementTree as ET
@@ -47,6 +55,9 @@ APPLE = re.compile(r"podcasts\.apple\.com/[^?#\s]*/id(\d+)\?(?:[^#\s]*&)?i=(\d+)
 PODCAST_NS = "{https://podcastindex.org/namespace/1.0}"
 SAME_S = 5  # one recording's length in two places, seconds apart at most (X 3714 s, Spotify 3718 s: 2026-10-20)
 RANK = {"podcast": 0, "x": 1, "youtube": 2}  # read first: a show's own transcript, then X's captions, then Whisper
+WHISPER_PACE = 3  # Whisper is stopped past a third of the audio's length (talk takes a ninth to a sixteenth)
+WHISPER_MIN_S = 600  # however short the audio: the model's own load is part of the time
+SUMMARIES = 2  # summaries written at once, while the next recording is transcribed
 
 PROMPT = """You read the transcript of one long video or podcast episode that a post on X carries (an interview, a
 talk, a podcast, a stream), so I do not have to watch it. Below, after the line BEGIN VIDEO, are who posted it, its
@@ -189,10 +200,21 @@ def yt_audio(url: str, folder: Path, run=subprocess.run) -> Path:
     return files[0]
 
 
-def whisper(audio: Path, run=subprocess.run) -> str:
-    """Whisper large-v3 on one audio file, in its own process (MLX frees its memory when the process ends)."""
+class TooSlow(Exception):
+    """Whisper ran past WHISPER_PACE on a recording: music or noise, not talk. Kept, so it is never tried again."""
+
+
+def whisper(audio: Path, run=subprocess.run, duration_s: float | None = None) -> str:
+    """Whisper large-v3 on one audio file, in its own process (MLX frees its memory when the process ends), stopped
+    past a third of the audio's length (`TooSlow`)."""
     out = audio.with_suffix(".whisper.json")
-    run([sys.executable, "-m", "xbrief.whisper", str(audio), str(out)], check=True, capture_output=True, timeout=4 * 3600)
+    limit = max(WHISPER_MIN_S, duration_s / WHISPER_PACE) if duration_s else 4 * 3600
+    try:
+        run([sys.executable, "-m", "xbrief.whisper", str(audio), str(out)], check=True, capture_output=True,
+            timeout=limit)
+    except subprocess.TimeoutExpired:
+        raise TooSlow(f"Whisper was stopped after {limit / 60:.0f} min on {(duration_s or 0) / 60:.0f} min of audio: "
+                      "music or noise, not talk") from None
     return json.loads(out.read_text())["text"]
 
 
@@ -287,7 +309,8 @@ def _podcast(doc: dict, tmp: Path, get, run) -> None:
         return
     if not found["audio"]:
         raise ValueError("the feed gives this episode no audio")
-    doc["transcript"], doc["source"] = whisper(feed_audio(found["audio"], tmp / "audio.mka", run), run).strip(), "Whisper large-v3"
+    doc["transcript"], doc["source"] = (whisper(feed_audio(found["audio"], tmp / "audio.mka", run), run, doc.get("duration_s")).strip(),
+                                        "Whisper large-v3")
 
 
 # ── one video, kept ─────────────────────────────────────────────────────────────────────────────────
@@ -359,9 +382,9 @@ def _transcribe(doc: dict, get, run) -> None:
             if text:
                 doc["transcript"], doc["source"] = text, "X's captions"
                 return
-            text = whisper(x_audio(doc["stream"], Path(tmp) / "audio.m4a", get, run), run)
+            text = whisper(x_audio(doc["stream"], Path(tmp) / "audio.m4a", get, run), run, doc.get("duration_s"))
         else:
-            text = whisper(yt_audio(doc["url"], Path(tmp), run), run)
+            text = whisper(yt_audio(doc["url"], Path(tmp), run), run, doc.get("duration_s"))
         doc["transcript"], doc["source"] = text.strip(), "Whisper large-v3"
 
 
@@ -377,7 +400,13 @@ def summarise(doc: dict, ask=None) -> dict:
 
 def read(item: dict, get=http_get, run=subprocess.run, ask=None) -> dict:
     """One video transcribed and summarised, or what was kept of it. A transcript is kept even when its summary
-    fails, and a failure is not kept, so the next brief or rebrief tries again from where it stopped."""
+    fails, and a failure is not kept, so the next brief or rebrief tries again from where it stopped; except Whisper
+    stopped as too slow (`TooSlow`), which is kept, error and all, and never tried again."""
+    return _summarised(_transcribed(item, get, run), ask)
+
+
+def _transcribed(item: dict, get, run) -> dict:
+    """`read`'s first half: the video's transcript, or why there is none."""
     doc = {**item, **(kept(item["key"]) or {})}
     if doc.get("summary") or doc.get("skip"):
         return doc
@@ -391,13 +420,25 @@ def read(item: dict, get=http_get, run=subprocess.run, ask=None) -> dict:
             _transcribe(doc, get, run)
             if doc.get("transcript") or doc.get("skip"):
                 _save(doc)
-        if doc.get("transcript") and not doc.get("summary"):
-            if len(doc["transcript"].split()) < 30:
-                doc["skip"] = "almost no speech"
-            else:
-                doc["summary"] = summarise(doc, ask)
-            _save(doc)
+    except TooSlow as e:
+        doc["error"], doc["skip"] = _error(e), "too slow"
+        _save(doc)
     except Exception as e:  # noqa: BLE001  one video failing never stops the brief
+        doc["error"] = _error(e)
+    return doc
+
+
+def _summarised(doc: dict, ask=None) -> dict:
+    """`read`'s second half: the summary of a transcript."""
+    if not doc.get("transcript") or doc.get("summary") or doc.get("skip") or doc.get("error"):
+        return doc
+    try:
+        if len(doc["transcript"].split()) < 30:
+            doc["skip"] = "almost no speech"
+        else:
+            doc["summary"] = summarise(doc, ask)
+        _save(doc)
+    except Exception as e:  # noqa: BLE001
         doc["error"] = _error(e)
     return doc
 
@@ -463,28 +504,55 @@ def read_all(posts: dict[str, parse.Post], progress=None, log=None, get=http_get
         if d.get("skip"):
             _save(d)
     groups = recordings([d for d in docs.values() if not (d.get("skip") or d.get("error"))])
-    for i, g in enumerate(groups[:config.MAX_VIDEOS]):
-        progress("transcribing videos", videos=i, of=min(len(groups), config.MAX_VIDEOS))
-        done = next((d for d in g if d.get("summary")), None)
-        for d in [] if done else sorted(g, key=lambda d: (not d.get("transcript"), RANK[d["kind"]])):
-            t0 = time.monotonic()
-            docs[d["key"]] = r = read(d, get=get, run=run, ask=ask)
-            what = r.get("error") or r.get("skip") or f"{r.get('source')}, {len((r.get('transcript') or '').split())} words"
-            log(f"video {d['key']} (@{d['by']}): {what} · {time.monotonic() - t0:.0f} s")
-            if r.get("summary") or r.get("skip"):
-                done = r
-                break
-        if not (done and done.get("summary")):
-            continue
-        root = done.get("same_as") or done["key"]
-        for d in g:
-            if d["key"] != done["key"] and not docs[d["key"]].get("summary"):
-                docs[d["key"]] = c = {**{k: v for k, v in d.items() if k != "error"}, "same_as": root,
-                                      **{k: done.get(k) for k in ("transcript", "source", "summary")},
-                                      "title": d.get("title") or done.get("title"), "show": d.get("show") or done.get("show")}
-                _save(c)
-                log(f"video {d['key']} (@{d['by']}): the same as {root}, not read again")
+
+    def said(r: dict, t0: float, took: float | None = None) -> dict:
+        what = r.get("error") or r.get("skip") or f"{r.get('source')}, {len((r.get('transcript') or '').split())} words"
+        log(f"video {r['key']} (@{r['by']}): {what} · {took if took is not None else time.monotonic() - t0:.0f} s"
+            + (f", summary {time.monotonic() - t0 - took:.0f} s" if took is not None else ""))
+        return r
+
+    def summary(r: dict, t0: float) -> dict:
+        took = time.monotonic() - t0
+        return said(_summarised(r, ask), t0, took)
+
+    pending = []  # (group, the summary being written while the next recording is transcribed)
+    with ThreadPoolExecutor(max_workers=SUMMARIES) as pool:
+        for i, g in enumerate(groups[:config.MAX_VIDEOS]):
+            progress("transcribing videos", videos=i, of=min(len(groups), config.MAX_VIDEOS))
+            done = next((d for d in g if d.get("summary")), None)
+            for d in [] if done else sorted(g, key=lambda d: (not d.get("transcript"), RANK[d["kind"]])):
+                t0 = time.monotonic()
+                docs[d["key"]] = r = _transcribed(d, get, run)
+                if r.get("transcript") and not (r.get("summary") or r.get("skip") or r.get("error")):
+                    done = pool.submit(summary, r, t0)
+                    break
+                said(r, t0)
+                if r.get("summary") or r.get("skip"):
+                    done = r
+                    break
+            pending.append((g, done))
+        if any(isinstance(f, Future) for _, f in pending):
+            progress("summarising videos")
+        for g, done in pending:
+            done = done.result() if isinstance(done, Future) else done
+            if not done:
+                continue
+            docs[done["key"]] = done
+            if done.get("summary"):
+                _copy(g, done, docs, log)
     return docs, max(0, len(groups) - config.MAX_VIDEOS)
+
+
+def _copy(g: list[dict], done: dict, docs: dict[str, dict], log) -> None:
+    """A recording read in one place, given to the other places it was posted."""
+    root = done.get("same_as") or done["key"]
+    for d in g:
+        if d["key"] != done["key"] and not docs[d["key"]].get("summary"):
+            docs[d["key"]] = c = {**{k: v for k, v in d.items() if k != "error"}, "same_as": root,
+                                  **{k: done.get(k) for k in ("transcript", "source", "summary")},
+                                  "title": d.get("title") or done.get("title"), "show": d.get("show") or done.get("show")}
+            _save(c)
+            log(f"video {d['key']} (@{d['by']}): the same as {root}, not read again")
 
 
 SHOWN = ("key", "kind", "url", "duration_s", "show", "title", "source", "summary", "transcript")
