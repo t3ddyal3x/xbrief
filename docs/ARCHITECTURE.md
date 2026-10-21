@@ -179,6 +179,10 @@ allowed 4 hours on any file: on 10-19 a 74-minute film of music and gym noise he
 the whole Mac, until stopped by hand. Talk runs 9–16 times faster than real time here, so Whisper is now stopped past a
 third of the audio's length (at least 10 minutes), and that recording is kept as not read ("Whisper was stopped after
 25 min on 74 min of audio") and never tried again.
+**Priority** (measured 2026-10-20 on a 10-minute clip of a talk, twice each): Whisper took 90–100 s at utility
+priority, the priority a run inherited from the app's LaunchAgent until it was given `ProcessType Interactive` that
+day (17:37), and 51–52 s at normal priority, word for word the same text. Every run before then transcribed at
+about half speed.
 
 ## The Sites tab (2026-10-14)
 The operator asked for "a separate engine parsing useful information like sigil": funds' and researchers' own sites,
