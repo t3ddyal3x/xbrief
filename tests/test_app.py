@@ -307,3 +307,79 @@ def test_the_first_builds_word_index_is_rebuilt_once():
     with store.db() as con:
         assert "post_id" not in con.execute("SELECT sql FROM sqlite_master WHERE name = 'posts_fts'").fetchone()[0]
         assert con.execute("SELECT count(*) FROM posts_fts").fetchone()[0] == 2
+
+
+# ── a morning caught up (docs/plans/2026-10-20_early-run.md) ───────────────────────────────────────
+
+
+def a_read(monkeypatch, at_hm, minutes, boundary_min, newest_min):
+    """Make the next `xbrief run` read these posts (minutes after BASE_MS) at this local time of 2026-10-21."""
+    from builders import sid
+
+    from xbrief import collect
+
+    started = int(dt.datetime(2026, 10, 21, *at_hm).timestamp() * 1000)
+
+    async def fake(hours=None, progress=None):
+        return collect.Result(started_ms=started, finished_ms=started + 120_000, stop="caught up", normal=True,
+                              boundary_id=int(sid(boundary_min)), newest_id=int(sid(newest_min)), build="xweb",
+                              pages=[xw_page([xw_item(xw_tweet(m, f"p{m}", f"post {m}")) for m in minutes])])
+
+    monkeypatch.setattr(cli.collect, "run", fake)
+
+
+def a_writer(monkeypatch):
+    asked = []
+
+    class Sub:
+        @staticmethod
+        def run(cmd, input=None, **kw):
+            asked.append([json.loads(ln)["text"] for ln in input.split("BEGIN POSTS\n", 1)[1].splitlines()])
+            return type("R", (), {"returncode": 0, "stdout": "{}", "stderr": ""})()
+
+    monkeypatch.setattr(brief, "subprocess", Sub)
+    return asked
+
+
+def test_a_brief_now_the_same_morning_catches_up_the_early_brief_as_one(monkeypatch):
+    asked = a_writer(monkeypatch)
+    a_read(monkeypatch, (5, 12), [3, 2, 1], 0, 3)
+    assert cli.main(["run", "--now", "--label", "am"]) == 0
+    early = store.latest_name()
+    assert early == "2026-10-21-0512-am" and asked[-1] == ["post 3", "post 2", "post 1"]
+
+    a_read(monkeypatch, (7, 4), [5, 4, 3], 3, 5)  # the read stops on the page that reaches post 3
+    assert cli.main(["run", "--now", "--label", "am"]) == 0
+    assert asked[-1] == ["post 3", "post 2", "post 1", "post 5", "post 4"]  # every post of the morning, each once
+    runs = store.runs()
+    assert [r["name"] for r in runs] == [early] and runs[0]["n_posts"] == 5  # one brief, under the early run's name
+    meta = runs[0]["meta"]
+    assert [r["raw"].rsplit("/", 1)[1] for r in meta["reads"]] == ["2026-10-21_0512-am.json.gz", "2026-10-21_0704-am.json.gz"]
+    assert meta["boundary_id"] == meta["reads"][0]["boundary_id"] and meta["page_count"] == 2
+    assert "read 05:12–05:14, caught up 07:04–07:06" in page.run_dek(meta, 5, 5)
+
+    lv = server.live(early, now=dt.datetime.now())  # the page showing the early brief is told it was caught up
+    assert lv["text"] == "Brief caught up." and lv["href"] == f"/b/{early}"
+    assert server.live(page.at_of(early, meta), now=dt.datetime.now())["text"] == "Schedule off."
+    code, _, html = call("GET", "/")
+    assert code == 200 and f'data-at="{early}~2"' in html and f'href="/b/{early}"' in html
+
+    asked.clear()  # a rebrief of either read writes the whole morning again
+    cli.main(["rebrief", meta["reads"][0]["raw"]])
+    assert asked[-1] == ["post 3", "post 2", "post 1", "post 5", "post 4"] and store.runs()[0]["meta"]["reads"]
+
+    asked.clear()
+    a_read(monkeypatch, (7, 30), [5], 5, 5)  # nothing new: the brief is left as it is, and the page says so
+    assert cli.main(["run", "--now", "--label", "am"]) == 0 and asked == []
+    assert server.live(page.at_of(early, meta), now=dt.datetime.now())["text"] == "Nothing new since 07:06."
+
+
+def test_a_run_of_another_day_or_window_is_a_brief_of_its_own(monkeypatch):
+    asked = a_writer(monkeypatch)
+    a_read(monkeypatch, (5, 12), [3, 2, 1], 0, 3)
+    cli.main(["run", "--now", "--label", "am"])
+    a_read(monkeypatch, (17, 30), [5, 4, 3], 3, 5)
+    cli.main(["run", "--now", "--label", "pm"])
+    assert asked[-1] == ["post 5", "post 4"] and len(store.runs()) == 2
+    assert cli.main(["run", "--now", "--label", "am", "--hours", "6"]) == 0  # a chosen window: its own brief
+    assert len(store.runs()) == 3

@@ -71,6 +71,9 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     length within `SAME_S`, plus title, else poster; an X video two recordings match is read on its own).
     A recording's summary is written while the next is transcribed. Whisper is stopped past a third of the audio's
     length (`videos.WHISPER_PACE`; talk takes a ninth to a sixteenth), and that recording is kept as not read.
+14. **A morning is one brief.** A run (no `--hours`) whose newest brief is of the same day and label catches it up:
+    it reads from where that run stopped and writes that brief again over both reads, under its name
+    (`cli.catching_up`, `cli.combine`; meta `reads`). The early run is the schedule's; the catch-up is Brief now.
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·

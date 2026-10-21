@@ -255,10 +255,18 @@ def masthead(title: str, dek: str, strip: str = "") -> str:
     return f'<header class="mast"><h1>{title}</h1><p class="dek">{dek}</p>{strip}</header>'
 
 
+def at_of(name: str, meta: dict) -> str:
+    """Which version of a brief a page shows, so the live line can say when it was caught up (cli.at_of)."""
+    n = len(meta.get("reads") or [])
+    return f"{name}~{n}" if n > 1 else name
+
+
 def run_dek(meta: dict, n_posts: int, n_accounts: int) -> str:
-    """How much the run read and when."""
+    """How much the run read and when; a morning caught up, each read."""
+    reads = meta.get("reads") or [meta]
     dek = (f"{n_posts} posts from {n_accounts} people · "
-           f"read {hhmm(meta.get('started_ms') or 0)}–{hhmm(meta.get('finished_ms') or 0)}")
+           f"read {hhmm(reads[0].get('started_ms') or 0)}–{hhmm(reads[0].get('finished_ms') or 0)}"
+           + "".join(f", caught up {hhmm(r.get('started_ms') or 0)}–{hhmm(r.get('finished_ms') or 0)}" for r in reads[1:]))
     if meta.get("reread_site"):
         dek += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"
     return dek
@@ -448,7 +456,8 @@ def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False
     if prev:
         dek += f' · <a href="/b/{esc(prev["name"])}">the brief before, {esc(run_when(prev["started_ms"]))}</a>'
     main = masthead(run_head(run["label"], meta.get("started_ms") or 0), dek, window_strip(meta, run["posts"])) + main
-    return shell(f"X brief · {title}", topbar("brief", live, running=running, at=run["name"]), main, at=run["name"])
+    return shell(f"X brief · {title}", topbar("brief", live, running=running, at=run["name"]), main,
+                 at=at_of(run["name"], meta))
 
 
 def empty_page(live: dict, running: bool = False, active: str = "brief") -> str:

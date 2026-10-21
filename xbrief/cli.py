@@ -12,7 +12,7 @@ import re
 import sys
 import time
 
-from . import brief, collect, config, parse, runner, store, videos
+from . import brief, collect, config, page, parse, runner, store, videos
 
 LABELS = {"am": "morning", "pm": "evening"}
 
@@ -45,6 +45,65 @@ def entries_of(pages: list[dict]) -> list[parse.Entry]:
 def threads_of(entries: list[parse.Entry], posts: dict) -> list[list[str]]:
     """The conversations of three posts or more that the brief holds, each in display order."""
     return [[p.id for p in e.posts] for e in entries if len(e.posts) >= 3 and any(p.id in posts for p in e.posts)]
+
+
+# ── a morning caught up ─────────────────────────────────────────────────────────────────────────────
+# The early run reads the night and writes the brief before the operator wakes; their Brief now later that morning
+# reads only what came after, and writes the morning's one brief again over both reads (operator, 2026-10-20:
+# docs/plans/2026-10-20_early-run.md). The brief keeps the early run's name; its meta lists each read (`reads`).
+
+READ_KEYS = ("started_ms", "finished_ms", "stop", "normal", "gap", "boundary_id", "newest_id", "page_count", "build",
+             "ranked", "reread_site", "articles_read", "articles_left")
+
+
+def reads_of(meta: dict, label: str) -> list[dict]:
+    """The reads a stored brief was written from, each with its raw file: one, or each read of a morning caught up."""
+    if meta.get("reads"):
+        return meta["reads"]
+    return [{**{k: meta.get(k) for k in READ_KEYS},
+             "raw": meta.get("raw") or str(collect.raw_path(meta.get("started_ms") or 0, label))}]
+
+
+def combine(reads: list[dict]) -> tuple[list[dict], dict, dict]:
+    """Several reads as one: their pages in order, their Articles, and one meta. The window opens where the first read
+    began; the read ended where the last did; a read that stopped early or left a gap is said."""
+    pages: list[dict] = []
+    articles: dict[str, list[dict]] = {}
+    for r in reads:
+        raw = collect.load_raw(r["raw"])
+        pages += raw["pages"]
+        for pid, pgs in (raw.get("articles") or {}).items():
+            articles.setdefault(pid, []).extend(pgs)
+    first, last = reads[0], reads[-1]
+    early = [r["stop"] for r in reads if not r.get("normal")]
+    meta = {**{k: last.get(k) for k in READ_KEYS}, "started_ms": first.get("started_ms"),
+            "boundary_id": first.get("boundary_id"), "normal": not early, "stop": "; ".join(early) or last.get("stop"),
+            "gap": any(r.get("gap") for r in reads), "ranked": any(r.get("ranked") for r in reads),
+            "reread_site": any(r.get("reread_site") for r in reads),
+            **{k: sum(r.get(k) or 0 for r in reads) for k in ("page_count", "articles_read", "articles_left")},
+            "reads": reads}
+    return pages, articles, meta
+
+
+def catching_up(label: str, started_ms: int) -> dict | None:
+    """The brief this run catches up: the newest, when it is of the same day and the same label."""
+    prev = (store.runs(limit=1) or [None])[0]
+    if not prev or prev["label"] != label:
+        return None
+    same_day = dt.date.fromtimestamp(prev["started_ms"] / 1000) == dt.date.fromtimestamp(started_ms / 1000)
+    return prev if same_day else None
+
+
+def publish_raw(path, read_videos=None) -> str:
+    """Write a saved run's brief again: the whole morning it belongs to, if it was one read of a morning caught up."""
+    name = os.path.basename(str(path))
+    run = next((r for r in store.runs() if any(os.path.basename(x["raw"]) == name for x in r["meta"].get("reads") or [])), None)
+    if run:
+        pages, articles, meta = combine(run["meta"]["reads"])
+    else:
+        raw = collect.load_raw(path)
+        pages, articles, meta = raw["pages"], raw.get("articles"), raw["meta"]
+    return publish(pages, meta, label_of(path), articles=articles, read_videos=read_videos)
 
 
 def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude, articles: dict | None = None,
@@ -92,7 +151,21 @@ def cmd_run(a) -> int:
         log(f"read {len(res.pages)} pages ({res.build or 'no site'}): {res.stop}" + (" · GAP" if res.gap else "")
             + (f" · {res.articles_read} Articles read whole" if res.articles_read else "")
             + (f", {res.articles_left} past the cap" if res.articles_left else "") + f" · raw {os.path.basename(path)}")
-        n = len(brief.unique_posts(entries_of(res.pages), int(res.boundary_id or 0)))  # what the writer gets
+        pages, articles, meta = res.pages, res.articles, {**res.meta(), "raw": path}
+        prev = catching_up(label, res.started_ms) if a.hours is None else None
+        if prev:
+            if not brief.unique_posts(entries_of(res.pages), int(res.boundary_id or 0)):
+                log(f"caught up {prev['name']}: nothing new since its read")
+                runner.write_progress(phase="done", done=True, name=prev["name"], stop=res.stop, normal=res.normal,
+                                      at=page.at_of(prev["name"], prev["meta"]),
+                                      note=f"Nothing new since {time.strftime('%H:%M', time.localtime(prev['meta'].get('finished_ms', 0) / 1000))}.")
+                return 0 if res.normal else 1
+            try:
+                pages, articles, meta = combine(reads_of(prev["meta"], prev["label"]) + [reads_of(meta, label)[0]])
+                log(f"catching up {prev['name']}: its brief is written again with this read")
+            except (OSError, ValueError, KeyError) as e:  # its raw file is gone: this read is a brief of its own
+                log(f"could not catch up {prev['name']} ({type(e).__name__}: {e}); a brief of its own")
+        n = len(brief.unique_posts(entries_of(pages), int(meta.get("boundary_id") or 0)))  # what the writer gets
         runner.write_progress(phase="writing the brief", stop=res.stop, normal=res.normal, posts=n,
                               writing_ms=int(time.time() * 1000))
 
@@ -101,8 +174,8 @@ def cmd_run(a) -> int:
             runner.write_progress(phase="writing the brief", writing_ms=int(time.time() * 1000))  # the clock restarts
             return out
 
-        name = publish(res.pages, res.meta(), label, articles=res.articles, read_videos=read_videos)
-        runner.write_progress(phase="done", done=True, name=name)
+        name = publish(pages, meta, label, articles=articles, read_videos=read_videos)
+        runner.write_progress(phase="done", done=True, name=name, at=page.at_of(name, meta))
         pruned = collect.prune_raw()
         if pruned:
             log(f"deleted {pruned} raw files older than {config.RAW_KEEP_DAYS} days")
@@ -120,9 +193,7 @@ def label_of(raw_path) -> str:
 
 
 def cmd_rebrief(a) -> int:
-    raw = collect.load_raw(a.raw)
-    publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"),
-            read_videos=lambda posts: videos.read_all(posts, log=log))
+    publish_raw(a.raw, read_videos=lambda posts: videos.read_all(posts, log=log))
     return 0
 
 
@@ -140,9 +211,7 @@ def cmd_articles(a) -> int:
         except collect.Stop as s:  # what was read before X pushed back is kept, and the brief written with it
             log(f"articles {os.path.basename(a.raw)}: stopped: {s.why}")
             code = 1
-        raw = collect.load_raw(a.raw)
-        publish(raw["pages"], raw["meta"], label_of(a.raw), articles=raw.get("articles"),
-                read_videos=lambda posts: videos.read_all(posts, log=log))
+        publish_raw(a.raw, read_videos=lambda posts: videos.read_all(posts, log=log))
         return code
     finally:
         lock.close()

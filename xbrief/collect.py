@@ -519,12 +519,16 @@ def _done(res: Result) -> Result:
     return res
 
 
+def raw_path(started_ms: int, label: str) -> pathlib.Path:
+    """A run's raw file, named by its start (the laptop's clock, as the brief's own name) and label."""
+    return config.RAW / f"{time.strftime('%Y-%m-%d_%H%M', time.localtime(started_ms / 1000))}-{label}.json.gz"
+
+
 def save_raw(res: Result, label: str) -> str:
     """One gzip file a run: a feed page is ~0.4 MB as JSON and compresses 7×, and 30 days of runs would otherwise
     near a gigabyte."""
     config.RAW.mkdir(parents=True, exist_ok=True)
-    stamp = time.strftime("%Y-%m-%d_%H%M", time.localtime(res.started_ms / 1000))
-    path = config.RAW / f"{stamp}-{label}.json.gz"
+    path = raw_path(res.started_ms, label)
     _write_raw(path, {"meta": res.meta(), "pages": res.pages, "articles": res.articles})
     return str(path)
 

@@ -75,11 +75,15 @@ def live(at: str | None = None, now: dt.datetime | None = None) -> dict:
         return {"running": False, "kind": "bad", "text": f"The last run failed: {pr.get('error')}"}
     if pr.get("done") is False and pr.get("phase") and recent:
         return {"running": False, "kind": "bad", "text": "The last run ended without finishing (logs/runs.log)."}
-    if pr.get("done") and pr.get("name") and pr["name"] != at and recent:
+    if pr.get("done") and pr.get("name") and (pr.get("at") or pr["name"]) != at and recent:
         if pr.get("normal") is False:  # the brief says so at its top too
             return {"running": False, "kind": "bad", "text": f"The run stopped early: {pr.get('stop')}.",
                     "href": f"/b/{pr['name']}", "link": "Open"}
-        return {"running": False, "kind": "", "text": "New brief.", "href": f"/b/{pr['name']}", "link": "Open"}
+        caught = pr.get("at", pr["name"]) != pr["name"]  # a morning's brief written again with a later read
+        return {"running": False, "kind": "", "text": "Brief caught up." if caught else "New brief.",
+                "href": f"/b/{pr['name']}", "link": "Open"}
+    if pr.get("done") and pr.get("note") and recent:  # a catch-up that found nothing new
+        return {"running": False, "kind": "", "text": pr["note"]}
     sett = store.settings()
     if not sett["schedule"]:
         return {"running": False, "kind": "", "text": "Schedule off.", "href": "/history#schedule", "link": "Set"}
@@ -229,10 +233,10 @@ class Handler(BaseHTTPRequestHandler):
             m = RUN_NAME.match(path)
             if path in ("/", "/theses") or m:
                 name = m.group(1) if m else store.latest_name()
-                lv = live(name)  # /theses: the tab it once had, now the brief's own Theses part
+                run = store.load_run(name) if name else None  # /theses: the tab it once had, now the brief's Theses
+                lv = live(page.at_of(name, run["meta"]) if run else name)
                 if name is None:
                     return self._html(page.empty_page(lv, lv["running"]))
-                run = store.load_run(name)
                 if run is None:
                     return self._html(page.shell("X brief", page.topbar("brief", lv, running=lv["running"]),
                                                  '<p class="empty">No brief by that name. <a href="/history">Every '
