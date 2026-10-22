@@ -5,7 +5,8 @@ words. The one script is the app's own (static/app.js: the run button, its progr
 server's Content-Security-Policy allows no other, and images load from X's image servers only.
 Tokyo Night / Tokyo Day like the other local pages; Iowan Old Style (on every Mac) for what Claude wrote, the
 system sans for what people posted. A brief is a front page (docs/plans/2026-10-14_rework.md): stories ranked by
-how many people talked about each, HYPE and the top four open with their key posts beside them, the rest a line each.
+how many people talked about each, the focus (config.FOCUS) and the top four open with their key posts beside them,
+the rest a line each.
 """
 
 from __future__ import annotations
@@ -148,7 +149,7 @@ def topic_posts(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post
     return shown
 
 
-LEAD = 4  # stories told in full after HYPE; the rest are a line each (Bloomberg's Five Things: HYPE and four)
+LEAD = 4  # stories told in full after the focus; the rest are a line each (Bloomberg's Five Things: the focus and four)
 
 
 def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -> str:
@@ -402,18 +403,16 @@ def shell(title: str, top: str, main: str, at: str = "", side: str = "") -> str:
 
 
 def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], meta: dict) -> str:
-    """The brief: HYPE's stories and theses first, open; the four stories most people talked about, open; every
+    """The brief: the focus's stories and theses first, open; the four stories most people talked about, open; every
     other story a line; the theses a line each; everything else folded. Each opens in place."""
     sections = []
-    hype = ranked([t for t in b.topics if t.hype], posts)
-    if b.hype:  # a brief before the re-work: one HYPE paragraph
-        hype.insert(0, Topic("", b.hype.summary, b.hype.posts, hype=True))
-    on_hype = [t for t in b.theses if t.hype]
-    if hype or on_hype:
-        sections.append('<section id="hype"><h2 class="label">HYPE</h2>'
-                        + "".join(story_html(t, posts, thr, f"h{i}", True) for i, t in enumerate(hype))
-                        + "".join(thesis_html(t, posts, thr, f"ht{i}") for i, t in enumerate(on_hype)) + "</section>")
-    rest = ranked([t for t in b.topics if not t.hype], posts)
+    focus = ranked([t for t in b.topics if t.focus], posts)
+    on_focus = [t for t in b.theses if t.focus]
+    if focus or on_focus:
+        sections.append(f'<section id="focus"><h2 class="label">{esc((config.FOCUS or {}).get("name") or "Focus")}</h2>'
+                        + "".join(story_html(t, posts, thr, f"h{i}", True) for i, t in enumerate(focus))
+                        + "".join(thesis_html(t, posts, thr, f"ht{i}") for i, t in enumerate(on_focus)) + "</section>")
+    rest = ranked([t for t in b.topics if not t.focus], posts)
     lead, more = rest[:LEAD], rest[LEAD:]
     if lead:
         sections.append('<section id="lead">' + "".join(story_html(t, posts, thr, f"t{i}", True)
@@ -429,7 +428,7 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
                         f'</h2><div class="pair">'
                         + "".join(story_html(t, posts, thr, f"t{i + LEAD + len(many)}", False) for i, t in enumerate(one))
                         + "</div></section>")
-    theses = [t for t in b.theses if not t.hype]
+    theses = [t for t in b.theses if not t.focus]
     if theses:
         sections.append('<section id="theses"><h2 class="label">Theses</h2>'
                         + "".join(thesis_html(t, posts, thr, f"th{i}") for i, t in enumerate(theses)) + "</section>")

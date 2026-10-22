@@ -155,32 +155,32 @@ def test_publish_stores_the_run():
     assert len(store.runs()) == 1
 
 
-# ── what matters first: HYPE, theses, links to the posts that stand out ─────────────────────────────
+# ── what matters first: the focus, theses, links to the posts that stand out ─────────────────────────────
 
 
 def matters():
-    """A run with a long thesis, a short one, a HYPE thesis, HYPE news and a topic, and the writer's answer."""
+    """A run with a long thesis, a short one, a thesis on the focus, news on it and a topic, and the writer's answer."""
     ents = parse.entries(xw_page([
-        xw_item(xw_tweet(20, "hl_news", "Hyperliquid lists a new HIP-3 market")),
+        xw_item(xw_tweet(20, "sol_news", "Solana ships a new fee market")),
         xw_item(xw_tweet(19, "essayist", "AI changes speculation in six phases. " + "Phase reasoning. " * 300 + "THE END")),
         xw_item(xw_tweet(18, "quant", "Every time math accelerates it worsens fears about crypto security.")),
-        xw_item(xw_tweet(17, "hypebull", "HYPE buybacks outrun unlocks, so supply shrinks")),
+        xw_item(xw_tweet(17, "solbull", "SOL burns outrun unlocks, so supply shrinks")),
         xw_item(xw_tweet(16, "bob", "rates were cut")),
     ]))[0]
     posts = brief.unique_posts(ents)
     i = {p.handle: p.id for p in posts.values()}
     answer = json.dumps({
-        "hype": [{"headline": "Hyperliquid lists a HIP-3 market", "gist": "A new market.", "key": [i["hl_news"]],
-                  "posts": [i["hl_news"]]}],
+        "focus": [{"headline": "Solana ships a fee market", "gist": "A new market.", "key": [i["sol_news"]],
+                   "posts": [i["sol_news"]]}],
         "theses": [
-            {"posts": [i["quant"]], "hype": False, "claim": "Faster math raises crypto security fears.",
+            {"posts": [i["quant"]], "focus": False, "claim": "Faster math raises crypto security fears.",
              "steps": ["Math speeds up."], "if_it_holds": "Weighs on old coins.", "weak_spots": "One anecdote.",
              "wrong_if": "Prices ignore the next result."},
-            {"posts": [i["essayist"], i["bob"]], "hype": False, "claim": "AI changes speculation in six phases.",
+            {"posts": [i["essayist"], i["bob"]], "focus": False, "claim": "AI changes speculation in six phases.",
              "steps": ["Phase one.", "Phase two."], "if_it_holds": "Perp venues gain.", "weak_spots": "",
              "wrong_if": ""},
-            {"posts": [i["hypebull"]], "hype": True, "claim": "HYPE supply shrinks.", "steps": ["Buybacks > unlocks."],
-             "if_it_holds": "HYPE up.", "weak_spots": "Unlocks may grow.", "wrong_if": "Supply rises."},
+            {"posts": [i["solbull"]], "focus": True, "claim": "SOL supply shrinks.", "steps": ["Burns > unlocks."],
+             "if_it_holds": "SOL up.", "weak_spots": "Unlocks may grow.", "wrong_if": "Supply rises."},
             {"posts": ["999"], "claim": "a made-up id"},
         ],
         "stories": [{"headline": "Rates were cut", "gist": "Bob says so.", "key": [i["bob"]],
@@ -198,14 +198,15 @@ def test_theses_come_first_long_ones_first_each_post_once():
     _, posts, i, answer = matters()
     b = brief.parse_answer(answer, posts)
     assert [t.claim for t in b.theses] == ["AI changes speculation in six phases.",
-                                           "Faster math raises crypto security fears.", "HYPE supply shrinks."]
-    assert b.theses[0].posts == [i["essayist"], i["bob"]] and [t.hype for t in b.theses] == [False, False, True]
-    assert b.hype is None and [(t.title, t.hype, t.posts) for t in b.topics] == [
-        ("Hyperliquid lists a HIP-3 market", True, [i["hl_news"]])]  # the story whose posts are in theses is gone
+                                           "Faster math raises crypto security fears.", "SOL supply shrinks."]
+    assert b.theses[0].posts == [i["essayist"], i["bob"]] and [t.focus for t in b.theses] == [False, False, True]
+    assert [(t.title, t.focus, t.posts) for t in b.topics] == [
+        ("Solana ships a fee market", True, [i["sol_news"]])]  # the story whose posts are in theses is gone
     assert i["bob"] not in b.other and set(b.other) == set()
 
 
-def test_hype_and_theses_on_the_page():
+def test_the_focus_and_theses_on_the_page(monkeypatch):
+    monkeypatch.setattr(config, "FOCUS", {"name": "Solana", "about": "Solana"})
     ents, posts, i, answer = matters()
     b, posts = brief.write(ents, ask=lambda t: answer)
     store.save_run("2025-10-12-0500-am", "am", META, b, posts, [])
@@ -213,14 +214,29 @@ def test_hype_and_theses_on_the_page():
     assert [t.claim for t in run["brief"].theses] == [t.claim for t in b.theses] and run["brief"].topics == b.topics
     html = page.brief_page(run, store.runs(), {"text": ""})
     main = html.split("<main>", 1)[1]
-    assert main.index('id="hype"') < main.index("Hyperliquid lists a HIP-3 market") < main.index('id="theses"')
-    assert main.index("HYPE supply shrinks.") < main.index('id="theses"')  # a HYPE thesis sits in HYPE
+    assert main.index('id="focus"') < main.index("Solana ships a fee market") < main.index('id="theses"')
+    assert main.index("SOL supply shrinks.") < main.index('id="theses"')  # a thesis on the focus sits in it
+    assert '<h2 class="label">Solana</h2>' in main
     assert main.index('id="th0"') < main.index('id="th1"') and "<h3>AI changes speculation in six phases.</h3>" in main
     assert "<h4>Claude's view</h4>" in main and "<b>Weak spots</b> One anecdote." in main
     th0 = main[main.index('id="th0"'):main.index('id="th1"')]
     assert "Claude's view" not in th0  # the essay's write-up has no view, so no label
     assert f'href="https://x.com/essayist/status/{i["essayist"]}"' in th0  # the post itself, beside the argument
-    assert f'href="https://x.com/hl_news/status/{i["hl_news"]}"' in main and "[[" not in main
+    assert f'href="https://x.com/sol_news/status/{i["sol_news"]}"' in main and "[[" not in main
+
+
+def test_no_focus_no_focus_part(monkeypatch):
+    """With no focus set, the writer is asked for two parts and the brief opens with the stories."""
+    monkeypatch.setattr(config, "FOCUS", None)
+    text = brief.instructions()
+    assert "two parts" in text and "focus" not in text and "1. Theses." in text and "2. Stories:" in text
+    with_focus = brief.instructions({"name": "Solana", "about": "Solana and its apps"})
+    assert "1. Solana. I follow Solana closely, so everything said about Solana and its apps goes here" in with_focus
+    assert "three parts" in with_focus and "2. Theses." in with_focus and "3. Stories:" in with_focus
+    ents, posts, i, answer = matters()
+    b = brief.parse_answer(answer, posts)
+    main = page.brief_main(b, posts, {}, META)
+    assert '<h2 class="label">Focus</h2>' in main  # a brief written under an earlier focus keeps its section
 
 
 def test_a_link_is_built_from_the_post_never_the_writer():
@@ -235,13 +251,13 @@ def test_a_link_is_built_from_the_post_never_the_writer():
 
 
 def test_an_old_brief_still_loads():
-    """Briefs before the re-work: a HYPE paragraph and topics with [[post id]] marks, which become key posts."""
+    """Briefs before the re-work: a paragraph on the focus and topics with [[post id]] marks, which become key posts."""
     ents, posts, i, _ = matters()
     store.save_run("2025-10-12-0500-am", "am", META, brief.Brief(), posts, [])
     with store.db() as con:
         con.execute("UPDATE runs SET brief = ?", (json.dumps({
-            "hype": {"summary": f"@hl_news [[{i['hl_news']}]] says a market listed.", "posts": [i["hl_news"]]},
-            "topics": [{"title": "Rates", "summary": f"@bob [[{i['bob']}]] says rates were cut [[123]].",
+            "topics": [{"title": "", "summary": f"@sol_news [[{i['sol_news']}]] says a market listed.",
+                        "posts": [i["sol_news"]], "focus": True}, {"title": "Rates", "summary": f"@bob [[{i['bob']}]] says rates were cut [[123]].",
                         "posts": [i["bob"]]}], "other": [], "writer_error": None}),))
     run = store.load_run("2025-10-12-0500-am")
     assert run["brief"].theses == [] and run["brief"].topics[0].key == []
@@ -279,7 +295,7 @@ def test_the_window_strip_marks_every_post():
 
 
 def test_stories_rank_by_how_many_people_talked():
-    """HYPE first, then the four stories most people posted in, open with their key posts; the rest a line each."""
+    """The focus first, then the four stories most people posted in, open with their key posts; the rest a line each."""
     tw = [xw_item(xw_tweet(100 + n, f"p{n}", f"post {n}")) for n in range(30)]
     ents = parse.entries(xw_page(tw))[0]
     posts = brief.unique_posts(ents)
@@ -287,8 +303,8 @@ def test_stories_rank_by_how_many_people_talked():
     group = lambda *ns: [by[f"p{n}"] for n in ns]
     stories = [{"headline": f"S{k}", "gist": f"g{k}", "key": group(n[0]), "posts": group(*n)}
                for k, n in enumerate([[0], [1, 2], [3, 4, 5], [6, 7, 8, 9], [10, 11], [12, 13, 14, 15, 16], [17]])]
-    hype = [{"headline": "H", "gist": "h", "key": [], "posts": group(20)}]
-    b = brief.parse_answer(json.dumps({"stories": stories, "hype": hype}), posts)
+    focus = [{"headline": "H", "gist": "h", "key": [], "posts": group(20)}]
+    b = brief.parse_answer(json.dumps({"stories": stories, "focus": focus}), posts)
     main = page.brief_main(b, posts, {}, META)
     order = re.findall(r"<h3>(\w+)</h3>", main)
     assert order == ["H", "S5", "S3", "S2", "S1", "S4", "S0", "S6"]  # by people; a tie by order given
@@ -296,7 +312,7 @@ def test_stories_rank_by_how_many_people_talked():
     assert lead.count('class="story lead"') == 5 and "1 more story<" in main and "2 stories from one person" in main
     assert main.index('id="more"') < main.index("<h3>S4</h3>") < main.index('id="one"') < main.index("<h3>S0</h3>")
     assert main.count('<details class="story line" id="t') == 3 and "<span class=\"n\">1 person</span>" in main
-    assert lead.count('<article class="card">') == 4  # the four's key posts; HYPE's story named none
+    assert lead.count('<article class="card">') == 4  # the four's key posts; the focus's story named none
 
 
 def test_a_key_post_is_the_post_as_written():
@@ -338,10 +354,10 @@ def test_an_article_read_whole_reaches_the_writer_leads_the_theses_and_is_marked
     ga = ents2[0].posts[0]
     line = json.loads(brief._line(ga))
     assert line["article"] == {"title": "Is It Going to Die", "text": "Short but whole. ARTICLE END"}
-    assert "with \"text\" you have all of it" in brief.PROMPT
+    assert "with \"text\" you have all of it" in brief.instructions()
     posts[ga.id] = ga
     a = json.loads(answer)
-    a["theses"].append({"posts": [ga.id], "hype": False, "claim": "It will not die.", "steps": ["Washout."],
+    a["theses"].append({"posts": [ga.id], "focus": False, "claim": "It will not die.", "steps": ["Washout."],
                         "if_it_holds": "", "weak_spots": "", "wrong_if": ""})
     b = brief.parse_answer(json.dumps(a), posts)
     assert b.theses[0].claim == "It will not die."  # an Article first, however short, then long form first

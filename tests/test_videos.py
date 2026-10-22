@@ -200,8 +200,8 @@ def test_a_brief_with_a_long_video_gives_the_writer_its_summary_and_shows_it():
     line = json.loads(brief._line(p))
     assert line["videos"] == [{"length": "20 min", "gist": "A speech on <b>crypto</b> law.", "points": ["They won."],
                                "calls": ["Long ETH into 2027"]}] and "transcript" not in json.dumps(line)
-    assert '("videos"): its summary was written from the whole transcript' in brief.PROMPT
-    assert "a long video's summary always has something to say" in brief.PROMPT
+    assert '("videos"): its summary was written from the whole transcript' in brief.instructions()
+    assert "a long video's summary always has something to say" in brief.instructions()
     b = brief.parse_answer(json.dumps({"theses": [{"posts": [p.id], "claim": "Law changed."}]}), {p.id: p})
     html = page.thesis_html(b.theses[0], {p.id: p}, {}, "th0")
     assert '<span class="n">Video · @pv</span>' in html and "A speech on &lt;b&gt;crypto&lt;/b&gt; law." in html
@@ -264,12 +264,12 @@ def test_a_transcript_reads_in_paragraphs():
 SP_ID = "5AqOmZDGZcMj1OyBLWvcXW"
 FEED = "https://feeds.example.com/oddlots.rss"
 EMBED = ('<html><script id="__NEXT_DATA__" type="application/json">' + json.dumps({"props": {"pageProps": {"state": {
-    "data": {"entity": {"title": "Jeff Yan’s Plan for Hyperliquid", "subtitle": "Odd Lots", "duration": 3480111}}}}}})
+    "data": {"entity": {"title": "Jane Doe’s Plan for the Exchange", "subtitle": "Odd Lots", "duration": 3480111}}}}}})
          + "</script></html>")
 SEARCH = "https://itunes.apple.com/search?term=Odd+Lots&media=podcast&entity=podcast&limit=10"
 DIRECTORY = json.dumps({"results": [{"collectionName": "Odd Lot Improv", "feedUrl": "https://other.example/rss"},
                                     {"collectionName": "Odd Lots", "feedUrl": FEED}]})
-SHOW_VTT = """WEBVTT - Jeff Yan's Plan
+SHOW_VTT = """WEBVTT - Jane Doe's Plan
 
 0:00:02.750 --> 0:00:04.430
 <v Speaker 1>Hello and welcome to Odd Lots.
@@ -282,7 +282,7 @@ SHOW_VTT = """WEBVTT - Jeff Yan's Plan
 """
 
 
-def rss(transcripts=True, title="Jeff Yan's Plan for Hyperliquid"):
+def rss(transcripts=True, title="Jane Doe's Plan for the Exchange"):
     tx = ('<podcast:transcript url="https://api.example/t.srt" type="application/srt" language="en"/>'
           '<podcast:transcript url="https://api.example/t.vtt" type="text/vtt" language="en"/>'
           '<podcast:transcript url="https://api.example/es.vtt" type="text/vtt" language="es"/>') if transcripts else ""
@@ -296,7 +296,7 @@ def sp_post():
     return {"1": parse.Post("1", "TheStalwart", "NEW ODD LOTS", 0, "", links=[
         {"url": f"https://open.spotify.com/episode/{SP_ID}?si=6r5vLG4ARt68WLAtkQNK3Q&utm_source=copy-link"},
         {"url": f"https://open.spotify.com/intl-de/episode/{SP_ID}"},
-        {"url": "https://podcasts.apple.com/us/podcast/jeff-yans-plan/id1056200096?i=1000796459553"}])}
+        {"url": "https://podcasts.apple.com/us/podcast/jane-does-plan/id1056200096?i=1000796459553"}])}
 
 
 def test_spotify_and_apple_episode_links_are_found_each_once():
@@ -309,7 +309,7 @@ def test_a_spotify_episode_is_read_from_the_shows_own_english_transcript_with_it
                     "https://api.example/t.vtt": SHOW_VTT})
     run, asked = FakeRun(), []
     doc = videos.read(videos.wanted(sp_post())[0], get=get, run=run, ask=lambda t: asked.append(t) or SUMMARY)
-    assert doc["show"] == "Odd Lots" and doc["title"] == "Jeff Yan’s Plan for Hyperliquid" and doc["duration_s"] == 3480
+    assert doc["show"] == "Odd Lots" and doc["title"] == "Jane Doe’s Plan for the Exchange" and doc["duration_s"] == 3480
     assert doc["source"] == "the show's own" and run.cmds == []  # no audio, no Whisper
     assert doc["transcript"].splitlines()[:2] == ["Speaker 1: Hello and welcome to Odd Lots. I'm Joe.",
                                                  "Speaker 2: And I'm Tracy. " + " ".join(["we talk about markets"] * 10)]
@@ -320,7 +320,7 @@ def test_a_spotify_episode_is_read_from_the_shows_own_english_transcript_with_it
 def test_an_apple_episode_without_a_transcript_gets_whisper_on_the_feeds_audio():
     lookup = json.dumps({"results": [{"wrapperType": "track", "collectionName": "Odd Lots", "feedUrl": FEED},
                                      {"wrapperType": "podcastEpisode", "trackId": 1000796459553, "collectionName": "Odd Lots",
-                                      "trackName": "Jeff Yan's Plan for Hyperliquid", "trackTimeMillis": 3480000, "feedUrl": FEED}]})
+                                      "trackName": "Jane Doe's Plan for the Exchange", "trackTimeMillis": 3480000, "feedUrl": FEED}]})
     get = fake_get({"https://itunes.apple.com/lookup?id=1056200096&entity=podcastEpisode&limit=300": lookup,
                     FEED: rss(transcripts=False)})
     run = FakeRun()
@@ -340,15 +340,15 @@ def test_an_episode_no_public_feed_lists_is_said_and_a_short_one_left_out():
 
 def test_a_podcast_shows_as_one_on_the_post():
     p = parse.Post("1", "TheStalwart", "", 0, "", videos=[{"key": f"sp-{SP_ID}", "kind": "podcast", "url": "https://open.spotify.com/x",
-                                                          "duration_s": 3480, "show": "Odd Lots", "title": "Jeff Yan",
+                                                          "duration_s": 3480, "show": "Odd Lots", "title": "Jane Doe",
                                                           "source": "the show's own", "summary": json.loads(SUMMARY)}])
     h = page.vids(p)
-    assert "<b>Podcast</b> · 58 min · Odd Lots · Jeff Yan</summary>" in h and ">listen</a>" in h
+    assert "<b>Podcast</b> · 58 min · Odd Lots · Jane Doe</summary>" in h and ">listen</a>" in h
 
 
 def test_one_recording_posted_in_several_places_is_read_once_from_the_best_of_them():
     lookup = json.dumps({"results": [{"wrapperType": "podcastEpisode", "trackId": 1000796459553, "collectionName": "Odd Lots",
-                                      "trackName": "Jeff Yan's Plan for Hyperliquid", "trackTimeMillis": 3480000, "feedUrl": FEED}]})
+                                      "trackName": "Jane Doe's Plan for the Exchange", "trackTimeMillis": 3480000, "feedUrl": FEED}]})
     get = fake_get({f"https://open.spotify.com/embed/episode/{SP_ID}": EMBED, SEARCH: DIRECTORY, FEED: rss(),
                     "https://api.example/t.vtt": SHOW_VTT,
                     "https://itunes.apple.com/lookup?id=1056200096&entity=podcastEpisode&limit=300": lookup, **x_pages()})
@@ -364,7 +364,7 @@ def test_one_recording_posted_in_several_places_is_read_once_from_the_best_of_th
                 return type("R", (), {"stdout": f"{self.other}\tFalse\tA Different Episode Entirely\n"})()
             return super().__call__(cmd, **kw)
 
-    run = Run(info="3481\tFalse\tJeff Yan’s Plan for Hyperliquid (full episode)")
+    run = Run(info="3481\tFalse\tJane Doe’s Plan for the Exchange (full episode)")
     run.other = 2000
     asked, lines = [], []
     docs, left = videos.read_all(posts, get=get, run=run, ask=lambda t: asked.append(t) or SUMMARY, log=lines.append)

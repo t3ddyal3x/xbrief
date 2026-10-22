@@ -1,8 +1,8 @@
 /* xbrief's one sheet. A front page in Tokyo Night / Day, with the roles macro gives them: text is a ladder of
    Tokyo's slates (ink0 headlines, ink reading, ink2 secondary, dim the quietest), blue is focus and selection only,
-   yellow and red mark a problem only; no part of a brief has a colour of its own, HYPE included.
+   yellow and red mark a problem only; no part of a brief has a colour of its own, the focus included.
    Iowan Old Style is what Claude wrote (headlines, gists, theses); the system sans is what people posted (the key
-   posts beside each story) and what you operate; a mono only for times. HYPE and the top four stories are open,
+   posts beside each story) and what you operate; a mono only for times. The focus and the top four stories are open,
    the rest a line each that opens in place. docs/plans/2026-10-14_rework.md has the why. */
 :root{--paper:#e1e2e7;--panel:#e9e9ed;--ink0:#1f2335;--ink:#343b58;--ink2:#4c5372;--dim:#5a6186;--rule:#c4c8da;
 --tick:#8990b3;--blue:#2e7de9;--warn:#6f5428;--bad:#b81f47;--ok:#387068;

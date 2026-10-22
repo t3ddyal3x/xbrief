@@ -23,6 +23,12 @@ CLAUDE = os.environ.get("XBRIEF_CLAUDE", str(HOME / ".local" / "bin" / "claude")
 MODEL = os.environ.get("XBRIEF_MODEL") or "claude-opus-5-5"  # the writer: Opus (operator, 2026-10-12; never
 # Sonnet); named, so it never follows the subscription's default
 
+# The brief's focus: one subject the brief opens with, every story and thesis about it however small, under its own
+# heading. `name` is the heading; `about` tells the writer what counts as the subject. None: no focus, the brief
+# opens with the stories most people talked about.
+FOCUS = {"name": "HYPE", "about": "HYPE (the token) and Hyperliquid (the exchange, its perps and spot, HyperEVM, "
+                                  "HIP-3 markets, vaults and HLP, validators, the teams building on it)"}
+
 # The sites tab (sites.py): public pages read once a day, direct, each new post summarised. A source lists its posts
 # in an RSS feed or a sitemap (`match`: the part of a post's address that marks it as a post).
 # `x`: the people behind a source, by X handle (accounts the operator follows); the Sites page shows their posts
