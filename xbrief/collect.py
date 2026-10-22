@@ -552,6 +552,8 @@ def load_raw(path) -> dict:
 
 
 def raw_files() -> list:
+    if not config.RAW.is_dir():  # before the first login or run
+        return []
     return sorted(p for p in config.RAW.iterdir() if p.name.endswith((".json", ".json.gz")))
 
 
