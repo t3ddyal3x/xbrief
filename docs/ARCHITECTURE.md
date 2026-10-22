@@ -142,6 +142,13 @@ headline, `summary` the gist, `hype` marks HYPE's), so a brief from before still
 the posts its `[[post id]]` marks pointed at are its key posts. The writer no longer orders stories: the page ranks
 them by how many people posted in each (Nuzzel's measure), then by posts.
 
+**The focus is a setting (2026-10-22).** HYPE is `config.FOCUS` (`name` heads the section, `about` tells the writer
+what counts); `None` gives a brief with no focus part (`brief.instructions()` writes two parts, not three). The
+writer's key, `Topic`'s and `Thesis`'s field are `focus`, no longer `hype`; the 15 stored briefs were rewritten once
+(backup `xbrief.db.bak-20261022-111845-focus`), and the pre-re-work HYPE paragraph is a focus story with no headline.
+The instructions say "I follow HYPE closely" where they said "I trade HYPE". Made so the public copy on GitLab ships
+with no focus (`../docs/plans/2026-10-21_publish-anonymously.md`).
+
 ## Long videos (2026-10-16)
 The operator: transcript summaries for X and YouTube videos, only those of 10 minutes or more, the fastest way, never
 downloading a video to run Whisper on it. Measured first (`docs/plans/2026-10-16_videos.md`): X makes its own

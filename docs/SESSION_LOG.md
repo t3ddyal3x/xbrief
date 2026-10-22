@@ -375,3 +375,15 @@ Branch `harden-2026-10-20` merged into main and deleted; app restarted.
 window switched off). `bin/tests --browser`: the read passes; its never-in-front check failed because the operator was
 switching apps during it (it fails the same on the code before today's change).
 **Next**: look at the 10-21 brief: did the 05:00 run read with the display asleep, how long it took, then Brief now.
+
+## 2026-10-22 — published on GitLab, anonymously; the focus is a setting
+**Changed**: HYPE is now `config.FOCUS` (None: no focus part); stored briefs' `hype` keys renamed `focus` (backup
+beside the db); `collect.raw_files` returns nothing before the first login instead of crashing the doctor.
+**Published**: the GitLab copy, private, one commit under an anonymous name at 12:00 UTC from
+source 5791a9d, made by `../docs/plans/2026-10-22_publish-xbrief-clean.py` (no focus, the sites kept as examples,
+Application Support data folder, page on 127.0.0.1:8795, no Caddy, MIT). Its download page is
+members-only until the operator says go.
+**Checked**: tests here and in the export (fresh venv, FOCUS None); the scan with `2026-10-22_publish-xbrief-allow.txt`
+(Claude only: the operator OK'd naming it) passes on the export and on the page's own zip, which matches the export
+file for file; the writer's instructions differ from before only in the focus wording and key names.
+
