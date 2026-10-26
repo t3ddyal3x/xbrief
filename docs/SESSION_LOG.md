@@ -391,4 +391,8 @@ file for file; the writer's instructions differ from before only in the focus wo
 ## 2026-10-26 — Brief now opens the new brief
 **Changed** (operator: "it doesn't automatically jump to the newest brief"): a page that saw a run going (its own
 Brief now, or one it watched) opens the brief that run wrote when it ends, instead of offering "New brief · Open"
-(`static/app.js`). A failed run or a catch-up with nothing new stays put and says so. App restarted.
+(`static/app.js`). A catch-up with nothing new opens the morning's brief, whose line says "Nothing new since …"; a
+failed run stays put and says so; a page opened after a run ended only offers the link. App restarted.
+**Checked**: a copy of the app on :8895 over a copy of the db, Brief now spawning a fake run (no Brave, no X), driven
+by headless Brave: from an older brief, from History, reloaded mid-run, nothing new (from History and from the
+brief), failed, opened afterwards — each as above, no reload loop.
