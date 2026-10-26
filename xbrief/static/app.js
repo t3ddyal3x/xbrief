@@ -77,6 +77,7 @@
   const run = document.getElementById("run");
   const at = document.body.dataset.at || "";
   let timer = null;
+  let watched = false;  // this page saw a run going: when it ends with a brief, open that brief
 
   function show(s) {
     if (!live) return;
@@ -97,6 +98,8 @@
     try {
       const r = await fetch("/api/status?at=" + encodeURIComponent(at), { cache: "no-store" });
       s = await r.json();
+      if (s.running) watched = true;
+      else if (watched && s.href && s.href.startsWith("/b/")) return location.assign(s.href);
       show(s);
     } catch (e) {
       show({ kind: "bad", text: "The app is not answering." });
@@ -116,7 +119,8 @@
       const h = run.elements.hours.value;
       run.querySelector("button").disabled = true;
       const { ok, j } = await post("/api/run", { hours: h ? Number(h) : null });
-      if (!ok) show({ kind: "bad", text: j.error || "The run did not start." });
+      if (ok) watched = true;
+      else show({ kind: "bad", text: j.error || "The run did not start." });
       poll();
     });
   }

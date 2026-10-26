@@ -387,3 +387,8 @@ members-only until the operator says go.
 (Claude only: the operator OK'd naming it) passes on the export and on the page's own zip, which matches the export
 file for file; the writer's instructions differ from before only in the focus wording and key names.
 
+
+## 2026-10-26 — Brief now opens the new brief
+**Changed** (operator: "it doesn't automatically jump to the newest brief"): a page that saw a run going (its own
+Brief now, or one it watched) opens the brief that run wrote when it ends, instead of offering "New brief · Open"
+(`static/app.js`). A failed run or a catch-up with nothing new stays put and says so. App restarted.
