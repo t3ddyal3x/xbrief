@@ -470,3 +470,16 @@ def test_whisper_slower_than_a_third_of_the_audio_is_stopped_kept_and_never_trie
     with pytest.raises(videos.TooSlow):
         videos.whisper(pathlib.Path("a.m4a"), run, 900)
     assert run.timeout == videos.WHISPER_MIN_S  # however short the audio, the model's load is part of the time
+
+
+def test_the_count_shown_is_of_the_videos_still_to_read():
+    videos.read(x_item("x-77"), get=fake_get(x_pages()), run=FakeRun(), ask=lambda t: SUMMARY)  # read before
+    posts = {}
+    for n, (by, vid, s) in enumerate([("a", "77", 1175), ("b", "88", 3000), ("c", "99", 5000)]):
+        posts[str(n)] = p = parse.Post(str(n), by, "", 0, "")
+        p.media = [{"type": "video", "url": "u", "id": vid, "duration_s": s, "stream": STREAM}]
+    said = []
+    docs, _ = videos.read_all(posts, progress=lambda phase, **k: said.append((phase, k)),
+                              get=fake_get(x_pages()), run=FakeRun(), ask=lambda t: SUMMARY)
+    assert all(d.get("summary") for d in docs.values())
+    assert [k for ph, k in said if ph == "transcribing videos"] == [{"videos": 0, "of": 2}, {"videos": 1, "of": 2}]

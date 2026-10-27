@@ -516,10 +516,14 @@ def read_all(posts: dict[str, parse.Post], progress=None, log=None, get=http_get
         return said(_summarised(r, ask), t0, took)
 
     pending = []  # (group, the summary being written while the next recording is transcribed)
+    todo = sum(not any(d.get("summary") for d in g) for g in groups[:config.MAX_VIDEOS])  # one already read is not counted
+    i = 0
     with ThreadPoolExecutor(max_workers=SUMMARIES) as pool:
-        for i, g in enumerate(groups[:config.MAX_VIDEOS]):
-            progress("transcribing videos", videos=i, of=min(len(groups), config.MAX_VIDEOS))
+        for g in groups[:config.MAX_VIDEOS]:
             done = next((d for d in g if d.get("summary")), None)
+            if not done:
+                progress("transcribing videos", videos=i, of=todo)
+                i += 1
             for d in [] if done else sorted(g, key=lambda d: (not d.get("transcript"), RANK[d["kind"]])):
                 t0 = time.monotonic()
                 docs[d["key"]] = r = _transcribed(d, get, run)

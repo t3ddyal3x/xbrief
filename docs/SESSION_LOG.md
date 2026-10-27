@@ -396,3 +396,11 @@ failed run stays put and says so; a page opened after a run ended only offers th
 **Checked**: a copy of the app on :8895 over a copy of the db, Brief now spawning a fake run (no Brave, no X), driven
 by headless Brave: from an older brief, from History, reloaded mid-run, nothing new (from History and from the
 brief), failed, opened afterwards — each as above, no reload loop.
+
+
+## 2026-10-27 — The video count counts only videos still to read
+**Changed** (operator: a catch-up showed "Transcribing videos · 8 of 9" while only two were new): the rail's count
+leaves out recordings already read by the morning's first run, which a catch-up passes over in a moment
+(`videos.read_all`). That catch-up now reads "1 of 2", "2 of 2". App restarted.
+**Checked**: `test_the_count_shown_is_of_the_videos_still_to_read` (one kept, two new → 0 of 2, 1 of 2) fails on the
+old code and passes on the new; full offline suite green.
