@@ -80,6 +80,27 @@ def test_writer_failure_still_lists_every_post():
     assert b.writer_error.startswith("RuntimeError") and set(b.other) == set(posts) and not b.topics
 
 
+def test_an_answer_that_does_not_parse_is_asked_for_once_more():
+    posts = brief.unique_posts(entries())
+    first = list(posts)[0]
+    answers = ['{"stories": [{"headline": "A" "gist": "x"}]}',
+               json.dumps({"stories": [{"headline": "Rates", "gist": "cut", "posts": [first]}]})]
+    b, _ = brief.write(entries(), ask=lambda text: answers.pop(0))
+    assert not b.writer_error and [t.title for t in b.topics] == ["Rates"] and not answers
+
+    calls = []
+    b, _ = brief.write(entries(), ask=lambda text: calls.append(1) or "{bad")
+    assert b.writer_error.startswith("JSONDecodeError") and len(calls) == 2  # twice, never more
+    calls.clear()
+
+    def limit(text):
+        calls.append(1)
+        raise RuntimeError("claude exited 1: usage limit")
+
+    brief.write(entries(), ask=limit)
+    assert len(calls) == 1  # a writer that failed outright is not asked again
+
+
 def render(meta=META, ask=None):
     """A brief as the app shows it: written, stored, loaded back, drawn."""
     ents = entries()

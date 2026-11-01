@@ -404,3 +404,13 @@ leaves out recordings already read by the morning's first run, which a catch-up 
 (`videos.read_all`). That catch-up now reads "1 of 2", "2 of 2". App restarted.
 **Checked**: `test_the_count_shown_is_of_the_videos_still_to_read` (one kept, two new → 0 of 2, 1 of 2) fails on the
 old code and passes on the new; full offline suite green.
+
+## 2026-11-01
+**Found** (operator: "issue with the Sunday brief"): the 07:30 catch-up's writer answered with JSON missing a comma
+(`JSONDecodeError … char 3560`), and with no second ask the morning's brief was stored over as 324 posts unsorted,
+0 theses, 0 topics, replacing the 05:02 run's 19 theses.
+**Fixed**: `brief.write` asks the writer once more when its answer does not parse; a writer that fails outright
+(exit, usage limit) is still not asked again. App restarted. Sunday's brief written again from both reads
+(`xbrief rebrief …0730-am`): 324 posts, 20 theses, 42 topics.
+**Checked**: `test_an_answer_that_does_not_parse_is_asked_for_once_more` (bad then good → brief; bad twice → two
+asks, the error shown; outright failure → one ask); full offline suite green.

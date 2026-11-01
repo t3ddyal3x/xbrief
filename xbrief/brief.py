@@ -317,7 +317,11 @@ def write(entries: list[Entry], ask=ask_claude, after_id: int = 0) -> tuple[Brie
     posts = unique_posts(entries, after_id)
     if not posts:
         return Brief(), posts
+    text = prompt(posts)
     try:
-        return parse_answer(ask(prompt(posts)), posts), posts
+        try:
+            return parse_answer(ask(text), posts), posts
+        except ValueError:  # an answer that is not valid JSON (2026-11-01: one bad comma) is asked for once more
+            return parse_answer(ask(text), posts), posts
     except Exception as e:  # the brief still goes out: every post, unsummarised, and why
         return Brief(other=list(posts), writer_error=f"{type(e).__name__}: {e}"[:300]), posts
