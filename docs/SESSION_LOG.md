@@ -1,5 +1,8 @@
 # xbrief — session log
 
+## 2026-11-02
+The am/pm run windows follow the laptop's clock, so a new time zone needs no code change. Fixed the one comment in `config.py` that named a city.
+
 ## 2026-10-12
 **Built** from `../../docs/plans/2026-10-12_x-follows-brief.md`: the project, the twscrape fork's `xbrief` branch
 (0897080, pushed), the collector for both x.com web apps, the brief writer, the page, the Caddy front door
