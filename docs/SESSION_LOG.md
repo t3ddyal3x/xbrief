@@ -10,7 +10,7 @@
 Operator: "no lime green anywhere". Dark's `--ok` is the teal #73daca, was the lime #9ece6a, in both dark blocks of `static/app.css`, matching Hyperlitmus, Macro and Pier23.
 
 Added three sources to the Sites tab: Yes, I give a fig (Michael Green, X `profplum99`), Fidenza Macro and Jordi Visser (X `jvisserlabs`); all three RSS. Fidenza's X is `fidenzamacro` (operator). Its feed stops at the paid section, so a write-up covers the free part only (2,530 of the "Slowdown" post's characters; rule 12 keeps the tab to public pages). First check read each source's newest; "Slowdown in GDP and AI capex", which the operator linked but is not Fidenza's newest, was read by hand.
-Backfill by hand of the three sources' posts since 2026-04-01 (one-off script, not in the tree): a Substack's sitemap lists every post, but a page past the feed's 20 holds only the free part. Posts under 1,000 characters were left unread (11). 78 of 91 written, then Claude's 5-hour limit stopped it; 78 Opus summaries in a row can use up that limit, so split a long backfill.
+Backfill by hand of the three sources' posts since 2026-04-01 (one-off script, not in the tree): a Substack's sitemap lists every post, but a page past the feed's 20 holds only the free part. Posts under 1,000 characters were left unread (11). All 91 written, 13 of them after Claude's 5-hour limit stopped the run at 78; that many Opus summaries in a row can use up the limit, so split a long backfill.
 
 ## 2026-11-02
 The am/pm run windows follow the laptop's clock, so a new time zone needs no code change. Fixed the one comment in `config.py` that named a city.
