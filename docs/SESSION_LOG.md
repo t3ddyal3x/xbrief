@@ -3,7 +3,7 @@
 ## 2026-11-05
 Operator: "no lime green anywhere". Dark's `--ok` is the teal #73daca, was the lime #9ece6a, in both dark blocks of `static/app.css`, matching Hyperlitmus, Macro and Pier23.
 
-Added three sources to the Sites tab: Yes, I give a fig (Michael Green, X `profplum99`), Fidenza Macro and Jordi Visser (X `jvisserlabs`); all three RSS. Fidenza has no `x`: `fidenzamacro` has no post in the kept Following reads. Its feed stops at the paid section, so a write-up covers the free part only (2,530 of the "Slowdown" post's characters; rule 12 keeps the tab to public pages). First check read each source's newest; "Slowdown in GDP and AI capex", which the operator linked but is not Fidenza's newest, was read by hand.
+Added three sources to the Sites tab: Yes, I give a fig (Michael Green, X `profplum99`), Fidenza Macro and Jordi Visser (X `jvisserlabs`); all three RSS. Fidenza's X is `geochen` (operator). Its feed stops at the paid section, so a write-up covers the free part only (2,530 of the "Slowdown" post's characters; rule 12 keeps the tab to public pages). First check read each source's newest; "Slowdown in GDP and AI capex", which the operator linked but is not Fidenza's newest, was read by hand.
 
 ## 2026-11-02
 The am/pm run windows follow the laptop's clock, so a new time zone needs no code change. Fixed the one comment in `config.py` that named a city.
