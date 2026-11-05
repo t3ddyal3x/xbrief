@@ -49,7 +49,7 @@ SITES = [
      "list": "https://www.yesigiveafig.com/feed", "kind": "rss", "x": ["profplum99"]},
     # Fidenza's paid sections are cut from the feed: a write-up covers the free part of its post
     {"key": "fidenza", "name": "Fidenza Macro", "home": "https://www.fidenzamacro.com/",
-     "list": "https://www.fidenzamacro.com/feed", "kind": "rss", "x": ["geochen"]},
+     "list": "https://www.fidenzamacro.com/feed", "kind": "rss", "x": ["fidenzamacro"]},
     {"key": "visser", "name": "Jordi Visser", "home": "https://visserlabs.substack.com/",
      "list": "https://visserlabs.substack.com/feed", "kind": "rss", "x": ["jvisserlabs"]},
 ]
