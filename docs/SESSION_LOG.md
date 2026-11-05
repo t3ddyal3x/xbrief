@@ -1,5 +1,11 @@
 # xbrief — session log
 
+## 2026-11-05 — Radigan Carter
+   Operator asked for Radigan Carter (latest essay "East of Suez"). Added his Substack, radigancarter.substack.com, to
+   `config.SITES` (key `radigan`, people `radigancarter`). Its feed held no posts on 2026-11-05: the source waits for
+   his first. His X posts reach the brief only if the operator follows @radigancarter (the job never follows, rule 1);
+   until 2026-11-05 he showed up once, inside a Luke Gromen quote.
+
 ## 2026-11-05
 Operator: "no lime green anywhere". Dark's `--ok` is the teal #73daca, was the lime #9ece6a, in both dark blocks of `static/app.css`, matching Hyperlitmus, Macro and Pier23.
 

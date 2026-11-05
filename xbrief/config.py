@@ -52,6 +52,10 @@ SITES = [
      "list": "https://www.fidenzamacro.com/feed", "kind": "rss", "x": ["fidenzamacro"]},
     {"key": "visser", "name": "Jordi Visser", "home": "https://visserlabs.substack.com/",
      "list": "https://visserlabs.substack.com/feed", "kind": "rss", "x": ["jvisserlabs"]},
+    # Radigan Carter's Substack held no posts on 2026-11-05 (his essays, East of Suez the latest, are on X); kept so
+    # the first one he posts there is read
+    {"key": "radigan", "name": "Radigan Carter", "home": "https://radigancarter.substack.com/",
+     "list": "https://radigancarter.substack.com/feed", "kind": "rss", "x": ["radigancarter"]},
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
