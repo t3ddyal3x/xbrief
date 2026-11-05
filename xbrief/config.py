@@ -45,6 +45,13 @@ SITES = [
      "list": "https://evanss6.substack.com/feed", "kind": "rss", "x": ["Evan_ss6"]},
     {"key": "chumba", "name": "The Cookie Chumbles", "home": "https://chumbawamba22.substack.com/",
      "list": "https://chumbawamba22.substack.com/feed", "kind": "rss"},
+    {"key": "fig", "name": "Yes, I give a fig", "home": "https://www.yesigiveafig.com/",
+     "list": "https://www.yesigiveafig.com/feed", "kind": "rss", "x": ["profplum99"]},
+    # Fidenza's paid sections are cut from the feed: a write-up covers the free part of its post
+    {"key": "fidenza", "name": "Fidenza Macro", "home": "https://www.fidenzamacro.com/",
+     "list": "https://www.fidenzamacro.com/feed", "kind": "rss"},
+    {"key": "visser", "name": "Jordi Visser", "home": "https://visserlabs.substack.com/",
+     "list": "https://visserlabs.substack.com/feed", "kind": "rss", "x": ["jvisserlabs"]},
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going

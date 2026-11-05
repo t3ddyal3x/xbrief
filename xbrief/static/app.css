@@ -13,10 +13,10 @@
 --lift:0 1px 1px rgba(31,35,53,.04),0 2px 8px rgba(31,35,53,.06);color-scheme:light}
 @media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;
 --ink:#a9b1d6;--ink2:#9aa5ce;--dim:#858cb1;--rule:#292e42;--tick:#565f89;--blue:#7aa2f7;
---warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;
+--warn:#e0af68;--bad:#f7768e;--ok:#73daca;
 --lift:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.35);color-scheme:dark}}
 :root[data-theme="dark"]{--paper:#1a1b26;--panel:#1f2335;--ink0:#c0caf5;--ink:#a9b1d6;--ink2:#9aa5ce;--dim:#858cb1;
---rule:#292e42;--tick:#565f89;--blue:#7aa2f7;--warn:#e0af68;--bad:#f7768e;--ok:#9ece6a;
+--rule:#292e42;--tick:#565f89;--blue:#7aa2f7;--warn:#e0af68;--bad:#f7768e;--ok:#73daca;
 --lift:inset 0 1px 0 rgba(255,255,255,.03),0 1px 2px rgba(0,0,0,.35);color-scheme:dark}
 *{box-sizing:border-box}
 body{margin:0;background:var(--paper);color:var(--ink);font:17.5px/1.6 var(--f-read);-webkit-font-smoothing:antialiased;
