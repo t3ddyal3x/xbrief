@@ -45,9 +45,9 @@ SITES = [
      "list": "https://evanss6.substack.com/feed", "kind": "rss", "x": ["Evan_ss6"]},
     {"key": "chumba", "name": "The Cookie Chumbles", "home": "https://chumbawamba22.substack.com/",
      "list": "https://chumbawamba22.substack.com/feed", "kind": "rss"},
+    # fig and fidenza cut paid posts in the feed and on the page alike: a write-up covers the free part, and says so
     {"key": "fig", "name": "Yes, I give a fig", "home": "https://www.yesigiveafig.com/",
      "list": "https://www.yesigiveafig.com/feed", "kind": "rss", "x": ["profplum99"]},
-    # Fidenza's paid sections are cut from the feed: a write-up covers the free part of its post
     {"key": "fidenza", "name": "Fidenza Macro", "home": "https://www.fidenzamacro.com/",
      "list": "https://www.fidenzamacro.com/feed", "kind": "rss", "x": ["fidenzamacro"]},
     {"key": "visser", "name": "Jordi Visser", "home": "https://visserlabs.substack.com/",
