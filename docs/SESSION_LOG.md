@@ -429,3 +429,9 @@ old code and passes on the new; full offline suite green.
 (`xbrief rebrief …0730-am`): 324 posts, 20 theses, 42 topics.
 **Checked**: `test_an_answer_that_does_not_parse_is_asked_for_once_more` (bad then good → brief; bad twice → two
 asks, the error shown; outright failure → one ask); full offline suite green.
+
+## 2026-11-09 — goodalexander
+      Operator asked for goodalexander.com. Added to `config.SITES` (key `goodalexander`, people `goodalexander`) from
+      its posts feed, goodalexander.com/posts/index.xml: the site's own index.xml also lists /subscribe/ and /routine/,
+      which are not essays. First check 2026-11-09: 63 posts learnt, the newest, "Fiat Sand Castles" (2026-09-18),
+      read whole and summarised.

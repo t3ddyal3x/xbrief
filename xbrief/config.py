@@ -56,6 +56,9 @@ SITES = [
     # the first one he posts there is read
     {"key": "radigan", "name": "Radigan Carter", "home": "https://radigancarter.substack.com/",
      "list": "https://radigancarter.substack.com/feed", "kind": "rss", "x": ["radigancarter"]},
+    # the site's own index.xml also lists /subscribe/ and /routine/; the posts section's feed holds only the essays
+    {"key": "goodalexander", "name": "goodalexander", "home": "https://goodalexander.com/",
+     "list": "https://goodalexander.com/posts/index.xml", "kind": "rss", "x": ["goodalexander"]},
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
