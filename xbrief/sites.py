@@ -1,7 +1,7 @@
 """The Sites tab: public pages the operator follows (funds' letters, research, essays), checked once a day, each new
 post read whole and summarised by Claude.
 
-A source lists its posts in an RSS feed or a sitemap (config.SITES). A check reads that list, and every post it has
+A source lists its posts in an RSS feed, a sitemap, or the links of one page (config.SITES). A check reads that list, and every post it has
 not seen before is fetched, its text pulled out of the page, and given to Claude. A source's first check only learns
 what is already there; it summarises the newest post alone, so the tab is not empty on day one.
 
@@ -25,7 +25,7 @@ import subprocess
 import sys
 import time
 import urllib.request
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 from . import brief, config, parse, runner, store
 
@@ -126,6 +126,19 @@ def list_sitemap(xml: str, match: str) -> list[dict]:
     return out
 
 
+def list_page(page: str, base: str, match: str) -> list[dict]:
+    """Each link of a page whose path starts with `match` (the section's index itself left out), in the page's order,
+    once each. For a section with no feed that a home page lists, newest first. The date comes from each post's page."""
+    out, seen = [], set()
+    for href in re.findall(r"""<a\b[^>]*?\bhref=["']?([^"'\s>]+)""", page, re.I):
+        url = urljoin(base, html.unescape(href)).split("#")[0]
+        path = urlparse(url).path
+        if path.startswith(match) and path.rstrip("/") != match.rstrip("/") and url not in seen:
+            seen.add(url)
+            out.append({"url": url, "title": "", "published_ms": None, "html": None})
+    return out
+
+
 DROP = re.compile(r"(?is)<(script|style|noscript|svg|nav|header|footer|form|iframe|template)\b[^>]*>.*?</\1>")
 
 
@@ -176,7 +189,12 @@ def same_host(url: str, src: dict) -> bool:
 
 def listed(src: dict, get=fetch) -> list[dict]:
     xml = get(src["list"])
-    items = list_rss(xml) if src["kind"] == "rss" else list_sitemap(xml, src.get("match") or "/")
+    if src["kind"] == "rss":
+        items = list_rss(xml)
+    elif src["kind"] == "page":
+        items = list_page(xml, src["list"], src["match"])
+    else:
+        items = list_sitemap(xml, src.get("match") or "/")
     return [i for i in items if same_host(i["url"], src)]
 
 

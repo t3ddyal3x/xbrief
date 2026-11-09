@@ -30,7 +30,8 @@ FOCUS = {"name": "HYPE", "about": "HYPE (the token) and Hyperliquid (the exchang
                                   "HIP-3 markets, vaults and HLP, validators, the teams building on it)"}
 
 # The sites tab (sites.py): public pages read once a day, direct, each new post summarised. A source lists its posts
-# in an RSS feed or a sitemap (`match`: the part of a post's address that marks it as a post).
+# in an RSS feed, a sitemap, or the links of one page (`page`) (`match`: the part of a post's address that marks it
+# as a post; for `page`, where its path starts).
 # `x`: the people behind a source, by X handle (accounts the operator follows); the Sites page shows their posts
 # from the Following tab's reads beside the source's write-ups, and never reads their profiles
 SITES = [
@@ -59,6 +60,9 @@ SITES = [
     # the site's own index.xml also lists /subscribe/ and /routine/; the posts section's feed holds only the essays
     {"key": "goodalexander", "name": "goodalexander", "home": "https://goodalexander.com/",
      "list": "https://goodalexander.com/posts/index.xml", "kind": "rss", "x": ["goodalexander"]},
+    # his market notes ("Commentary") have no feed and are not in the sitemap; the home page links the newest four
+    {"key": "goodalexander_notes", "name": "goodalexander commentary", "home": "https://goodalexander.com/#commentary",
+     "list": "https://goodalexander.com/", "kind": "page", "match": "/commentary/", "x": ["goodalexander"]},
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going

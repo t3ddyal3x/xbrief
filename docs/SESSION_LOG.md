@@ -435,3 +435,9 @@ asks, the error shown; outright failure → one ask); full offline suite green.
       its posts feed, goodalexander.com/posts/index.xml: the site's own index.xml also lists /subscribe/ and /routine/,
       which are not essays. First check 2026-11-09: 63 posts learnt, the newest, "Fiat Sand Castles" (2026-09-18),
       read whole and summarised.
+      Then (operator: "his latest article is nov. 8"): the posts feed holds only his essays (newest 2026-09-18). His
+      market notes sit in a Commentary section with no feed, not in the sitemap; only the home page links them, the
+      newest four. New list kind `page` (`sites.list_page`: a page's links whose path starts with `match`, in page
+      order, once each) and a second source, `goodalexander_notes` (the home page, `/commentary/`). Its first check
+      read "War Trade Deep Dive + Crypto Update" (2026-11-08) whole, 49,647 characters, and noted the other three.
+      More than four notes between two daily checks would lose the oldest. Test: `test_a_section_listed_by_a_page`.

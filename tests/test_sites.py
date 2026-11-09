@@ -67,6 +67,28 @@ def test_lists():
     assert all("sigilfund.com" in i["url"] for i in sites.listed(SIGIL, get))  # another host is never followed
 
 
+HOME = """<html><body><a href=#commentary>Commentary</a><a href="https://x.com/someone">X</a>
+<a href=commentary/newest-note/>8 Nov 2026 · Latest</a><a href=commentary/newest-note/>Read the note</a>
+<a href="/commentary/older-note/#top">7 Nov</a><a href="commentary/">All</a>
+<a href="https://elsewhere.example/commentary/not-theirs/">theirs</a><a href=posts/an-essay/>essay</a></body></html>"""
+
+
+def test_a_section_listed_by_a_page():
+    src = {"key": "ga", "name": "GA", "home": "https://ga.example/", "list": "https://ga.example/", "kind": "page",
+           "match": "/commentary/"}
+    items = sites.listed(src, getter({src["list"]: HOME}))
+    # in the page's order, once each, the section's index and the other host left out
+    assert [i["url"] for i in items] == ["https://ga.example/commentary/newest-note/",
+                                         "https://ga.example/commentary/older-note/"]
+    note = f"<html><body><h1>The newest</h1><time datetime=\"2026-11-08\">8 Nov</time><article><p>{BODY}</p></article></body></html>"
+    get = getter({src["list"]: HOME, items[0]["url"]: note})
+    sites.check([src], get=get, ask=lambda t: ANSWER, now_ms=1)
+    read = store.site_posts()
+    assert [p["url"] for p in read] == [items[0]["url"]] and read[0]["title"] == "The newest"  # the first check reads the newest
+    assert read[0]["published_ms"] == int(dt.datetime(2026, 11, 8, tzinfo=dt.timezone.utc).timestamp() * 1000)
+    assert items[1]["url"] not in get.seen  # an older one is only noted
+
+
 def test_a_page_read():
     page = sites.read_page(ARTICLE)
     assert page["title"] == "Sigil — Q2 2026 Letter"
@@ -166,9 +188,9 @@ def test_the_sites_page(monkeypatch):
 
 def test_the_real_list_is_well_formed():
     assert {s["key"] for s in config.SITES} == {"sigil", "zeeprime", "capriole", "evanss6", "chumba",
-                                               "fig", "fidenza", "visser", "radigan", "goodalexander"}
+                                               "fig", "fidenza", "visser", "radigan", "goodalexander", "goodalexander_notes"}
     for s in config.SITES:
-        assert s["kind"] in ("rss", "sitemap") and s["list"].startswith("https://") and s["home"].startswith("https://")
+        assert s["kind"] in ("rss", "sitemap", "page") and s["list"].startswith("https://") and s["home"].startswith("https://")
 
 
 def test_the_people_behind_a_source():
