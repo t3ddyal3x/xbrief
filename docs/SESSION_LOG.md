@@ -12,9 +12,12 @@ the real db: a brief page ~12 ms, History ~2 ms, Sites ~5 ms; only Search was wo
   (`runner.log`), the write-then-swap JSON file (`config.write_json`/`read_json`), Claude's JSON (`brief.json_in`),
   word trimming (`brief.words`), X's response check on the feed and a post's page (`Feed._status`, `_json_body`),
   `LABELS`, `SPAWN_GRACE_MS`, the ffmpeg audio copy. `Result.reread_site` was never set: gone.
-- Left as they are: dropping transcripts from `posts.doc` (17 of 34 MB) and a contentless search index (27 MB):
-  both change stored data and want a rebuild; the operator's call. Running video lookups and site summaries in
-  parallel: seconds, in background jobs.
+- Operator, on both storage changes: "don't need duplicates of anything". Transcripts now live in `videos/` alone
+  (`videos.SHOWN` no longer carries them; the index reads them by key), and the search index is contentless. The
+  live db was upgraded on restart and vacuumed: 92 → 47 MB, the same posts found. Checked first: all 309
+  transcripts on posts were identical in `videos/`. Backup: `xbrief.db.bak-20261110-092002-onecopy` (92 MB);
+  to the Trash once the operator has used search for a few days.
+- Left as is: running video lookups and site summaries in parallel saves seconds, in background jobs.
 
 ## 2026-11-10 — a simpler masthead, the Sites tab sites only
 Operator: "simplify this" (the brief's header), then "remove it" (the strip), "when it was pulled, updated at what

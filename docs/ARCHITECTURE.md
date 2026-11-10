@@ -13,7 +13,9 @@ standard library only, macro's loopback perimeter. Pages are built on the server
 
 - **The store** (`store.py`, `xbrief.db`, SQLite in WAL): a run is stored whole when its brief is written (meta,
   topics, conversations), each post once however many runs saw it, and an FTS5 index over each post's words (with
-  what it reposts or quotes) and accounts. Posts are kept for good (a few hundred bytes each); raw reads, 30 days.
+  what it reposts or quotes, and its videos' transcripts) and accounts. The index is contentless: it keeps no copy
+  of the text, only what finds a post's id (2026-11-10, 92 → 47 MB with the next point). Posts are kept for good
+  (a few hundred bytes each); raw reads, 30 days.
   Search words are each quoted and prefix-matched, so no input can be a query-syntax error.
 - **Runs** are `xbrief run` processes, whoever starts them. An flock on `run.lock` keeps it to one; `progress.json`
   carries the phase and the page and post counts (`collect.run(progress=…)`) to the page. The app starts a run in
@@ -162,7 +164,9 @@ never the picture; YouTube by Whisper on yt-dlp's audio. Whisper ran 12–16 tim
 transcript is summarised alone by Opus (`config.SITE_MODEL`, the Sites prompt's shape: gist, points, calls, view),
 and the writer gets that summary, not the transcript, so a morning of podcasts cannot overflow its prompt. Each
 video's transcript and summary are kept in `videos/<key>.json` (a failure is not kept, so the next brief retries);
-the post keeps them too, so search reaches the words, and `/video/<key>` shows the transcript. At most
+the post keeps the summary, the search index the transcript's words, and `/video/<key>` shows the transcript. The
+transcript lives in `videos/` alone: until 2026-11-10 each post carried a copy too (17 of the store's 34 MB of posts;
+`store._upgrade_fts` took them off once). At most
 `config.MAX_VIDEOS` a brief; what is past the cap or failed is said at the top of the brief.
 Always English (operator, 2026-10-16, "everything in english always"): left to guess, Whisper heard Taiki Maeda's
 91-minute English interview with a Malaysian guest as Malay and wrote nine-tenths of it in Malay; its summary

@@ -318,7 +318,8 @@ def test_the_first_builds_word_index_is_rebuilt_once():
     assert [p.text for p, _ in store.search("rates")[0]] == ["Rates were cut"]
     assert store.search("stale")[0] == []
     with store.db() as con:
-        assert "post_id" not in con.execute("SELECT sql FROM sqlite_master WHERE name = 'posts_fts'").fetchone()[0]
+        sql = con.execute("SELECT sql FROM sqlite_master WHERE name = 'posts_fts'").fetchone()[0]
+        assert "post_id" not in sql and "contentless_delete" in sql  # it keeps no copy of the text
         assert con.execute("SELECT count(*) FROM posts_fts").fetchone()[0] == 2
 
 

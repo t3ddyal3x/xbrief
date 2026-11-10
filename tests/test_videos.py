@@ -225,7 +225,7 @@ def test_publish_reads_the_videos_and_says_what_failed():
     run = store.load_run(name)
     assert run["meta"]["videos_read"] == 1 and run["meta"]["videos_failed"] == []
     (p,) = run["posts"].values()
-    assert p.videos[0]["transcript"].startswith("Last year") and store.search("fincen")[0]
+    assert "transcript" not in p.videos[0] and store.search("fincen")[0]  # kept once, in videos/, and searched
     code, _, html = call("GET", "/video/x-77")
     assert code == 200 and "FinCEN listened." in html and "Transcript: X&#x27;s captions" in html
     assert call("GET", "/video/x-nope")[0] == 404

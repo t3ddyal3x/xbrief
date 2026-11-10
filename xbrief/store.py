@@ -53,8 +53,8 @@ CREATE TABLE IF NOT EXISTS run_posts (
   PRIMARY KEY (run_id, post_id)
 );
 CREATE INDEX IF NOT EXISTS run_posts_post ON run_posts (post_id);
-CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5 (  -- rowid: the post's id as a number
-  body, who, tokenize = 'unicode61 remove_diacritics 2'
+CREATE VIRTUAL TABLE IF NOT EXISTS posts_fts USING fts5 (  -- rowid: the post's id as a number, and no copy of the text
+  body, who, content = '', contentless_delete = 1, tokenize = 'unicode61 remove_diacritics 2'
 );
 CREATE TABLE IF NOT EXISTS schedule (
   day TEXT NOT NULL,                  -- 2026-10-12, local
@@ -104,8 +104,8 @@ def _body(p: Post) -> str:
     xs = parse.inner(p)
     parts += [x.text for x in xs[1:]]
     for x in xs:
-        for v in x.videos:  # the whole transcript, so search reaches what was said
-            parts += [v.get("title") or "", (v.get("summary") or {}).get("gist") or "", v.get("transcript") or ""]
+        for v in x.videos:  # the whole transcript (kept in videos/ alone), so search reaches what was said
+            parts += [v.get("title") or "", (v.get("summary") or {}).get("gist") or "", _transcript(v.get("key") or "")]
         if x.article:
             parts += [x.article.get("title") or "", x.article.get("text") or x.article.get("preview") or ""]
     parts += [ln.get("url") or "" for ln in p.links]
@@ -120,14 +120,21 @@ def _who(p: Post) -> str:
     return " ".join(x for x in out if x)
 
 
+def _transcript(key: str) -> str:
+    from . import videos  # videos → sites → store
+
+    return (videos.kept(key) or {}).get("transcript") or "" if key else ""
+
+
 def _old_fts(con) -> bool:
     row = con.execute("SELECT sql FROM sqlite_master WHERE name = 'posts_fts'").fetchone()
-    return bool(row and "post_id" in row[0])
+    return bool(row and "contentless_delete" not in row[0])
 
 
 def _upgrade_fts(con) -> None:
-    """Rebuild the first build's index (a `post_id` column) as one keyed by rowid, from the posts, once. The server
-    and a run may both open the file first: the second finds the work done."""
+    """Rebuild an older index (the first build's `post_id` column; one that kept its own copy of the text) as the
+    schema's, from the posts, once, and drop the transcripts the posts once carried (videos/ keeps them). The
+    server and a run may both open the file first: the second finds the work done."""
     if not _old_fts(con):
         return
     con.execute("BEGIN IMMEDIATE")
@@ -136,11 +143,23 @@ def _upgrade_fts(con) -> None:
             con.execute("DROP TABLE posts_fts")
             con.execute(re.search(r"CREATE VIRTUAL TABLE[^;]+\)", SCHEMA).group(0))
             for (doc,) in con.execute("SELECT doc FROM posts").fetchall():
-                _index(con, Post.from_dict(json.loads(doc)))
+                p = Post.from_dict(json.loads(doc))
+                if _drop_transcripts(p):
+                    con.execute("UPDATE posts SET doc = ? WHERE id = ?", (json.dumps(p.to_dict(), ensure_ascii=False), p.id))
+                _index(con, p)
         con.execute("COMMIT")
     except BaseException:
         con.execute("ROLLBACK")
         raise
+
+
+def _drop_transcripts(p: Post) -> bool:
+    """Whether the post (or what it reposts or quotes) still carried a video's transcript, now taken off it."""
+    found = False
+    for x in parse.inner(p):
+        for v in x.videos:
+            found = v.pop("transcript", None) is not None or found
+    return found
 
 
 def _index(con, p: Post) -> None:

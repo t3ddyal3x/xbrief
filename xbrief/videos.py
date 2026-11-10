@@ -541,7 +541,7 @@ def _copy(g: list[dict], done: dict, docs: dict[str, dict], log) -> None:
             log(f"video {d['key']} (@{d['by']}): the same as {root}, not read again")
 
 
-SHOWN = ("key", "kind", "url", "duration_s", "show", "title", "source", "summary", "transcript")
+SHOWN = ("key", "kind", "url", "duration_s", "show", "title", "source", "summary")  # the transcript stays in videos/
 
 
 def attach(entries: list[parse.Entry], docs: dict[str, dict]) -> int:
