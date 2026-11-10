@@ -1,8 +1,8 @@
 # Trim — xbrief, 2026-11-10
 
 Scope: the whole app (`xbrief/`, `bin/`, `ops/`, tests). Run right after the cleanup pass of the same day, which
-already merged a dozen duplicated helpers, so what is left is small. Nothing has been removed: this waits for
-"do it". Checked for every item: `xbrief/`, `tests/`, `bin/`, `ops/`, `~/Library/LaunchAgents`, the work tree's
+already merged a dozen duplicated helpers, so what is left is small. Done on 2026-11-10 ("clean it up"), every
+item below, "not sure" 1 included; items 2 and 3 there stay. Checked for every item: `xbrief/`, `tests/`, `bin/`, `ops/`, `~/Library/LaunchAgents`, the work tree's
 hooks and skills (`publish-gitlab/apps/xbrief/clean.py` edits some of these lines by exact text), other apps,
 `docs/ROADMAP.md` and `docs/plans/`, and the 41 stored briefs.
 

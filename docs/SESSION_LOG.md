@@ -18,7 +18,13 @@ the real db: a brief page ~12 ms, History ~2 ms, Sites ~5 ms; only Search was wo
   transcripts on posts were identical in `videos/`. Backup: `xbrief.db.bak-20261110-092002-onecopy` (92 MB);
   to the Trash once the operator has used search for a few days.
 - Left as is: running video lookups and site summaries in parallel saves seconds, in background jobs.
-- /trim: report in `docs/reviews/trim-xbrief-2026-11-10.md` (~80 lines could go); waits for "do it".
+- /trim (report: `docs/reviews/trim-xbrief-2026-11-10.md`), done on "clean it up": the first build's login-file
+  cleanup and the old run agents' check; options and settings nothing used (`SUMMARY_WORDS`, the `reread_site` note,
+  `launch`'s `extra`/`background`, `start(park=)`, `wheel(x, y)`); the Article reader takes `brief.unique_posts`
+  (the same Articles on all 60 saved reads); `Post.shown`, `parse.videos_in`/`article_in` in one place; the top bar
+  reads `live["running"]`, `page.not_found`, `page.vid_html`; the hand-run random wait (`--now` still accepted).
+  `docs/REVIEW_2026-10-14.md` is now `docs/reviews/2026-10-14_design.md`. 50 lines fewer; every stored brief and 98
+  sample pages render byte for byte as before. The publish script's entries for the removed lines went with them.
 
 ## 2026-11-10 — a simpler masthead, the Sites tab sites only
 Operator: "simplify this" (the brief's header), then "remove it" (the strip), "when it was pulled, updated at what
