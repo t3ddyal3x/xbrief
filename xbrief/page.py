@@ -87,22 +87,26 @@ def mins(s) -> str:
 def vids(p: Post) -> str:
     """A post's long videos: one line each (Video, its length, its title) that opens to the summary of its whole
     transcript, Claude's view under its own label, and where the transcript came from, with a link to read it."""
-    out = []
-    for v in p.videos:
-        s = v.get("summary") or {}
-        pts = "".join(f"<li>{esc(x)}</li>" for x in s.get("points") or [])
-        calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
-        key = v.get("key") or ""
-        out.append(
-            f'<details class="vid" data-by="@{esc(p.handle)}"><summary><b>{kind(v)}</b> · {mins(v.get("duration_s"))}'
+    return "".join(vid_html(v, p.handle, p.url) for v in p.videos)
+
+
+def vid_html(v: dict, handle: str, post_url: str) -> str:
+    """One long video: `handle` posted it, and `post_url` is where it opens when it has no address of its own."""
+    s = v.get("summary") or {}
+    pts = "".join(f"<li>{esc(x)}</li>" for x in s.get("points") or [])
+    calls = "".join(f"<li>{esc(x)}</li>" for x in s.get("calls") or [])
+    return (f'<details class="vid" data-by="@{esc(handle)}"><summary><b>{kind(v)}</b> · {mins(v.get("duration_s"))}'
             + "".join(f" · {esc(v[k])}" for k in ("show", "title") if v.get(k)) + "</summary>"
             + (f'<p>{esc(s["gist"])}</p>' if s.get("gist") else "")
             + (f"<ol>{pts}</ol>" if pts else "") + (f"<h4>Calls</h4><ul>{calls}</ul>" if calls else "")
             + (f'<p class="view"><b>Claude\'s view</b> {esc(s["view"])}</p>' if s.get("view") else "")
             + f'<p class="src">Transcript: {esc(v.get("source") or "")} · '
-            + f'<a href="/video/{quote(key)}">read it</a> · <a href="{esc(safe_url(v.get("url")) or p.url)}" '
-            + f'rel="noreferrer">{"listen" if v.get("kind") == "podcast" else "watch"}</a></p></details>')
-    return "".join(out)
+            + f'<a href="/video/{quote(v.get("key") or "")}">read it</a> · '
+            + f'<a href="{esc(safe_url(v.get("url")) or post_url)}" rel="noreferrer">{verb(v)}</a></p></details>')
+
+
+def verb(v: dict) -> str:
+    return "listen" if v.get("kind") == "podcast" else "watch"
 
 
 def kind(v: dict) -> str:
@@ -354,9 +358,9 @@ def live_html(live: dict) -> str:
     return f'<p class="live{cls}" id="live" aria-live="polite">{text}</p>'
 
 
-def topbar(active: str, live: dict, running: bool = False, at: str = "") -> str:
-    """The one bar every page shares: the tabs, search, and Brief now with its live line. `at`: the brief on show,
-    so Brief stays on it; elsewhere it opens the newest."""
+def topbar(active: str, live: dict, at: str = "") -> str:
+    """The one bar every page shares: the tabs, search, and Brief now with its live line (`live`, which says whether
+    a run is going). `at`: the brief on show, so Brief stays on it; elsewhere it opens the newest."""
     tabs = "".join(f'<a href="{href}"{" aria-current=page" if key == active else ""}>{name}</a>'
                    for key, href, name in (("brief", f"/b/{esc(at)}" if at else "/", "Brief"),
                                            ("sites", "/sites", "Sites"),
@@ -368,7 +372,12 @@ def topbar(active: str, live: dict, running: bool = False, at: str = "") -> str:
     return (f'<header class="top"><div class="bar"><a class="brand" href="/">X brief</a><nav class="tabs">{tabs}</nav>'
             f'{find}<div class="act">{live_html(live)}<form class="run ctl" id="run">'
             f'<select name="hours" aria-label="What to read">{opts}</select>'
-            f'<button type="submit"{" disabled" if running else ""}>Brief now</button></form></div></div></header>')
+            f'<button type="submit"{" disabled" if live.get("running") else ""}>Brief now</button></form></div></div></header>')
+
+
+def not_found(what: str, live: dict, active: str = "") -> str:
+    """The page for an address that names nothing: `what` is its sentence, markup included."""
+    return shell("X brief", topbar(active, live), f'<p class="empty">{what}</p>')
 
 
 def shell(title: str, top: str, main: str, at: str = "") -> str:
@@ -425,7 +434,7 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
     return status_html(meta, b) + "".join(sections)
 
 
-def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False) -> str:
+def brief_page(run: dict, earlier: list[dict], live: dict) -> str:
     meta = run["meta"]
     title = run_title(run["label"], meta.get("started_ms") or 0)
     main = brief_main(run["brief"], run["posts"], run["threads"], meta)
@@ -436,14 +445,14 @@ def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False
     if prev:
         dek += f' · <a href="/b/{esc(prev["name"])}">previous brief</a>'
     main = masthead(run_head(run["label"], meta.get("started_ms") or 0), dek) + main
-    return shell(f"X brief · {title}", topbar("brief", live, running=running, at=run["name"]), main,
+    return shell(f"X brief · {title}", topbar("brief", live, at=run["name"]), main,
                  at=at_of(run["name"], meta))
 
 
-def empty_page(live: dict, running: bool = False, active: str = "brief") -> str:
+def empty_page(live: dict, active: str = "brief") -> str:
     main = ('<p class="empty">No brief yet. <b>Brief now</b> reads your Following tab in the job\'s Brave and '
             'writes the first one; it takes a few minutes.</p>')
-    return shell("X brief", topbar(active, live, running=running), main)
+    return shell("X brief", topbar(active, live), main)
 
 
 # ── history ─────────────────────────────────────────────────────────────────────────────────────────
@@ -463,7 +472,7 @@ def ending(meta: dict, writer_error: str | None) -> tuple[str, str]:
     return "", ""
 
 
-def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running: bool = False) -> str:
+def history_page(runs: list[dict], sett: dict, today: dict, live: dict) -> str:
     rows = []
     for r in runs:
         end, cls = ending(r["meta"], r.get("writer_error"))
@@ -499,14 +508,14 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
             f'{" checked" if sett["schedule"] else ""}> On</label>{win}'
             f'<button type="submit">Save</button></form>'
             f'<p class="note" id="sched-msg">Each run starts at a random minute inside its window.</p>{today_line}</section>')
-    return shell("X brief · history", topbar("history", live, running=running), main)
+    return shell("X brief · history", topbar("history", live), main)
 
 
 # ── search ──────────────────────────────────────────────────────────────────────────────────────────
 
 
 def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | None]], cut: bool, kept: dict,
-                titles: dict[str, str], live: dict, running: bool = False) -> str:
+                titles: dict[str, str], live: dict) -> str:
     form = (f'<form class="search ctl" action="/search" method="get" role="search">'
             f'<input type="search" name="q" value="{esc(q)}" placeholder="words, @account" aria-label="Words or @account" autofocus>'
             f'<input type="date" name="since" value="{esc(since)}" aria-label="From"><span class="to">to</span>'
@@ -530,7 +539,7 @@ def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | Non
             out.append(post_html(p, also, words))
         n = count(len(hits), "post", "posts") + (", the newest shown; narrow the search for the rest" if cut else "")
         body = f'<p class="hits">{esc(n)}</p>' + "".join(out)
-    return shell(f"X brief · {q or 'search'}", topbar("search", live, running=running), form + body)
+    return shell(f"X brief · {q or 'search'}", topbar("search", live), form + body)
 
 
 # ── sites ───────────────────────────────────────────────────────────────────────────────────────────
@@ -575,7 +584,7 @@ def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, lis
 
 
 def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[str, int], checking: bool,
-               live: dict, running: bool = False, key: str = "", q: str = "", words: list[str] | None = None,
+               live: dict, key: str = "", q: str = "", words: list[str] | None = None,
                lines: dict[str, list[str]] | None = None) -> str:
     """The write-ups, newest first; narrowed to one pick (`key`: a source, or one person's sources together) and to
     the words searched (`q`), the write-ups showing the article's lines that hold them. Below, the list itself, when
@@ -618,7 +627,7 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
                    for k, n in [("", "All"), *picks.items()])
     main = (find + f'<ul class="pick" aria-label="Sources">{pick}</ul>' + main + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
             f'<p class="note">New sites are added in xbrief/config.py (SITES): an RSS feed or a sitemap.</p></section>')
-    return shell("X brief · sites", topbar("sites", live, running=running), main)
+    return shell("X brief · sites", topbar("sites", live), main)
 
 
 def paragraphs(text: str, most: int = 120) -> list[str]:
@@ -637,16 +646,14 @@ def paragraphs(text: str, most: int = 120) -> list[str]:
     return out
 
 
-def video_page(doc: dict, live: dict, running: bool = False) -> str:
+def video_page(doc: dict, live: dict) -> str:
     """One long video's whole transcript, as it was read, with its summary above it."""
-    pod = doc.get("kind") == "podcast"
     title = doc.get("title") or f"A video posted by @{doc.get('by', '')}"
     head = (f'<h2>{esc(title)}</h2><p class="hits">{esc(doc["show"]) + " · " if doc.get("show") else ""}'
             f'Posted by @{esc(doc.get("by", ""))} · {mins(doc.get("duration_s"))} · '
             f'transcript: {esc(doc.get("source") or "none")} · <a href="{esc(safe_url(doc.get("url")) or "")}" '
-            f'rel="noreferrer">{"listen" if pod else "watch"}</a></p>')
-    v = Post(id="", handle=doc.get("by", ""), name="", created_ms=0, text="",
-             videos=[{**{k: doc.get(k) for k in ("key", "kind", "url", "duration_s", "show", "title", "source", "summary")}}])
+            f'rel="noreferrer">{verb(doc)}</a></p>')
+    by = doc.get("by", "")
     body = '<div class="tx">' + "".join(f"<p>{esc(x)}</p>" for x in paragraphs(
         doc.get("transcript") or doc.get("skip") or doc.get("error") or "")) + "</div>"
-    return shell(title, topbar("", live, running=running), f'<section class="video">{head}{vids(v)}{body}</section>')
+    return shell(title, topbar("", live), f'<section class="video">{head}{vid_html(doc, by, f"https://x.com/{by or 'i'}/status/")}{body}</section>')

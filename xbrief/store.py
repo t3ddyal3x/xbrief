@@ -200,9 +200,7 @@ def runs(limit: int = 500) -> list[dict]:
 
 
 def latest_name() -> str | None:
-    with db() as con:
-        r = con.execute("SELECT name FROM runs ORDER BY started_ms DESC, id DESC LIMIT 1").fetchone()
-    return r["name"] if r else None
+    return next((r["name"] for r in runs(limit=1)), None)
 
 
 def load_run(name: str) -> dict | None:

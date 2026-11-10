@@ -229,7 +229,7 @@ class Handler(BaseHTTPRequestHandler):
                 docs = [d for d in store.site_posts() if d["source"] in {s["key"] for s in shown} and sites.matches(d, words)]
                 lines = {d["url"]: sites.found_lines(d.get("text") or "", words) for d in docs} if words else {}
                 return self._html(page.sites_page(docs, config.SITES, store.settings(), store.site_counts(),
-                                                  sites.running() or sites.just_started(), lv, lv["running"],
+                                                  sites.running() or sites.just_started(), lv,
                                                   key, text, words, lines))
             if path == "/api/health":
                 return self._json({"ok": True, "port": config.PORT, "running": runner.running(), **store.counts(),
@@ -240,30 +240,27 @@ class Handler(BaseHTTPRequestHandler):
                 run = store.load_run(name) if name else None  # /theses: the tab it once had, now the brief's Theses
                 lv = live(page.at_of(name, run["meta"]) if run else name)
                 if name is None:
-                    return self._html(page.empty_page(lv, lv["running"]))
+                    return self._html(page.empty_page(lv))
                 if run is None:
-                    return self._html(page.shell("X brief", page.topbar("brief", lv, running=lv["running"]),
-                                                 '<p class="empty">No brief by that name. <a href="/history">Every '
-                                                 'brief</a>.</p>'), 404)
-                return self._html(page.brief_page(run, store.runs(), lv, lv["running"]))
+                    return self._html(page.not_found('No brief by that name. <a href="/history">Every brief</a>.', lv,
+                                                     "brief"), 404)
+                return self._html(page.brief_page(run, store.runs(), lv))
             if path.startswith("/video/"):
                 doc = videos.kept(path.removeprefix("/video/"))
                 lv = live()
                 if doc is None:
-                    return self._html(page.shell("X brief", page.topbar("", lv, running=lv["running"]),
-                                                 '<p class="empty">No video by that name.</p>'), 404)
-                return self._html(page.video_page(doc, lv, lv["running"]))
+                    return self._html(page.not_found("No video by that name.", lv), 404)
+                return self._html(page.video_page(doc, lv))
             if path == "/history":
                 lv = live()
                 return self._html(page.history_page(store.runs(), store.settings(),
-                                                    store.slots(dt.date.today().isoformat()), lv, lv["running"]))
+                                                    store.slots(dt.date.today().isoformat()), lv))
             if path == "/search":
                 lv = live()
                 text, since, until = q.get("q", "")[:200], q.get("since", ""), q.get("until", "")
                 hits, cut = store.search(text, since, until)
                 titles = {r["name"]: page.run_title(r["label"], r["started_ms"]) for r in store.runs()}
-                return self._html(page.search_page(text, since, until, hits, cut, store.counts(), titles, lv,
-                                                   lv["running"]))
+                return self._html(page.search_page(text, since, until, hits, cut, store.counts(), titles, lv))
             return self._json({"error": "no such route"}, 404)
         except Exception as e:  # noqa: BLE001
             traceback.print_exc()
