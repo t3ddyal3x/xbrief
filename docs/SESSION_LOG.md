@@ -478,3 +478,8 @@ asks, the error shown; outright failure → one ask); full offline suite green.
 "post as is; everything except my credentials"), no clean-up script; GitLab's own LICENSE, `.gitlab-ci.yml` and `site/`
 kept. Same author as before (an anonymous name). Still private.
 **Checked**: no cookies, tokens or keys in the tree; the X cookies stay in the data folder.
+
+## 2026-11-10 — public on GitHub
+**Published** (operator: "make it public"): `t3ddyal3x/xbrief` is public, full history, with an MIT LICENSE and README
+sections "You need" and "Get it" for someone else setting it up. Credentials were never tracked (X cookies live in the
+data folder); history scanned for cookie, token and key values: none.
