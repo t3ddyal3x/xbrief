@@ -188,47 +188,39 @@ def test_the_sites_page(monkeypatch):
 
 def test_the_real_list_is_well_formed():
     assert {s["key"] for s in config.SITES} == {"sigil", "zeeprime", "capriole", "evanss6", "chumba",
-                                               "fig", "fidenza", "visser", "radigan", "goodalexander", "goodalexander_notes"}
+                                               "fig", "fidenza", "visser", "goodalexander", "goodalexander_notes"}
     for s in config.SITES:
         assert s["kind"] in ("rss", "sitemap", "page") and s["list"].startswith("https://") and s["home"].startswith("https://")
 
 
-def test_the_people_behind_a_source():
-    from builders import xw_tweet
-    from test_app import publish
-    publish([xw_tweet(1, "Fiskantes", "Zero mainnet is close, long $ZRO"), xw_tweet(3, "Fiskantes", "gm, this party is lit"),
-             xw_tweet(4, "Fiskantes", "RT", retweet=xw_tweet(-6, "carl", "LayerZero ships")),
-             xw_tweet(5, "Fiskantes", "zero chance", quote=xw_tweet(-7, "dan", "ETH ath")),
-             xw_tweet(2, "bob", "RT", retweet=xw_tweet(-5, "Fiskantes", "a ZRO post of theirs"))])
+def test_a_write_up_is_found_by_its_words_and_x_is_not_shown():
     src = dict(SIGIL, x=["Fiskantes"])
     doc = {"source": "sigil", "url": "https://www.sigilfund.com/blog/q2-letter", "title": "Q2", "published_ms": 5,
            "summary": sites.parse_summary(ANSWER), "text": "## Core\nWe trimmed ETH.\n" + "x " * 300 + "then ZRO. " + "y " * 300}
-    got = sites.people_posts([src], docs=[doc])
-    # only what the write-up is about: a ticker exactly (not "lit"), a name in any case, a repost's or a quote's words;
-    # "zero chance" is not "Zero mainnet"; another account's repost of theirs is not theirs
-    assert [((p.retweet_of or p).text, about) for p, about in got] == [
-        ("zero chance", ["ETH"]), ("LayerZero ships", ["LayerZero"]), ("Zero mainnet is close, long $ZRO", ["ZRO", "Zero mainnet"])]
-    assert sites.people_posts([src], docs=[]) == []  # no write-up, nothing is relevant
-    me = dict(doc, summary={**doc["summary"], "topics": ["Fiskantes", "Sigil Fund Ltd", "Sigil"]})
-    assert sites.people_posts([src], docs=[me]) == []  # the authors are not a topic
-    assert [p.text for p, _ in sites.people_posts([src], ["lit"])] == ["gm, this party is lit"]  # a search is the operator's own
-    assert sites.people_posts([ZEE], docs=[doc]) == []
-    # a write-up is found by the words in its article, and shows the lines that hold them
     assert sites.matches(doc, ["zro"]) and sites.matches(doc, ["eth", "trimmed"]) and not sites.matches(doc, ["sol"])
     assert not sites.matches(doc, ["ro"])  # a word that begins with it, not any part of one
     lines = sites.found_lines(doc["text"], ["zro"])
     assert len(lines) == 1 and "then ZRO." in lines[0] and lines[0].startswith("…") and len(lines[0]) < 370
     store.save_site_post(dict(doc), 1)
-    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""}, xposts=got, key="sigil")
-    side = html[html.index('<aside class="side">'):]
-    assert '<span class="about">ZRO, Zero mainnet</span>' in side and 'href="#s0"' in side and "party is lit" not in side
-    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""},
-                           xposts=sites.people_posts([src], ["zro"]), key="sigil", q="zro", words=["zro"],
-                           lines={doc["url"]: lines})
-    assert "long $<mark>ZRO</mark>" in html and "In the article" in html and "then <mark>ZRO</mark>." in html
+    html = page.sites_page(store.site_posts(), [src, ZEE], {}, {}, False, {"text": ""}, key="sigil", q="zro",
+                           words=["zro"], lines={doc["url"]: lines})
+    assert "In the article" in html and "then <mark>ZRO</mark>." in html
     assert 'href="/sites?s=sigil&amp;q=zro" aria-current=page' in html and 'href="/sites?q=zro"' in html
     assert 'value="zro"' in html and 'name="s" value="sigil"' in html
-    assert "No one from this source is followed" in page.sites_page([], [ZEE], {}, {}, False, {"text": ""}, key="zeeprime")
+    assert '<aside' not in html and "On X" not in html  # what they say on X belongs to the brief
+
+
+def test_one_persons_sources_are_one_pick(monkeypatch):
+    notes = {"key": "zee_notes", "name": "Zee notes", "home": "https://zeeprime.capital/notes/",
+             "list": "https://zeeprime.capital/", "kind": "page", "match": "/notes/", "group": "zeeprime"}
+    monkeypatch.setattr(config, "SITES", [SIGIL, ZEE, notes])
+    store.save_site_post({"source": "zeeprime", "url": "https://zeeprime.capital/b/", "title": "Argonauts",
+                          "summary": json.loads(ANSWER), "text": "Fusion."}, 2)
+    store.save_site_post({"source": "zee_notes", "url": "https://zeeprime.capital/notes/war/", "title": "War Trade",
+                          "summary": json.loads(ANSWER), "text": "Oil."}, 3)
+    html = call("GET", "/sites?s=zeeprime")[2]
+    assert "Argonauts" in html and "War Trade" in html
+    assert html.count('href="/sites?s=zeeprime"') == 1 and "s=zee_notes" not in html  # one pick for both
 
 
 def test_the_sites_route_narrows(monkeypatch):

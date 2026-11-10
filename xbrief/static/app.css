@@ -63,11 +63,8 @@ border-radius:8px;padding:.5rem .65rem;min-width:0}
 .mast{margin:0 0 2.6rem}
 .mast h1{font:600 2.6rem/1.1 var(--f-read);letter-spacing:-.012em;margin:0;color:var(--ink0)}
 .mast h1 span{font-style:italic;font-weight:400;letter-spacing:0;color:var(--dim);margin-left:.12em}
+.mast h1 .mark{width:.72em;height:.72em;margin-left:.28em;vertical-align:-.02em}
 .dek{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:.7rem 0 0}.dek a{color:var(--dim)}.dek a:hover{color:var(--ink)}
-.strip{margin:1.4rem 0 0}
-.strip svg{display:block;width:100%;height:31px}
-.strip rect{fill:var(--tick);opacity:.6}.strip rect:hover{opacity:1}
-.strip rect.base{fill:var(--rule);opacity:1}
 .status{font:13.5px/1.55 var(--f-ui);padding:.8rem 1rem;border-left:3px solid var(--warn);background:var(--panel);
 border-radius:0 8px 8px 0;margin:0 0 2.6rem;color:var(--ink)}
 .status.bad{border-color:var(--bad)}
@@ -172,19 +169,6 @@ padding:.12rem .4rem;border-radius:5px}
 .site p{margin:0 0 .6rem}.site p.by{margin:0 0 1.2rem}
 .site .found li{font-size:15px;color:var(--ink2)}
 .by{font:13px/1.4 var(--f-ui);color:var(--dim)}.by a{color:var(--dim)}
-.side{font-size:15px}
-.side h2{font:650 1.05rem/1.3 var(--f-ui);color:var(--ink0);margin:0 0 .2rem}
-.side>.by{margin:0 0 .4rem}
-.side .post{font-size:14.5px;line-height:1.5;margin-top:.9rem}.side .post .q{font-size:13.5px}
-.side .imgs img{max-height:180px}
-.side .post .about{color:var(--ink2);font-weight:600}
-.side .mk{display:flex;justify-content:space-between;gap:.8rem;margin:1.1rem 0 0;padding:.45rem .7rem;
-background:var(--panel);border-radius:8px;font:600 12.5px/1.35 var(--f-ui)}
-.side .mk a{color:var(--ink0);text-decoration:none}.side .mk a:hover{text-decoration:underline}
-.side .mk span{color:var(--dim);font-weight:400;white-space:nowrap}
-.wrap.has-side{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:4rem}
-.wrap>.side{position:sticky;top:1.5rem;align-self:start;max-height:calc(100vh - 3rem);overflow-y:auto;
-padding-right:.4rem;scrollbar-width:thin}
 #list{margin-top:4.5rem}
 #list h2,main>section>h2:not(.label){font:600 1.6rem/1.2 var(--f-read);color:var(--ink0);margin:0 0 .8rem}
 .note{font:13px/1.5 var(--f-ui);color:var(--dim);margin:0 0 .4rem}
@@ -221,8 +205,7 @@ mark{background:color-mix(in srgb,var(--ink) 13%,transparent);color:inherit;bord
 @media (max-width:1100px){
 .story.lead,.story.line>.body.two{grid-template-columns:minmax(0,1fr)}
 .story.lead .said{grid-column:1;grid-row:auto;margin-top:.6rem}
-.said{max-width:40rem}
-.wrap.has-side{grid-template-columns:minmax(0,1fr)}.wrap>.side{position:static;max-height:none}}
+.said{max-width:40rem}}
 @media (max-width:760px){:root{--gut:16px}
 .bar{flex-wrap:wrap;gap:.6rem 1.2rem}.find{order:3;flex:1 1 100%}.act{order:4;flex:1 1 100%;margin:0}
 .run{flex:1}.run select{flex:1}.live{display:none}

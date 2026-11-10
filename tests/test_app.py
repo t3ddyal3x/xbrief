@@ -369,7 +369,7 @@ def test_a_brief_now_the_same_morning_catches_up_the_early_brief_as_one(monkeypa
     meta = runs[0]["meta"]
     assert [r["raw"].rsplit("/", 1)[1] for r in meta["reads"]] == ["2026-10-21_0512-am.json.gz", "2026-10-21_0704-am.json.gz"]
     assert meta["boundary_id"] == meta["reads"][0]["boundary_id"] and meta["page_count"] == 2
-    assert 'title="read 05:12–05:14, caught up 07:04–07:06"' in page.run_dek(meta, {}, 5)
+    assert "pulled 05:12, updated 07:04" in page.run_dek(meta, {})
 
     lv = server.live(early, now=dt.datetime.now())  # the page showing the early brief is told it was caught up
     assert lv["text"] == "Brief caught up." and lv["href"] == f"/b/{early}"

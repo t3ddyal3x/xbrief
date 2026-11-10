@@ -53,21 +53,16 @@ SITES = [
      "list": "https://www.fidenzamacro.com/feed", "kind": "rss", "x": ["fidenzamacro"]},
     {"key": "visser", "name": "Jordi Visser", "home": "https://visserlabs.substack.com/",
      "list": "https://visserlabs.substack.com/feed", "kind": "rss", "x": ["jvisserlabs"]},
-    # Radigan Carter's Substack held no posts on 2026-11-05 (his essays, East of Suez the latest, are on X); kept so
-    # the first one he posts there is read
-    {"key": "radigan", "name": "Radigan Carter", "home": "https://radigancarter.substack.com/",
-     "list": "https://radigancarter.substack.com/feed", "kind": "rss", "x": ["radigancarter"]},
     # the site's own index.xml also lists /subscribe/ and /routine/; the posts section's feed holds only the essays
     {"key": "goodalexander", "name": "goodalexander", "home": "https://goodalexander.com/",
      "list": "https://goodalexander.com/posts/index.xml", "kind": "rss", "x": ["goodalexander"]},
     # his market notes ("Commentary") have no feed and are not in the sitemap; the home page links the newest four
     {"key": "goodalexander_notes", "name": "goodalexander commentary", "home": "https://goodalexander.com/#commentary",
-     "list": "https://goodalexander.com/", "kind": "page", "match": "/commentary/", "x": ["goodalexander"]},
+     "list": "https://goodalexander.com/", "kind": "page", "match": "/commentary/", "x": ["goodalexander"],
+     "group": "goodalexander"},  # shown under goodalexander on the Sites page, with his essays
 ]
 SITE_MODEL = os.environ.get("XBRIEF_SITE_MODEL") or "claude-opus-5-5"  # Opus: Fable needs paid credits (operator, 2026-10-15)
 SITES_LOCK = DATA / "sites.lock"  # held by the one site check going
-SITES_X_MAX = 120  # the Sites page's right-hand column: at most this many of the people's posts
-SITES_X_SCAN = 2000  # of each source's people's newest posts kept, matched against its write-ups' topics
 SITES_AFTER = "07:00"  # the daily check runs at the first look after this, local time, once a day
 
 RAW_KEEP_DAYS = 30

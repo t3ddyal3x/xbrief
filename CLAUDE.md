@@ -51,10 +51,9 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
     plain GET of its RSS feed or sitemap and of each new post, no browser, no login. A source's first check only
     learns its list and reads the newest post. Page text is untrusted like post text (rule 7); its summariser is
     Opus (`config.SITE_MODEL`), never Sonnet. One check at a time (`sites.lock`), once a day after
-    `config.SITES_AFTER`, on by default (the page's switch). A source's people (`x`, their handles) are shown from
-    posts already kept from the Following tab (`sites.people_posts`); their profiles are never read (rule 1).
+    `config.SITES_AFTER`, on by default (the page's switch). The tab shows the sites only: a source's people (`x`)
+    are linked, never their posts, which belong to the brief. One person's several sources share a pick (`group`).
     Each write-up keeps its article's text (`text`), so the tab's search reaches the article, not only the summary.
-    Unsearched, the people's column holds only posts naming one of their write-ups' `topics` (`sites.people_posts`).
 
 13. **Long videos are read from their words, never their picture** (`videos.py`): a video of `config.VIDEO_MIN_S`
     or longer in a brief's posts (X's own, or a YouTube link) is transcribed and summarised before the writer runs.

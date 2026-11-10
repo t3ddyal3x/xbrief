@@ -232,7 +232,11 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   letter, with the article's own lines that hold it, and Fiskantes's posts that say it). A write-up keeps its
   article's text for this; the three read before 2026-10-14 15:00 had theirs fetched again once. The posts come
   from the store, which the Following tab's reads fill: their profiles are never opened (rule 1), so the column
-  starts 2026-10-12, when xbrief began, and a post scrolled past between reads is missing.
+  starts 2026-10-12, when xbrief began, and a post scrolled past between reads is missing. Removed 2026-11-10
+  (operator: "i just want the sites here; not his commentary from twitter, that belongs in thesis"): the tab shows
+  the write-ups alone, and `people_posts` and the topic matching below went with the column. One person's several
+  sources share one pick (`group`: goodalexander's essays and his commentary), after the operator, on the essays'
+  pick, could not find his newest commentary note.
 - **Only the relevant posts** (operator, 2026-10-14: "i don't want every x-post just the relevant ones"): the
   writer also returns each write-up's `topics` (tickers, names, projects, events, as a post would say them, never
   a common word alone). Unsearched, the column holds a person's posts only when their words, a repost's or a
@@ -240,7 +244,8 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   exactly (LIT is not "lit"), a name in any case, each as a whole word or phrase. The authors are not a topic of
   their own posts: a topic that holds or is held by the firm's name, a handle or a name they post under is
   dropped (Fable listed "Fiskantes" and "Capriole Investments"). A search is the operator's own and shows every
-  post holding its words. The three existing write-ups were written again for their topics.
+  post holding its words. The three existing write-ups were written again for their topics. (Gone with the column,
+  2026-11-10; the writer still returns `topics`.)
 
 ## Decisions
 - **The job's own Brave profile**, logged in once by the operator: Chromium does not allow remote control of an
@@ -260,9 +265,9 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   Tokyo's slates (headlines, reading, secondary, quietest), blue is focus and selection only, and yellow and red mark
   a problem only. No part of a brief has a colour of its own: HYPE leads by being first, nothing else.
   One bar at the top of every page (tabs, search, the hours and Brief now, the live line); no side rail. A brief opens
-  on the day as a headline, one line (how many posts from how many people since when, each read's minutes on hover,
-  a link to the brief before), and a strip with a bar for each hour of the window, as tall as its posts (2026-11-10;
-  was a tick for every post). Then HYPE's stories and theses; then the four stories the most people posted in (`page.LEAD`),
+  on the day as a headline, a sunrise (morning) or a moon (evening) after it, and one line: how many posts since when,
+  the minute it was pulled and each minute it was updated, and a link to the brief before (2026-11-10: the strip of
+  a tick per post and the count of people went). Then HYPE's stories and theses; then the four stories the most people posted in (`page.LEAD`),
   open; then every other story as one line, its headline and how many people, opening in place (`<details>`, no
   script); then the theses, a line each, opening to the argument, what follows, Claude's view (labelled) and the post;
   then everything else, folded. An open story sets Claude's words on the left in Iowan Old Style and its key posts on

@@ -16,13 +16,18 @@ import re
 import time
 from urllib.parse import quote, urlencode
 
-from . import config, parse, videos
+from . import config, parse, sites, videos
 from .brief import Brief, Thesis, Topic
 from .parse import Post
 
 CSP = ("default-src 'none'; img-src https://pbs.twimg.com; style-src 'self'; script-src 'self'; connect-src 'self'; "
        "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
 LABELS = {"am": "morning", "pm": "evening"}
+_MARK = ('<svg class="mark" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"'
+         ' stroke-linecap="round" stroke-linejoin="round">{}</svg>')
+MARKS = {"am": _MARK.format('<path d="M5 18a7 7 0 0 1 14 0"/><path d="M2 21h20M12 5v3M4.2 9.8l1.9 1.9M19.8 9.8l-1.9 1.9'
+                            'M1.5 18H3M21 18h1.5"/>'),  # a sun on the horizon
+         "pm": _MARK.format('<path d="M20 15.5A8.5 8.5 0 0 1 8.5 4 8.5 8.5 0 1 0 20 15.5z"/>')}  # a crescent moon
 HOURS = [("", "since last"), ("12", "last 12 h"), ("24", "last 24 h"), ("48", "last 48 h")]
 POST_REF = re.compile(r"\s*\[\[(\d{1,25})\]\]")  # an older brief's pointer at a post that stands out
 EMOJI = re.compile("[\U0001F000-\U0001FAFF\u2600-\u27BF\uFE0F\u200D]")  # dropped from names on the key posts
@@ -252,8 +257,8 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
             f'<div class="body{" two" if key else ""}">{words}{key}</div></details>')
 
 
-def masthead(title: str, dek: str, strip: str = "") -> str:
-    return f'<header class="mast"><h1>{title}</h1><p class="dek">{dek}</p>{strip}</header>'
+def masthead(title: str, dek: str) -> str:
+    return f'<header class="mast"><h1>{title}</h1><p class="dek">{dek}</p></header>'
 
 
 def at_of(name: str, meta: dict) -> str:
@@ -274,43 +279,18 @@ def window(meta: dict, posts: dict[str, Post]) -> tuple[int, int] | None:
     return (lo, hi) if hi > lo else None
 
 
-def run_dek(meta: dict, posts: dict[str, Post], n_accounts: int) -> str:
-    """How much the brief holds and since when; the minutes each read took only on hover (a morning caught up, each)."""
+def run_dek(meta: dict, posts: dict[str, Post]) -> str:
+    """How many posts since when, the minute it was pulled and, a morning caught up, the minute of each update."""
     reads = meta.get("reads") or [meta]
-    when = ", ".join(f"{'read' if i == 0 else 'caught up'} {hhmm(r.get('started_ms') or 0)}–{hhmm(r.get('finished_ms') or 0)}"
-                     for i, r in enumerate(reads))
-    dek = f'<span title="{when}">{len(posts)} posts from {n_accounts} people</span>'
+    dek = f"{len(posts)} posts"
     span = window(meta, posts)
     if span:
         dek += f" {'since' if meta.get('boundary_id') else 'from'} {day(span[0])}"
+    dek += " · " + ", ".join(f"{'pulled' if i == 0 else 'updated'} {hhmm(r.get('started_ms') or 0)}"
+                             for i, r in enumerate(reads))
     if meta.get("reread_site"):
         dek += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"
     return dek
-
-
-def window_strip(meta: dict, posts: dict[str, Post]) -> str:
-    """How many posts each hour of the window brought, a bar an hour: a quiet night, a busy hour or a hole shows at
-    a glance. Drawn on the server, no script; each bar names its hour and count on hover."""
-    span = window(meta, posts)
-    if not span:
-        return ""
-    lo, hi = span
-    per: dict[int, int] = {}
-    for p in posts.values():
-        if p.created_ms and lo <= p.created_ms <= hi:
-            h = p.created_ms // 3_600_000 * 3_600_000
-            per[h] = per.get(h, 0) + 1
-    top = max(per.values(), default=1)
-    w = 1000 / (hi - lo)
-    bars = []
-    for h, n in sorted(per.items()):
-        x0, x1 = max(h, lo), min(h + 3_600_000, hi)
-        tall = max(2.0, n / top * 28)
-        bars.append(f'<rect x="{(x0 - lo) * w:.1f}" y="{30 - tall:.1f}" width="{max(1.0, (x1 - x0) * w - 3):.1f}" '
-                    f'height="{tall:.1f}"><title>{hhmm(h)} · {count(n, "post", "posts")}</title></rect>')
-    return (f'<figure class="strip" aria-label="Posts by the hour, {day(lo)} to {hhmm(hi)}">'
-            f'<svg viewBox="0 0 1000 31" preserveAspectRatio="none">'
-            f'<rect class="base" x="0" y="30" width="1000" height="1"/>{"".join(bars)}</svg></figure>')
 
 
 def failed_html(f: dict | str) -> str:
@@ -371,7 +351,7 @@ def run_when(started_ms: int) -> str:
 def run_head(label: str, started_ms: int) -> str:
     """A brief's headline: the day in full and the part of it."""
     return (f"{time.strftime('%A %-d %B', time.localtime(started_ms / 1000))} "
-            f"<span>{esc(LABELS.get(label, label))}</span>")
+            f"<span>{esc(LABELS.get(label, label))}{MARKS.get(label, '')}</span>")
 
 
 def live_html(live: dict) -> str:
@@ -399,13 +379,13 @@ def topbar(active: str, live: dict, running: bool = False, at: str = "") -> str:
             f'<button type="submit"{" disabled" if running else ""}>Brief now</button></form></div></div></header>')
 
 
-def shell(title: str, top: str, main: str, at: str = "", side: str = "") -> str:
-    """`at`: the brief this page shows, so the live line does not offer it as new; `side`: a right-hand column."""
+def shell(title: str, top: str, main: str, at: str = "") -> str:
+    """`at`: the brief this page shows, so the live line does not offer it as new."""
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="referrer" content="no-referrer"><title>{esc(title)}</title>
 <link rel="stylesheet" href="/app.css"><script src="/app.js" defer></script></head>
-<body{f' data-at="{esc(at)}"' if at else ""}>{top}<div class="wrap{" has-side" if side else ""}"><main>{main}</main>{side}</div></body></html>
+<body{f' data-at="{esc(at)}"' if at else ""}>{top}<div class="wrap"><main>{main}</main></div></body></html>
 """
 
 
@@ -457,14 +437,13 @@ def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False
     meta = run["meta"]
     title = run_title(run["name"], run["label"], meta.get("started_ms") or 0)
     main = brief_main(run["brief"], run["posts"], run["threads"], meta)
-    accounts = len({p.handle for p in run["posts"].values()})  # who I follow; a repost counts as the reposter
     # the brief before this one, and briefs only: a run that read nothing is on History with what stopped it
     prev = next((r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)
                  and ending(r["meta"], r.get("writer_error"))[1] != "bad"), None)
-    dek = run_dek(meta, run["posts"], accounts)
+    dek = run_dek(meta, run["posts"])
     if prev:
         dek += f' · <a href="/b/{esc(prev["name"])}">previous brief</a>'
-    main = masthead(run_head(run["label"], meta.get("started_ms") or 0), dek, window_strip(meta, run["posts"])) + main
+    main = masthead(run_head(run["label"], meta.get("started_ms") or 0), dek) + main
     return shell(f"X brief · {title}", topbar("brief", live, running=running, at=run["name"]), main,
                  at=at_of(run["name"], meta))
 
@@ -607,45 +586,23 @@ def site_post_html(d: dict, names: dict[str, str], i: int, people: dict[str, lis
             + "</section>")
 
 
-def side_html(xposts: list[tuple[Post, list[str]]], posts: list[dict], handles: list[str], q: str,
-              words: list[str]) -> str:
-    """The right-hand column: the people's posts on X about what the write-ups cover (or holding the words
-    searched), newest first, each with the topics it matched, and a mark where each write-up falls among them, so
-    what they said before and after it reads in order."""
-    if not handles:
-        return ('<aside class="side"><h2>On X</h2><p class="empty">No one from this source is followed on X.</p>'
-                '</aside>')
-    items = [(p.created_ms, 1, post_html(p, (f'<span class="about">{esc(", ".join(about))}</span>' if about else ""),
-                                         words=words)) for p, about in xposts]
-    for i, d in enumerate(posts):
-        when = d.get("published_ms") or d.get("seen_ms") or 0
-        items.append((when, 0, f'<p class="mk"><a href="#s{i}">{esc(d.get("title") or d.get("url"))}</a>'
-                               f'<span>{time.strftime("%-d %b %Y", time.localtime(when / 1000))}</span></p>'))
-    items.sort(key=lambda t: (t[0], t[1]), reverse=True)
-    find = " ".join(["@" + h for h in handles] + ([q] if q else []))
-    empty = (f'<p class="empty">Nothing by them {"with these words" if words else "about what these write-ups cover"}'
-             f' in what the briefs have read.</p>' if not xposts else "")
-    return (f'<aside class="side"><h2>On X</h2><p class="by">{x_links(handles)} · '
-            f'<a href="/search?q={esc(quote(find))}">Every post kept</a></p>{empty}{"".join(h for _, _, h in items)}'
-            f'</aside>')
-
-
 def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[str, int], checking: bool,
-               live: dict, running: bool = False, xposts: list[tuple[Post, list[str]]] | None = None, key: str = "",
-               q: str = "", words: list[str] | None = None, lines: dict[str, list[str]] | None = None) -> str:
-    """The write-ups in the middle, newest first, and their people's posts on X on the right; narrowed to one
-    source (`key`) and to the words searched (`q`), the write-ups showing the article's lines that hold them. Below,
-    the list itself, when each was last checked, and the daily check's switch."""
+               live: dict, running: bool = False, key: str = "", q: str = "", words: list[str] | None = None,
+               lines: dict[str, list[str]] | None = None) -> str:
+    """The write-ups, newest first; narrowed to one pick (`key`: a source, or one person's sources together) and to
+    the words searched (`q`), the write-ups showing the article's lines that hold them. Below, the list itself, when
+    each was last checked, and the daily check's switch. What the people say on X is the brief's, not this page's."""
     words, lines = words or [], lines or {}
     names = {s["key"]: s["name"] for s in sources}
-    shown = [s for s in sources if not key or s["key"] == key]
-    handles = [h for s in shown for h in s.get("x") or []]
+    picks = {}  # a pick's name: its first source's
+    for s in sources:
+        picks.setdefault(sites.group(s), s["name"])
     state = sett.get("sites_state") or {}
     people = {s["key"]: s.get("x") or [] for s in sources}
     find = (f'<form class="find ctl sitefind" action="/sites" method="get" role="search">'
             + (f'<input type="hidden" name="s" value="{esc(key)}">' if key else "")
-            + f'<input type="search" name="q" value="{esc(q)}" placeholder="Search {esc(names[key]) if key else "the sites"}'
-            f' and their people on X" aria-label="Search the sites"></form>')
+            + f'<input type="search" name="q" value="{esc(q)}" placeholder="Search {esc(picks[key]) if key else "the sites"}"'
+            f' aria-label="Search the sites"></form>')
     main = "".join(site_post_html(d, names, i, people, words, lines.get(d["url"])) for i, d in enumerate(posts))
     if not posts:
         main = ('<p class="empty">No write-up holds these words.</p>' if words else
@@ -670,11 +627,10 @@ def sites_page(posts: list[dict], sources: list[dict], sett: dict, counts: dict[
            f'<button type="button" id="sites-now"{" disabled" if checking else ""}>Check now</button></div></form>'
            f'<p class="note" id="sites-msg"{" data-checking=1" if checking else ""}>{esc(line)}</p>')
     pick = "".join(f'<li><a href="{esc(sites_href(k, q))}"{" aria-current=page" if k == key else ""}>{esc(n)}</a></li>'
-                   for k, n in [("", "All")] + [(s["key"], s["name"]) for s in sources])
+                   for k, n in [("", "All"), *picks.items()])
     main = (find + f'<ul class="pick" aria-label="Sources">{pick}</ul>' + main + f'<section id="list"><h2>The list</h2><ol class="runs">{"".join(rows)}</ol>{ctl}'
             f'<p class="note">New sites are added in xbrief/config.py (SITES): an RSS feed or a sitemap.</p></section>')
-    return shell("X brief · sites", topbar("sites", live, running=running), main,
-                 side=side_html(xposts or [], posts, handles, q, words))
+    return shell("X brief · sites", topbar("sites", live, running=running), main)
 
 
 def paragraphs(text: str, most: int = 120) -> list[str]:

@@ -233,65 +233,9 @@ def summarise(title: str, url: str, text: str, ask=None, published_ms: int | Non
 # ── the people behind a source ──────────────────────────────────────────────────────────────────────
 
 
-def topic_pattern(topics: list[str]) -> re.Pattern | None:
-    """One pattern for a write-up's topics, each matched as a whole word or phrase: a short all-capitals ticker
-    exactly (so LIT is not "lit"), with or without its $; anything else in any case."""
-    tickers = [re.escape(t.lstrip("$")) for t in topics if re.fullmatch(r"\$?[A-Z0-9]{2,6}", t)]
-    names = [re.escape(t).replace(r"\ ", r"\s+") for t in topics if not re.fullmatch(r"\$?[A-Z0-9]{2,6}", t)]
-    parts = ([r"(?-i:\$?(?:" + "|".join(tickers) + "))"] if tickers else []) + \
-        ([r"(?:" + "|".join(names) + ")"] if names else [])
-    return re.compile(r"(?<![\w$])(?:" + "|".join(parts) + r")(?!\w)", re.I) if parts else None
-
-
-def _named(pat: re.Pattern, text: str, topics: list[str]) -> list[str]:
-    """The topics a text names, each once, in the write-up's order."""
-    hit = {" ".join(m.group(0).lstrip("$").split()).lower() for m in pat.finditer(text)}
-    seen, out = set(), []
-    for t in topics:
-        k = " ".join(t.lstrip("$").split()).lower()
-        if k in hit and k not in seen:
-            seen.add(k)
-            out.append(t.lstrip("$"))
-    return out
-
-
-def _said(p) -> str:
-    """A post's own words, what it reposts, and what it quotes."""
-    xs = parse.inner(p)
-    return "\n".join([x.text for x in xs if x.text]
-                     + [f'{x.article.get("title") or ""}\n{x.article.get("preview") or ""}' for x in xs if x.article])
-
-
-def people_posts(sources: list[dict] | None = None, words: list[str] | None = None,
-                 docs: list[dict] | None = None) -> list:
-    """The posts by the sources' people already kept from the Following tab's reads (never a read of their
-    profile), newest first, at most `config.SITES_X_MAX`, each with the topics it matched: with words searched,
-    those that hold them all; without, only those about what the source's write-ups (`docs`) are about."""
-    out = []
-    for src in sources or config.SITES:
-        handles = src.get("x") or []
-        if not handles:
-            continue
-        own = {h.lower() for h in handles}
-        if words:
-            hits, _ = store.search(" ".join(["@" + h for h in handles] + list(words)), limit=config.SITES_X_MAX)
-            out += [(p, []) for p, _ in hits if p.handle.lower() in own]  # theirs, or a repost they made
-            continue
-        hits, _ = store.search(" ".join("@" + h for h in handles), limit=config.SITES_X_SCAN)
-        # the authors are not a topic of their own posts: the firm, the handles, and the names they post under
-        self = [n.lower() for n in [src["name"], *handles, *{p.name for p, _ in hits if p.handle.lower() in own}]
-                if len(n) >= 3]
-        topics = [t for d in docs or [] if d.get("source") == src["key"]
-                  for t in (d.get("summary") or {}).get("topics") or []
-                  if not any(n in t.lower() or t.lower() in n for n in self)]
-        pat = topic_pattern(topics)
-        if not pat:
-            continue
-        for p, _ in hits:
-            if p.handle.lower() in own and (found := _named(pat, _said(p), topics)):
-                out.append((p, found))
-    out.sort(key=lambda t: t[0].created_ms, reverse=True)
-    return out[:config.SITES_X_MAX]
+def group(src: dict) -> str:
+    """The Sites page's pick a source is shown under: its own key, or one person's several sources together."""
+    return src.get("group") or src["key"]
 
 
 def _word(w: str) -> re.Pattern:

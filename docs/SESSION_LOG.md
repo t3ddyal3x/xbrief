@@ -1,11 +1,15 @@
 # xbrief — session log
 
-## 2026-11-10 — a simpler masthead
-Operator: "simplify this" (the brief's header). The line under the title is now "385 posts from 79 people since Mon 9 Nov
-11:05 · previous brief": the window's start moved up from the strip's caption, each read's minutes went to a hover on
-the count (`page.run_dek`), and the link to the brief before no longer carries its date. The strip is a bar per hour,
-height by how many posts that hour brought, each naming its hour and count on hover (`page.window_strip`), in place
-of a tick per post, the hour marks and the caption.
+## 2026-11-10 — a simpler masthead, the Sites tab sites only
+Operator: "simplify this" (the brief's header), then "remove it" (the strip), "when it was pulled, updated at what
+time (not range) and i don't need to know how many people", "a sunrise graphic or icon". The header is now the day,
+"morning" with a small sunrise (a moon for evening), and "385 posts since Mon 9 Nov 11:05 · pulled 05:23, updated
+07:24 · previous brief" (`page.run_dek`, `page.MARKS`). The strip under it is gone.
+
+Sites: Radigan Carter removed (operator). The right-hand "On X" column is gone ("not his commentary from twitter,
+that belongs in thesis"), with `sites.people_posts` and its topic matching. The operator, on goodalexander's pick,
+missed "War Trade Deep Dive + Crypto Update" (8 Nov): it was kept, under the separate "goodalexander commentary"
+source. A source's `group` now puts one person's sources under one pick; goodalexander's two share his.
 
 ## 2026-11-05 — Radigan Carter
    Operator asked for Radigan Carter (latest essay "East of Suez"). Added his Substack, radigancarter.substack.com, to

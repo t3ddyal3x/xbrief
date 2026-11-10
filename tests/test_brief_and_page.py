@@ -133,7 +133,7 @@ def test_page_layout():
     store.save_run("2025-10-12-1800-pm", "pm", {**META, "started_ms": META["started_ms"] + 3_600_000}, brief.Brief(), {}, [])
     again = page.brief_page(store.load_run("2025-10-12-0500-am"), store.runs(), {"text": ""})
     assert "2025-10-12-1800-pm" not in again  # a later brief is not "earlier"
-    assert 'class="status' not in html and "6 posts from 4 people" in html and "since " in html  # a clean read: no box
+    assert 'class="status' not in html and "6 posts since " in html and "since " in html  # a clean read: no box
     assert html.count("<h1>") == 1 and '<header class="mast"><h1>' in html  # the masthead is the page's one heading
     assert 'data-at="2025-10-12-0500-am"' in html
 
@@ -305,17 +305,6 @@ def test_search_marks_words_and_never_inside_a_link():
     assert 'href="https://example.com/a?x=1&amp;y=2"' in html  # the address is left alone
     assert ">example.com/a</a>" not in html and "<mark>example</mark>.com/a</a>" in html
     assert page.marked("a &lt;b&gt;", ["lt"]) == "a &lt;b&gt;"  # never inside an escape
-
-
-def test_the_window_strip_counts_every_post_by_the_hour():
-    ents = entries()
-    b, posts = brief.write(ents, ask=lambda t: answer_for(brief.unique_posts(ents)))
-    meta = {**META, "boundary_id": None, "finished_ms": max(p.created_ms for p in posts.values()) + 60_000}
-    strip = page.window_strip(meta, posts)
-    hours = {p.created_ms // 3_600_000 for p in posts.values()}
-    assert strip.count("<rect x=") == len(hours)  # a bar an hour that had posts
-    assert sum(int(t.split(" · ")[1].split()[0]) for t in strip.split("<title>")[1:]) == len(posts)
-    assert page.window_strip(meta, {}) == ""  # nothing read, nothing drawn
 
 
 def test_stories_rank_by_how_many_people_talked():
