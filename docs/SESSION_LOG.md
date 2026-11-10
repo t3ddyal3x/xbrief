@@ -472,3 +472,9 @@ asks, the error shown; outright failure → one ask); full offline suite green.
       order, once each) and a second source, `goodalexander_notes` (the home page, `/commentary/`). Its first check
       read "War Trade Deep Dive + Crypto Update" (2026-11-08) whole, 49,647 characters, and noted the other three.
       More than four notes between two daily checks would lose the oldest. Test: `test_a_section_listed_by_a_page`.
+
+## 2026-11-10 — GitLab copy updated to the current code, as is
+**Published**: the GitLab copy, updated, "xbrief as of b945408": the tracked tree as is (operator:
+"post as is; everything except my credentials"), no clean-up script; GitLab's own LICENSE, `.gitlab-ci.yml` and `site/`
+kept. Same author as before (an anonymous name). Still private.
+**Checked**: no cookies, tokens or keys in the tree; the X cookies stay in the data folder.
