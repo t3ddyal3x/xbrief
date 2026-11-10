@@ -19,7 +19,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
-from . import config, parse
+from . import brief, config, parse
 
 TIMELINE = re.compile(r"/graphql/[\w-]+/HomeLatestTimeline(?:Query)?(?:[?#]|$)")
 # logged out (the landing page, a login flow) or held up (a lock, a challenge)
@@ -429,17 +429,14 @@ async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Rando
 
 
 def wanted(pages: list[dict], after_id: int) -> list[parse.Post]:
-    """The Articles the brief will hold, newest post first, each once: posts newer than the last brief (as
-    brief.unique_posts takes them) that carry an Article, or repost or quote one."""
+    """The Articles the brief will hold, newest post first, each once: of the posts the writer gets
+    (brief.unique_posts), those that carry an Article, or repost or quote one."""
+    posts = brief.unique_posts([e for pg in pages for e in parse.entries(pg)[0]], after_id)
     out: dict[str, parse.Post] = {}
-    for pg in pages:
-        for e in parse.entries(pg)[0]:
-            if e.promoted or (after_id and e.newest_id <= after_id):
-                continue
-            for p in e.posts:
-                for x in parse.with_article(p):
-                    if x.id.isdigit() and x.handle:
-                        out.setdefault(x.id, x)
+    for p in posts.values():
+        for x in parse.with_article(p):
+            if x.id.isdigit() and x.handle:
+                out.setdefault(x.id, x)
     return sorted(out.values(), key=lambda x: -int(x.id))
 
 
