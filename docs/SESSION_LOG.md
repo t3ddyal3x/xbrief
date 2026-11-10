@@ -18,6 +18,7 @@ the real db: a brief page ~12 ms, History ~2 ms, Sites ~5 ms; only Search was wo
   transcripts on posts were identical in `videos/`. Backup: `xbrief.db.bak-20261110-092002-onecopy` (92 MB);
   to the Trash once the operator has used search for a few days.
 - Left as is: running video lookups and site summaries in parallel saves seconds, in background jobs.
+- /trim: report in `docs/reviews/trim-xbrief-2026-11-10.md` (~80 lines could go); waits for "do it".
 
 ## 2026-11-10 — a simpler masthead, the Sites tab sites only
 Operator: "simplify this" (the brief's header), then "remove it" (the strip), "when it was pulled, updated at what
