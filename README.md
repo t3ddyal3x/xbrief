@@ -39,6 +39,23 @@ leave it be and it closes itself.
 If X pushes back in any way (a rate limit, a logout, a notice that needs you), the run stops at once, retries
 nothing, and the brief says so at the top. A brief that stopped early or missed posts always says so.
 
+## You need
+- A Mac with Apple silicon, Python 3.12 or later, and [Brave](https://brave.com).
+- [Claude Code](https://docs.anthropic.com/en/docs/claude-code), logged in (`claude` at `~/.local/bin/claude`, or set
+  `XBRIEF_CLAUDE`). The writer is set in `xbrief/config.py` (`MODEL`).
+- For videos: `brew install ffmpeg yt-dlp`.
+- Optional: [Caddy](https://caddyserver.com), for the http://xbrief.localhost address. Without it the page is at
+  http://127.0.0.1:8795.
+
+## Get it
+```
+git clone https://github.com/t3ddyal3x/xbrief.git ~/Developer/work/xbrief && cd ~/Developer/work/xbrief
+python3 -m venv ~/Data/xbrief-data/venv && ~/Data/xbrief-data/venv/bin/pip install -r requirements.lock pytest
+bin/tests     # every test, offline
+```
+Everything it keeps (the login profile, the briefs, the posts) is in `~/Data/xbrief-data` (or `XBRIEF_DATA_DIR`).
+Make it yours in `xbrief/config.py`: `FOCUS` (the subject your brief opens with, or `None`) and `SITES`.
+
 ## Setting up (once)
 1. `~/Developer/work/xbrief/bin/xbrief login`. A separate Brave window opens on X's login page. Log in to your main
    account, close anything X shows, click the Following tab once, then quit that Brave with cmd+Q.
@@ -53,3 +70,8 @@ From a terminal: `bin/xbrief run --now --hours 24` (it waits if a run is already
 `bin/xbrief rebrief ~/Data/xbrief-data/raw/<file>.json.gz` writes a brief again from a saved read (kept 30 days).
 
 If a brief says X logged you out or wants something: run `bin/xbrief login`, deal with it in that window, quit.
+
+Not affiliated with X. Reading your own feed with a browser is still automation; use it knowing that.
+
+## Licence
+MIT (see LICENSE).
