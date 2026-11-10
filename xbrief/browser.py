@@ -41,15 +41,13 @@ WINDOW = {"width": 1440, "height": 900}
 class BrowserError(Exception): ...
 
 
-def launch(profile: pathlib.Path, extra: list[str] | None = None, background: bool = True) -> None:
+def launch(profile: pathlib.Path) -> None:
     """Start a separate Brave instance on `profile`. `open -n` gives it its own process; `-g` and
     --no-startup-window keep it from taking the front."""
     profile.mkdir(parents=True, exist_ok=True)
     os.chmod(profile, 0o700)
     (profile / "DevToolsActivePort").unlink(missing_ok=True)
-    cmd = ["open", "-n"] + (["-g"] if background else []) + ["-a", BRAVE_APP, "--args", f"--user-data-dir={profile}"]
-    cmd += (FLAGS if background else [f for f in FLAGS if f != "--no-startup-window"]) + (extra or [])
-    subprocess.run(cmd, check=True)
+    subprocess.run(["open", "-n", "-g", "-a", BRAVE_APP, "--args", f"--user-data-dir={profile}", *FLAGS], check=True)
 
 
 def running(profile: pathlib.Path) -> list[int]:
@@ -82,7 +80,7 @@ class Browser:
 
     # ── lifecycle ───────────────────────────────────────────────────────────────────────────────────
 
-    async def start(self, park: bool = True, timeout: float = 30.0) -> "Browser":
+    async def start(self, timeout: float = 30.0) -> "Browser":
         if running(self.profile):
             raise BrowserError("the job's Brave profile is already open (a login window, or a run that did not end)")
         launch(self.profile)
@@ -100,10 +98,9 @@ class Browser:
         made = await self._browser_call("Target.createTarget", {"url": "about:blank", "newWindow": True,
                                                                  "background": True, **WINDOW})
         self.target_id = made["targetId"]
-        if park:
-            win = await self._browser_call("Browser.getWindowForTarget", {"targetId": self.target_id})
-            await self._browser_call("Browser.setWindowBounds",
-                                     {"windowId": win["windowId"], "bounds": {"left": park_left(), "top": 120}})
+        win = await self._browser_call("Browser.getWindowForTarget", {"targetId": self.target_id})
+        await self._browser_call("Browser.setWindowBounds",
+                                 {"windowId": win["windowId"], "bounds": {"left": park_left(), "top": 120}})
         self._ws = await connect(f"ws://127.0.0.1:{self.port}/devtools/page/{self.target_id}", max_size=None)
         self._reader = asyncio.create_task(self._read())
         return self
@@ -209,10 +206,10 @@ class Browser:
         except (BrowserError, KeyError, TypeError):
             return True
 
-    async def wheel(self, dy: float, x: float | None = None, y: float | None = None) -> None:
-        x = WINDOW["width"] / 2 if x is None else x
-        y = WINDOW["height"] / 2 if y is None else y
-        await self.send("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": x, "y": y, "deltaX": 0, "deltaY": dy})
+    async def wheel(self, dy: float) -> None:
+        """A turn of the wheel at the window's middle."""
+        await self.send("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": WINDOW["width"] / 2,
+                                                     "y": WINDOW["height"] / 2, "deltaX": 0, "deltaY": dy})
 
 
 async def _get_json(url: str) -> Any:

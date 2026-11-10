@@ -288,8 +288,6 @@ def run_dek(meta: dict, posts: dict[str, Post]) -> str:
         dek += f" {'since' if meta.get('boundary_id') else 'from'} {day(span[0])}"
     dek += " · " + ", ".join(f"{'pulled' if i == 0 else 'updated'} {hhmm(r.get('started_ms') or 0)}"
                              for i, r in enumerate(reads))
-    if meta.get("reread_site"):
-        dek += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"
     return dek
 
 
@@ -339,7 +337,7 @@ def status_html(meta: dict, b: Brief) -> str:
 # ── the app's frame ─────────────────────────────────────────────────────────────────────────────────
 
 
-def run_title(name: str, label: str, started_ms: int) -> str:
+def run_title(label: str, started_ms: int) -> str:
     return f"{time.strftime('%a %-d %b', time.localtime(started_ms / 1000))} · {LABELS.get(label, label)}"
 
 
@@ -430,7 +428,7 @@ def brief_main(b: Brief, posts: dict[str, Post], thr: dict[str, list[Post]], met
 
 def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False) -> str:
     meta = run["meta"]
-    title = run_title(run["name"], run["label"], meta.get("started_ms") or 0)
+    title = run_title(run["label"], meta.get("started_ms") or 0)
     main = brief_main(run["brief"], run["posts"], run["threads"], meta)
     # the brief before this one, and briefs only: a run that read nothing is on History with what stopped it
     prev = next((r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)

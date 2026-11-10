@@ -261,7 +261,7 @@ class Handler(BaseHTTPRequestHandler):
                 lv = live()
                 text, since, until = q.get("q", "")[:200], q.get("since", ""), q.get("until", "")
                 hits, cut = store.search(text, since, until)
-                titles = {r["name"]: page.run_title(r["name"], r["label"], r["started_ms"]) for r in store.runs()}
+                titles = {r["name"]: page.run_title(r["label"], r["started_ms"]) for r in store.runs()}
                 return self._html(page.search_page(text, since, until, hits, cut, store.counts(), titles, lv,
                                                    lv["running"]))
             return self._json({"error": "no such route"}, 404)

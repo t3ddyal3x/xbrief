@@ -33,7 +33,6 @@ from . import config
 from . import parse
 from .parse import Entry, Post
 
-SUMMARY_WORDS = 110  # the most a topic's paragraph may run to (briefs before 2026-10-14's re-work)
 GIST_WORDS = 60  # a story's gist
 HEADLINE_CHARS = 120
 MAX_KEY = 3  # the posts shown beside a story
