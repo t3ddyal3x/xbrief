@@ -162,7 +162,7 @@ def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -
     shown = topic_posts([i for i in ids if i in posts], posts, thr)
     if not shown:
         return ""
-    handles = list(dict.fromkeys((p.retweet_of or p).handle for p in shown))
+    handles = list(dict.fromkeys(p.shown.handle for p in shown))
     who = ", ".join(f"@{h}" for h in handles[:6]) + (f" and {len(handles) - 6} more" if len(handles) > 6 else "")
     label = f"{count(len(shown), 'post', 'posts')} · {who}"
     return f'<details class="fold"><summary>{esc(label)}</summary>{"".join(post_html(p) for p in shown)}</details>'
@@ -202,7 +202,7 @@ def card(p: Post) -> str:
     its first picture, what it quotes. Built from the post alone."""
     if p.unreadable:
         return ""
-    shown = p.retweet_of or p
+    shown = p.shown
     name = EMOJI.sub("", shown.name or "").strip()
     who = ((f'<b>{esc(name)}</b>' if name and name != shown.handle else "")
            + f'<a href="{esc(shown.url)}" rel="noreferrer">@{esc(shown.handle)} · {hhmm(shown.created_ms)}</a>'
@@ -240,7 +240,7 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
     if it holds, then Claude's view under its own label (the only opinion in a brief); the post itself beside it,
     the rest of its thread folded."""
     first = posts.get(t.posts[0]) if t.posts else None
-    shown = (first.retweet_of or first) if first else None
+    shown = first.shown if first else None
     steps = "".join(f"<li>{esc(x)}</li>" for x in t.steps)
     view = "".join(f"<p><b>{k}</b> {esc(v)}</p>" for k, v in (("Weak spots", t.weak_spots), ("Wrong if", t.wrong_if)) if v)
     words = ('<div class="words">'
@@ -249,9 +249,8 @@ def thesis_html(t: Thesis, posts: dict[str, Post], thr: dict[str, list[Post]], s
              + (f'<div class="view"><h4>Claude\'s view</h4>{view}</div>' if view else "")
              + folded(t.posts[1:], posts, thr) + '</div>')
     key = said(t.posts[:1], posts)
-    inner = parse.inner(shown) if shown else []
-    vs = [v for x in inner for v in x.videos]
-    mark = "Article · " if any(x.article for x in inner) else f"{kind(vs[0])} · " if vs else ""
+    vs = parse.videos_in(shown) if shown else []
+    mark = "Article · " if shown and parse.article_in(shown) else f"{kind(vs[0])} · " if vs else ""
     who = f'<span class="n">{mark}@{esc(shown.handle)}</span>' if shown else ""
     return (f'<details class="story line thesis" id="{sid}"><summary><h3>{esc(t.claim)}</h3>{who}</summary>'
             f'<div class="body{" two" if key else ""}">{words}{key}</div></details>')

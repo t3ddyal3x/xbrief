@@ -44,11 +44,16 @@ class Post:
     unreadable: str | None = None  # why the post could not be read
     article: dict | None = None  # an X Article the post carries: {title, preview, url}, and `text` once read whole
     videos: list[dict] = field(default_factory=list)  # long videos transcribed (videos.py): {key, kind, url,
-    # duration_s, title, transcript, source}
+    # duration_s, show, title, source, summary}; the transcript stays in videos/
 
     @property
     def url(self) -> str:
         return f"https://x.com/{self.handle or 'i'}/status/{self.id}"
+
+    @property
+    def shown(self) -> "Post":
+        """The post a reader sees: what it reposts, else itself."""
+        return self.retweet_of or self
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -330,6 +335,16 @@ def inner(p: Post) -> list[Post]:
 def with_article(p: Post) -> list[Post]:
     """The post, and what it reposts or quotes at any depth, that carry an Article."""
     return [x for x in inner(p) if x.article]
+
+
+def article_in(p: Post) -> dict:
+    """The Article a post carries, reposts or quotes at any depth, or {}."""
+    return next((x.article for x in inner(p) if x.article), {})
+
+
+def videos_in(p: Post) -> list[dict]:
+    """The long videos a post carries, reposts or quotes at any depth."""
+    return [v for x in inner(p) for v in x.videos]
 
 
 def attach_articles(entries: list[Entry], texts: dict[str, str]) -> int:

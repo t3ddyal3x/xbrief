@@ -281,9 +281,9 @@ def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
         b.theses.append(Thesis(take(ids), claim, steps, thesis_words(t.get("if_it_holds"), "if_it_holds"),
                                thesis_words(t.get("weak_spots"), "weak_spots"), thesis_words(t.get("wrong_if"), "wrong_if"),
                                t.get("focus") is True))
-    b.theses.sort(key=lambda t: (not any(_article(posts[i]) or _videos(posts[i]) for i in t.posts),  # Articles and
+    b.theses.sort(key=lambda t: (not any(parse.article_in(posts[i]) or parse.videos_in(posts[i]) for i in t.posts),  # Articles and
                                  # videos first, then long form first
-                                 -sum(len(_shown(posts[i]).text) + len(_article(posts[i]).get("text") or "") for i in t.posts)))
+                                 -sum(len(posts[i].shown.text) + len(parse.article_in(posts[i]).get("text") or "") for i in t.posts)))
     def story(t, focus: bool) -> None:
         if not isinstance(t, dict):
             return
@@ -304,20 +304,6 @@ def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
     placed.update(other)
     b.other = other + [pid for pid in posts if pid not in placed]  # nothing is dropped
     return b
-
-
-def _shown(p: Post) -> Post:
-    return p.retweet_of or p
-
-
-def _videos(p: Post) -> list[dict]:
-    """The long videos a post carries, reposts or quotes at any depth."""
-    return [v for x in parse.inner(p) for v in x.videos]
-
-
-def _article(p: Post) -> dict:
-    """The Article a post carries, reposts or quotes at any depth, or {}."""
-    return next((x.article for x in parse.inner(p) if x.article), {})
 
 
 def write(entries: list[Entry], ask=ask_claude, after_id: int = 0) -> tuple[Brief, dict[str, Post]]:
