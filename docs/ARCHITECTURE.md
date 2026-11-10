@@ -263,7 +263,7 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   needs SIP off. The 40 px stays.
 - **A notice that needs the operator** (new terms, a challenge) ends the run; the job never accepts anything.
 - **The page** is a front page in Tokyo Night / Day (re-worked 2026-10-14 on "the entire thing needs a re-work";
-  plan `docs/plans/2026-10-14_rework.md`; earlier the same day `docs/REVIEW_2026-10-14.md` and
+  plan `docs/plans/2026-10-14_rework.md`; earlier the same day `docs/reviews/2026-10-14_design.md` and
   `docs/plans/2026-10-14_elegance.md`). Operator: "tokyo night were the right colors just wanted it to be more
   coherent", then "please don't have hype have its own color". The colours keep macro's roles: text is a ladder of
   Tokyo's slates (headlines, reading, secondary, quietest), blue is focus and selection only, and yellow and red mark
