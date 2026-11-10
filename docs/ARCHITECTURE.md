@@ -260,8 +260,9 @@ checked daily, not their X accounts (reading a profile page would break rule 1).
   Tokyo's slates (headlines, reading, secondary, quietest), blue is focus and selection only, and yellow and red mark
   a problem only. No part of a brief has a colour of its own: HYPE leads by being first, nothing else.
   One bar at the top of every page (tabs, search, the hours and Brief now, the live line); no side rail. A brief opens
-  on the day as a headline, how much was read, a link to the brief before, and a strip with a tick for every post
-  across the window. Then HYPE's stories and theses; then the four stories the most people posted in (`page.LEAD`),
+  on the day as a headline, one line (how many posts from how many people since when, each read's minutes on hover,
+  a link to the brief before), and a strip with a bar for each hour of the window, as tall as its posts (2026-11-10;
+  was a tick for every post). Then HYPE's stories and theses; then the four stories the most people posted in (`page.LEAD`),
   open; then every other story as one line, its headline and how many people, opening in place (`<details>`, no
   script); then the theses, a line each, opening to the argument, what follows, Claude's view (labelled) and the post;
   then everything else, folded. An open story sets Claude's words on the left in Iowan Old Style and its key posts on
