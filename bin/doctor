@@ -13,14 +13,9 @@ if not config.PROFILE.exists():
     faults.append(("login", "the job's Brave profile does not exist yet", "xbrief/bin/xbrief login"))
 elif running(config.PROFILE):
     print("xbrief  the job's Brave is open now (a run, or the login window)")
-if config.OLD_LOGIN.exists():
-    faults.append(("old login file", "the first build's cookie file is still there", "xbrief/bin/xbrief login deletes it"))
 out = subprocess.run(["launchctl", "list"], capture_output=True, text=True).stdout
 if not any(l.endswith("com.xbrief.app") for l in out.splitlines()):
     faults.append(("com.xbrief.app", "not loaded: no page and no scheduled runs", "xbrief/bin/install-agent"))
-for old in ("com.xbrief.am", "com.xbrief.pm"):
-    if any(l.endswith(old) for l in out.splitlines()):
-        faults.append((old, "the static-page build's run agent is still loaded", "xbrief/bin/install-agent removes it"))
 health = None
 try:
     with urllib.request.urlopen("http://127.0.0.1:8795/api/health", timeout=4) as r:

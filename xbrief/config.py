@@ -8,7 +8,6 @@ HOME = pathlib.Path.home()
 DATA = pathlib.Path(os.environ.get("XBRIEF_DATA_DIR", HOME / "Data" / "xbrief-data"))
 SECRETS = DATA / "secrets"
 PROFILE = SECRETS / "brave"  # the job's own Brave profile: the X login lives here, never read by a session
-OLD_LOGIN = SECRETS / "accounts.db"  # the twscrape login of the first build; `xbrief login` deletes it
 RAW = DATA / "raw"  # one file a run, the feed pages as x.com downloaded them; kept RAW_KEEP_DAYS
 LOGS = DATA / "logs"
 VIDEOS = DATA / "videos"  # one file a long video: its transcript and summary (videos.py), kept for good

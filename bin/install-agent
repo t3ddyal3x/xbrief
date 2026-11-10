@@ -25,10 +25,6 @@ for _ in 1 2 3; do
 done
 [ -n "$ok" ] || { echo "agent: $LABEL FAILED to load" >&2; exit 1; }
 echo "agent: $LABEL loaded"
-for old in com.xbrief.am com.xbrief.pm; do  # the two run agents of the static-page build
-  launchctl bootout "gui/$(id -u)/$old" 2>/dev/null && echo "agent: $old unloaded" || true
-  [ -f "$AGENTS/$old.plist" ] && rm "$AGENTS/$old.plist" && echo "agent: $old removed" || true
-done
 
 # ── the front door ──
 block="$(sed "s#__DATA__#$DATA#g" "$REPO/ops/caddy/xbrief.caddy" | sed -n '/^http:\/\/xbrief.localhost {/,/^}/p')"

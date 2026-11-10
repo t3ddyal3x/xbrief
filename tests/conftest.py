@@ -52,7 +52,6 @@ def fresh_data(monkeypatch, tmp_path):
                       ("LOCK", "run.lock"), ("PROGRESS", "progress.json")]:
         monkeypatch.setattr(config, name, d / sub if sub else d)
     monkeypatch.setattr(config, "PROFILE", d / "secrets" / "brave")
-    monkeypatch.setattr(config, "OLD_LOGIN", d / "secrets" / "old-login")
     monkeypatch.setattr(config, "STATE", d / "state.json")
     config.ensure_dirs()
     yield d

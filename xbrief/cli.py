@@ -298,9 +298,6 @@ def cmd_login(a) -> int:
     print("waiting for you to quit that Brave …", flush=True)
     while running(config.PROFILE) and time.time() - t0 < 3600:
         time.sleep(2)
-    if config.OLD_LOGIN.exists():
-        config.OLD_LOGIN.unlink()
-        print("deleted the first build's login file (the cookies pasted earlier)")
     print("done. Next: xbrief/bin/xbrief probe")
     return 0
 
