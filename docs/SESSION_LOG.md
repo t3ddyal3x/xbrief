@@ -483,3 +483,10 @@ kept. Same author as before (an anonymous name). Still private.
 **Published** (operator: "make it public"): `t3ddyal3x/xbrief` is public, full history, with an MIT LICENSE and README
 sections "You need" and "Get it" for someone else setting it up. Credentials were never tracked (X cookies live in the
 data folder); history scanned for cookie, token and key values: none.
+
+## 2026-11-10 — public history scrubbed
+**Changed** (operator: keep out "credentials; places, names related to me"): every commit's history rewritten with
+git filter-repo and force-pushed: the author is the GitHub handle with its noreply address, and city names, the
+anonymous GitLab copy's names and address, and another project's path are gone from every version. This repo's own
+git config now commits as the handle. Backup of the old history beside the git dir (`xbrief.git.bak-20261110`).
+**Checked**: no match for the name, the Mac's name, the cities or the GitLab names in any version; tests pass.
