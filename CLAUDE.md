@@ -77,7 +77,7 @@ finish). After a change to `browser.py` or `collect.py`, also `bin/tests --brows
 
 ## Commands
 `bin/brief` · `bin/doctor` · `bin/restart` · `bin/tests [--browser]` · `bin/handoff "summary"` ·
-`bin/install-agent` · `bin/xbrief serve` · `bin/xbrief run [--now] [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
+`bin/install-agent` · `bin/xbrief serve` · `bin/xbrief run [--label am|pm] [--hours H] [--max-pages N]` · `bin/xbrief probe` ·
 `bin/xbrief status` · `bin/xbrief rebrief <raw.json.gz>` · `bin/xbrief articles <raw.json.gz>` (read a saved run's Articles, then rebrief) · `bin/xbrief login` (opens a window for the operator) ·
 `bin/xbrief sites` (check the sites now).
 

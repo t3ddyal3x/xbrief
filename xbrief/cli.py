@@ -7,7 +7,6 @@ import asyncio
 import datetime as dt
 import json
 import os
-import random
 import re
 import sys
 import time
@@ -16,16 +15,6 @@ from . import brief, collect, config, page, parse, runner, store, videos
 
 LABELS = page.LABELS
 log = runner.log
-
-
-def jitter_seconds(label: str, now: dt.datetime, rng: random.Random) -> float:
-    """A random wait that lands inside the label's window; 0 if the window is already over (a late wake)."""
-    start_s, end_s = config.WINDOWS[label]
-    start = now.replace(hour=int(start_s[:2]), minute=int(start_s[3:]), second=0, microsecond=0)
-    end = now.replace(hour=int(end_s[:2]), minute=int(end_s[3:]), second=0, microsecond=0)
-    lo = max(0.0, (start - now).total_seconds())
-    hi = (end - now).total_seconds() - 15 * 60  # leave the read and the writing time inside the window
-    return rng.uniform(lo, hi) if hi > lo else 0.0
 
 
 def entries_of(pages: list[dict]) -> list[parse.Entry]:
@@ -122,10 +111,6 @@ def publish(pages: list[dict], meta: dict, label: str, ask=brief.ask_claude, art
 def cmd_run(a) -> int:
     config.ensure_dirs()
     label = a.label or runner.label_now()
-    if not a.now:
-        wait = jitter_seconds(label, dt.datetime.now(), random.Random())
-        log(f"run {label}: starting in {wait / 60:.0f} min")
-        time.sleep(wait)
     lock = runner.acquire()
     if lock is None:
         log(f"run {label}: another run is going; this one did not start")
@@ -330,7 +315,7 @@ def main(argv=None) -> int:
     sub.add_parser("serve", help="the app at xbrief.localhost, and the schedule (the LaunchAgent runs this)").set_defaults(fn=cmd_serve)
     r = sub.add_parser("run", help="read the Following tab and write the brief")
     r.add_argument("--label", choices=list(LABELS))
-    r.add_argument("--now", action="store_true", help="start now, not at a random minute in the window")
+    r.add_argument("--now", action="store_true", help=argparse.SUPPRESS)  # every run starts at once; still accepted
     r.add_argument("--max-pages", type=int)
     r.add_argument("--hours", type=float, help="read back this many hours from now, not to where the last run stopped")
     r.set_defaults(fn=cmd_run)

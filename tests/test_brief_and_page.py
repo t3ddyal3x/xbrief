@@ -1,6 +1,4 @@
-import datetime as dt
 import json
-import random
 import re
 
 from builders import xw_item, xw_module, xw_page, xw_tweet
@@ -148,18 +146,6 @@ def test_status_says_how_the_run_ended():
 def test_empty_brief():
     main = page.brief_main(brief.Brief(), {}, {}, META)
     assert "Nothing new from the accounts you follow" in main and "<section" not in main
-
-
-def test_jitter_lands_inside_the_window():
-    rng = random.Random(3)
-    early = dt.datetime(2026, 10, 12, 5, 30)
-    for _ in range(200):
-        w = cli.jitter_seconds("am", early, rng)
-        start = early + dt.timedelta(seconds=w)
-        assert dt.datetime(2026, 10, 12, 5, 30) <= start <= dt.datetime(2026, 10, 12, 7, 15)
-    assert cli.jitter_seconds("am", dt.datetime(2026, 10, 12, 9, 0), rng) == 0  # a late wake runs at once
-    w = cli.jitter_seconds("pm", dt.datetime(2026, 10, 12, 17, 0), rng)
-    assert 0 <= w <= (2 * 3600 + 45 * 60)
 
 
 def test_publish_stores_the_run():

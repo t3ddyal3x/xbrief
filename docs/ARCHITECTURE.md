@@ -22,7 +22,7 @@ standard library only, macro's loopback perimeter. Pages are built on the server
   its own session and the agent abandons its process group, so a restart never cuts a read off with Brave open.
 - **The schedule** moved from two launchd agents (`com.xbrief.am`/`pm`, never loaded) into the app, so the page
   can turn it on and move its windows: settings in the store, one slot a day a window with a random fire time
-  (`runner.pick_fire`, same rule as `cli.jitter_seconds`), checked every 20 s. A window slept through runs on
+  (`runner.pick_fire`), checked every 20 s. A window slept through runs on
   waking (as launchd would); two due at once run only the later and skip the earlier, which loses nothing because
   a run reads from where the last stopped; a slot within an hour of another run is skipped; turning it on or moving
   it marks a window already over as skipped. Starts off. Each window has its own switch (`off`, 2026-10-20):
@@ -33,7 +33,8 @@ standard library only, macro's loopback perimeter. Pages are built on the server
 
 ## One run
 1. The app's schedule (or the Brief now button, or a terminal) starts `xbrief run --now`; a scheduled run's start
-   is already a random minute in its window. Without `--now`, `cli.jitter_seconds` waits a random part of it.
+   is already a random minute in its window. Every run starts at once (`--now` is still accepted, and does nothing;
+   the launchd-era random wait without it went on 2026-11-10).
 2. `browser.Browser.start`: a separate Brave instance on `~/Data/xbrief-data/secrets/brave`, started with no
    window (`open -n -g … --no-startup-window`), one window opened in the background over the DevTools protocol and
    parked at the right edge of the rightmost screen. Flags keep a covered window from being throttled.
