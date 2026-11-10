@@ -1,5 +1,12 @@
 # xbrief — session log
 
+## 2026-11-10 — a simpler masthead
+Operator: "simplify this" (the brief's header). The line under the title is now "385 posts from 79 people since Mon 9 Nov
+11:05 · previous brief": the window's start moved up from the strip's caption, each read's minutes went to a hover on
+the count (`page.run_dek`), and the link to the brief before no longer carries its date. The strip is a bar per hour,
+height by how many posts that hour brought, each naming its hour and count on hover (`page.window_strip`), in place
+of a tick per post, the hour marks and the caption.
+
 ## 2026-11-05 — Radigan Carter
    Operator asked for Radigan Carter (latest essay "East of Suez"). Added his Substack, radigancarter.substack.com, to
    `config.SITES` (key `radigan`, people `radigancarter`). Its feed held no posts on 2026-11-05: the source waits for

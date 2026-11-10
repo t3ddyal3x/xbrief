@@ -307,11 +307,14 @@ def test_search_marks_words_and_never_inside_a_link():
     assert page.marked("a &lt;b&gt;", ["lt"]) == "a &lt;b&gt;"  # never inside an escape
 
 
-def test_the_window_strip_marks_every_post():
+def test_the_window_strip_counts_every_post_by_the_hour():
     ents = entries()
     b, posts = brief.write(ents, ask=lambda t: answer_for(brief.unique_posts(ents)))
     meta = {**META, "boundary_id": None, "finished_ms": max(p.created_ms for p in posts.values()) + 60_000}
-    assert page.window_strip(meta, posts).count("<rect x=") == len(posts)
+    strip = page.window_strip(meta, posts)
+    hours = {p.created_ms // 3_600_000 for p in posts.values()}
+    assert strip.count("<rect x=") == len(hours)  # a bar an hour that had posts
+    assert sum(int(t.split(" · ")[1].split()[0]) for t in strip.split("<title>")[1:]) == len(posts)
     assert page.window_strip(meta, {}) == ""  # nothing read, nothing drawn
 
 

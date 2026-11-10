@@ -262,45 +262,55 @@ def at_of(name: str, meta: dict) -> str:
     return f"{name}~{n}" if n > 1 else name
 
 
-def run_dek(meta: dict, n_posts: int, n_accounts: int) -> str:
-    """How much the run read and when; a morning caught up, each read."""
+def window(meta: dict, posts: dict[str, Post]) -> tuple[int, int] | None:
+    """The span a brief covers: from the last brief's newest post (else its own oldest) to the end of the read."""
+    from .parse import snowflake_ms
+
+    times = [p.created_ms for p in posts.values() if p.created_ms]
+    if not times:
+        return None
+    lo = snowflake_ms(meta["boundary_id"]) if meta.get("boundary_id") else min(times)
+    hi = max(meta.get("finished_ms") or 0, max(times))
+    return (lo, hi) if hi > lo else None
+
+
+def run_dek(meta: dict, posts: dict[str, Post], n_accounts: int) -> str:
+    """How much the brief holds and since when; the minutes each read took only on hover (a morning caught up, each)."""
     reads = meta.get("reads") or [meta]
-    dek = (f"{n_posts} posts from {n_accounts} people · "
-           f"read {hhmm(reads[0].get('started_ms') or 0)}–{hhmm(reads[0].get('finished_ms') or 0)}"
-           + "".join(f", caught up {hhmm(r.get('started_ms') or 0)}–{hhmm(r.get('finished_ms') or 0)}" for r in reads[1:]))
+    when = ", ".join(f"{'read' if i == 0 else 'caught up'} {hhmm(r.get('started_ms') or 0)}–{hhmm(r.get('finished_ms') or 0)}"
+                     for i, r in enumerate(reads))
+    dek = f'<span title="{when}">{len(posts)} posts from {n_accounts} people</span>'
+    span = window(meta, posts)
+    if span:
+        dek += f" {'since' if meta.get('boundary_id') else 'from'} {day(span[0])}"
     if meta.get("reread_site"):
         dek += f" · X deployed a new site; its request was read again ({esc(meta.get('build'))})"
     return dek
 
 
 def window_strip(meta: dict, posts: dict[str, Post]) -> str:
-    """The window the read covered, from the last brief's newest post to the end of the read, a tick at each post's
-    time: a quiet night, a busy hour or a hole shows at a glance. Drawn on the server, no script."""
-    from .parse import snowflake_ms
-
-    times = [p.created_ms for p in posts.values() if p.created_ms]
-    if not times:
+    """How many posts each hour of the window brought, a bar an hour: a quiet night, a busy hour or a hole shows at
+    a glance. Drawn on the server, no script; each bar names its hour and count on hover."""
+    span = window(meta, posts)
+    if not span:
         return ""
-    lo = snowflake_ms(meta["boundary_id"]) if meta.get("boundary_id") else min(times)
-    hi = max(meta.get("finished_ms") or 0, max(times))
-    if hi <= lo:
-        return ""
-    span = hi - lo
-    ticks = []
+    lo, hi = span
+    per: dict[int, int] = {}
     for p in posts.values():
-        if not p.created_ms or p.created_ms < lo:
-            continue
-        ticks.append(f'<rect x="{(p.created_ms - lo) / span * 1000:.1f}" y="9" width="1.6" height="21"/>')
-    hours = []  # a faint mark on each local hour, for scale
-    t = (lo // 3_600_000 + 1) * 3_600_000
-    while t < hi:
-        hours.append(f'<rect class="hr" x="{(t - lo) / span * 1000:.1f}" y="30" width="1" height="5"/>')
-        t += 3_600_000
-    since = f"since {day(lo)}" if meta.get("boundary_id") else f"from {day(lo)}"
-    return (f'<figure class="strip" aria-label="When the {len(times)} posts were made, {since} to {hhmm(hi)}">'
-            f'<svg viewBox="0 0 1000 35" preserveAspectRatio="none" aria-hidden="true">'
-            f'<rect class="base" x="0" y="30" width="1000" height="1"/>{"".join(hours)}{"".join(ticks)}</svg>'
-            f'<figcaption><span>{since}</span><span>{hhmm(hi)}</span></figcaption></figure>')
+        if p.created_ms and lo <= p.created_ms <= hi:
+            h = p.created_ms // 3_600_000 * 3_600_000
+            per[h] = per.get(h, 0) + 1
+    top = max(per.values(), default=1)
+    w = 1000 / (hi - lo)
+    bars = []
+    for h, n in sorted(per.items()):
+        x0, x1 = max(h, lo), min(h + 3_600_000, hi)
+        tall = max(2.0, n / top * 28)
+        bars.append(f'<rect x="{(x0 - lo) * w:.1f}" y="{30 - tall:.1f}" width="{max(1.0, (x1 - x0) * w - 3):.1f}" '
+                    f'height="{tall:.1f}"><title>{hhmm(h)} · {count(n, "post", "posts")}</title></rect>')
+    return (f'<figure class="strip" aria-label="Posts by the hour, {day(lo)} to {hhmm(hi)}">'
+            f'<svg viewBox="0 0 1000 31" preserveAspectRatio="none">'
+            f'<rect class="base" x="0" y="30" width="1000" height="1"/>{"".join(bars)}</svg></figure>')
 
 
 def failed_html(f: dict | str) -> str:
@@ -451,9 +461,9 @@ def brief_page(run: dict, earlier: list[dict], live: dict, running: bool = False
     # the brief before this one, and briefs only: a run that read nothing is on History with what stopped it
     prev = next((r for r in earlier if r["started_ms"] < (meta.get("started_ms") or 0)
                  and ending(r["meta"], r.get("writer_error"))[1] != "bad"), None)
-    dek = run_dek(meta, len(run["posts"]), accounts)
+    dek = run_dek(meta, run["posts"], accounts)
     if prev:
-        dek += f' · <a href="/b/{esc(prev["name"])}">the brief before, {esc(run_when(prev["started_ms"]))}</a>'
+        dek += f' · <a href="/b/{esc(prev["name"])}">previous brief</a>'
     main = masthead(run_head(run["label"], meta.get("started_ms") or 0), dek, window_strip(meta, run["posts"])) + main
     return shell(f"X brief · {title}", topbar("brief", live, running=running, at=run["name"]), main,
                  at=at_of(run["name"], meta))

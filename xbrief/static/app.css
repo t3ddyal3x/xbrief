@@ -65,10 +65,9 @@ border-radius:8px;padding:.5rem .65rem;min-width:0}
 .mast h1 span{font-style:italic;font-weight:400;letter-spacing:0;color:var(--dim);margin-left:.12em}
 .dek{font:13.5px/1.5 var(--f-ui);color:var(--dim);margin:.7rem 0 0}.dek a{color:var(--dim)}.dek a:hover{color:var(--ink)}
 .strip{margin:1.4rem 0 0}
-.strip svg{display:block;width:100%;height:30px}
-.strip rect{fill:var(--tick);opacity:.6}
-.strip rect.base{fill:var(--rule);opacity:1}.strip rect.hr{fill:var(--tick);opacity:.7}
-.strip figcaption{display:flex;justify-content:space-between;font:11.5px/1 var(--f-num);color:var(--dim);margin-top:.45rem}
+.strip svg{display:block;width:100%;height:31px}
+.strip rect{fill:var(--tick);opacity:.6}.strip rect:hover{opacity:1}
+.strip rect.base{fill:var(--rule);opacity:1}
 .status{font:13.5px/1.55 var(--f-ui);padding:.8rem 1rem;border-left:3px solid var(--warn);background:var(--panel);
 border-radius:0 8px 8px 0;margin:0 0 2.6rem;color:var(--ink)}
 .status.bad{border-color:var(--bad)}
