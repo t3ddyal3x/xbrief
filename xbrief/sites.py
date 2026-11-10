@@ -19,21 +19,19 @@ import datetime as dt
 import email.utils
 import html
 import json
-import os
 import re
-import subprocess
 import sys
 import time
 import urllib.request
 from urllib.parse import urljoin, urlparse
 
-from . import brief, config, parse, runner, store
+from . import brief, config, runner, store
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
+HTML_ACCEPT = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 MAX_BYTES = 8_000_000
 MAX_TEXT = 80_000  # characters of a post given to Claude; a 21-minute letter is about 25,000
 TIMEOUT_S = 30
-SPAWN_GRACE_MS = 20_000
 LIMITS = {"gist": 80, "point": 45, "call": 45, "view": 90}
 MAX_POINTS, MAX_CALLS, MAX_TOPICS = 12, 15, 25
 
@@ -65,13 +63,14 @@ BEGIN POST
 # ── reading the sources ─────────────────────────────────────────────────────────────────────────────
 
 
-def fetch(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
-        body = r.read(MAX_BYTES + 1)
-        charset = r.headers.get_content_charset() or "utf-8"
-    if len(body) > MAX_BYTES:
-        raise ValueError(f"over {MAX_BYTES // 1_000_000} MB")
+def fetch(url: str, max_bytes: int = MAX_BYTES, accept: str | None = HTML_ACCEPT, page_charset: bool = True) -> str:
+    """A plain public GET, its body as text: decoded in the page's own charset (else UTF-8), refused past `max_bytes`."""
+    headers = {"User-Agent": UA, **({"Accept": accept} if accept else {})}
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=TIMEOUT_S) as r:
+        body = r.read(max_bytes + 1)
+        charset = (page_charset and r.headers.get_content_charset()) or "utf-8"
+    if len(body) > max_bytes:
+        raise ValueError(f"over {max_bytes // 1_000_000} MB")
     return body.decode(charset, errors="replace")
 
 
@@ -201,16 +200,11 @@ def listed(src: dict, get=fetch) -> list[dict]:
 # ── Claude's read ───────────────────────────────────────────────────────────────────────────────────
 
 
-def _words(v, limit: int) -> str:
-    words = " ".join(str(v or "").split()).split()
-    return " ".join(words) if len(words) <= limit else " ".join(words[:limit]) + " …"
+_words = brief.words
 
 
 def parse_summary(answer: str) -> dict:
-    start = answer.find("{")
-    if start < 0:
-        raise ValueError("no JSON in the answer")
-    obj, _ = json.JSONDecoder().raw_decode(answer, start)
+    obj = brief.json_in(answer)
     if not isinstance(obj, dict):
         raise ValueError("the answer is not a JSON object")
     lst = lambda k, n, lim: [_words(x, lim) for x in (obj.get(k) or [])[:n] if isinstance(x, str) and x.strip()]  # noqa: E731
@@ -222,12 +216,18 @@ def parse_summary(answer: str) -> dict:
     return out
 
 
+def ask_summary(prompt: str, head: dict, text: str, timeout: int, ask=None) -> dict:
+    """Claude's summary (config.SITE_MODEL: Opus, never Sonnet) of `text` under `head`, as parse_summary reads it.
+    The Sites tab's posts and the brief's long videos both go through here."""
+    ask = ask or (lambda t: brief.ask_claude(t, timeout=timeout, model=config.SITE_MODEL))
+    return parse_summary(ask(prompt + json.dumps(head, ensure_ascii=False) + "\n\n" + text + "\n"))
+
+
 def summarise(title: str, url: str, text: str, ask=None, published_ms: int | None = None) -> dict:
-    ask = ask or (lambda t: brief.ask_claude(t, timeout=900, model=config.SITE_MODEL))
     head = {"title": title, "address": url}
     if published_ms:
         head["published"] = dt.datetime.fromtimestamp(published_ms / 1000, dt.timezone.utc).strftime("%Y-%m-%d")
-    return parse_summary(ask(PROMPT + json.dumps(head, ensure_ascii=False) + "\n\n" + text[:MAX_TEXT] + "\n"))
+    return ask_summary(PROMPT, head, text[:MAX_TEXT], 900, ask)
 
 
 # ── the people behind a source ──────────────────────────────────────────────────────────────────────
@@ -270,11 +270,7 @@ def found_lines(text: str, words: list[str], most: int = 8, width: int = 360) ->
 
 
 def log(msg: str) -> None:
-    line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}"
-    print(line, flush=True)
-    config.LOGS.mkdir(parents=True, exist_ok=True)
-    with open(config.LOGS / "sites.log", "a") as f:
-        f.write(line + "\n")
+    runner.log(msg, "sites.log")
 
 
 def read_post(item: dict, src: dict, get=fetch, ask=None) -> dict:
@@ -339,7 +335,7 @@ def running() -> bool:
 
 def just_started(now_ms: int | None = None) -> bool:
     s = store.settings().get("sites_started_ms") or 0
-    return (now_ms or int(time.time() * 1000)) - s < SPAWN_GRACE_MS
+    return (now_ms or int(time.time() * 1000)) - s < runner.SPAWN_GRACE_MS
 
 
 def start(by: str = "page") -> bool:
@@ -347,11 +343,7 @@ def start(by: str = "page") -> bool:
     if running() or just_started():
         return False
     store.save_settings({"sites_started_ms": int(time.time() * 1000), "sites_started_by": by})
-    config.LOGS.mkdir(parents=True, exist_ok=True)
-    env = {**os.environ, "PYTHONPATH": str(runner.REPO), "PYTHONUNBUFFERED": "1"}
-    with open(config.LOGS / "sites-out.log", "a") as out:  # tracebacks; the check's own lines go to sites.log
-        subprocess.Popen([sys.executable, "-m", "xbrief", "sites"], cwd=runner.REPO, env=env, stdin=subprocess.DEVNULL,
-                         stdout=out, stderr=subprocess.STDOUT, start_new_session=True)
+    runner.spawn([sys.executable, "-m", "xbrief", "sites"], "sites-out.log")  # tracebacks; its own lines go to sites.log
     return True
 
 

@@ -164,7 +164,7 @@ def folded(ids: list[str], posts: dict[str, Post], thr: dict[str, list[Post]]) -
         return ""
     handles = list(dict.fromkeys((p.retweet_of or p).handle for p in shown))
     who = ", ".join(f"@{h}" for h in handles[:6]) + (f" and {len(handles) - 6} more" if len(handles) > 6 else "")
-    label = f"{len(shown)} post{'s' if len(shown) != 1 else ''} · {who}"
+    label = f"{count(len(shown), 'post', 'posts')} · {who}"
     return f'<details class="fold"><summary>{esc(label)}</summary>{"".join(post_html(p) for p in shown)}</details>'
 
 
@@ -343,11 +343,6 @@ def run_title(name: str, label: str, started_ms: int) -> str:
     return f"{time.strftime('%a %-d %b', time.localtime(started_ms / 1000))} · {LABELS.get(label, label)}"
 
 
-def run_when(started_ms: int) -> str:
-    """A run in a list: its day and the minute it started, which tells two runs of one morning apart."""
-    return time.strftime("%a %-d %b %H:%M", time.localtime(started_ms / 1000))
-
-
 def run_head(label: str, started_ms: int) -> str:
     """A brief's headline: the day in full and the part of it."""
     return (f"{time.strftime('%A %-d %B', time.localtime(started_ms / 1000))} "
@@ -478,7 +473,7 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
         n = f'{r["n_posts"]} posts · {r["n_topics"]} stories'
         if cls == "bad":
             n = "read nothing"
-        rows.append(f'<li class="{cls}"><a href="/b/{esc(r["name"])}">{esc(run_when(r["started_ms"]))}</a>'
+        rows.append(f'<li class="{cls}"><a href="/b/{esc(r["name"])}">{esc(day(r["started_ms"]))}</a>'
                     f'<span class="lb">{esc(LABELS.get(r["label"], r["label"]))}</span><span class="n">{n}</span>'
                     + (f'<span class="end {cls}">{esc(end)}</span>' if end else "") + '</li>')
     w = sett["windows"]
@@ -513,12 +508,6 @@ def history_page(runs: list[dict], sett: dict, today: dict, live: dict, running:
 # ── search ──────────────────────────────────────────────────────────────────────────────────────────
 
 
-def store_words(q: str) -> list[str]:
-    from .store import parse_query
-
-    return parse_query(q)[1]
-
-
 def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | None]], cut: bool, kept: dict,
                 titles: dict[str, str], live: dict, running: bool = False) -> str:
     form = (f'<form class="search ctl" action="/search" method="get" role="search">'
@@ -532,15 +521,17 @@ def search_page(q: str, since: str, until: str, hits: list[tuple[Post, str | Non
     elif not hits:
         body = '<p class="hits">No post matches. Fewer words, or a wider range of dates.</p>'
     else:
-        out, last_day = [], None
+        from .store import parse_query
+
+        out, last_day, words = [], None, parse_query(q)[1]
         for p, run in hits:
             d = time.strftime("%a %-d %b %Y", time.localtime(p.created_ms / 1000))
             if d != last_day:
                 out.append(f'<h3 class="day">{esc(d)}</h3>')
                 last_day = d
             also = (f'<a class="from" href="/b/{esc(run)}">{esc(titles.get(run, run))}</a>' if run else "")
-            out.append(post_html(p, also, store_words(q)))
-        n = f"{len(hits)} post{'s' if len(hits) != 1 else ''}" + (", the newest shown; narrow the search for the rest" if cut else "")
+            out.append(post_html(p, also, words))
+        n = count(len(hits), "post", "posts") + (", the newest shown; narrow the search for the rest" if cut else "")
         body = f'<p class="hits">{esc(n)}</p>' + "".join(out)
     return shell(f"X brief · {q or 'search'}", topbar("search", live, running=running), form + body)
 

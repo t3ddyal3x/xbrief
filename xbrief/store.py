@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS runs (
   n_posts INTEGER NOT NULL,
   n_topics INTEGER NOT NULL
 );
+CREATE INDEX IF NOT EXISTS runs_started ON runs (started_ms, id);
 CREATE TABLE IF NOT EXISTS posts (
   id TEXT PRIMARY KEY,
   handle TEXT NOT NULL,
@@ -44,6 +45,8 @@ CREATE TABLE IF NOT EXISTS posts (
 );
 CREATE INDEX IF NOT EXISTS posts_handle ON posts (handle COLLATE NOCASE, created_ms);
 CREATE INDEX IF NOT EXISTS posts_created ON posts (created_ms);
+CREATE INDEX IF NOT EXISTS posts_rt_handle  -- search's "@account": the account a repost is of, written as search writes it
+  ON posts (json_extract(doc, '$.retweet_of.handle') COLLATE NOCASE, created_ms);
 CREATE TABLE IF NOT EXISTS run_posts (
   run_id INTEGER NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
   post_id TEXT NOT NULL,
@@ -73,7 +76,7 @@ CREATE INDEX IF NOT EXISTS site_posts_source ON site_posts (source, baseline);
 """
 
 DEFAULTS = {"schedule": False, "windows": {k: list(v) for k, v in config.WINDOWS.items()}, "sites_daily": True}
-_fts_checked: set[str] = set()  # the databases this process has already looked at for the old index
+_ready: set[str] = set()  # the databases this process has already given the schema and looked at for the old index
 
 
 @contextlib.contextmanager
@@ -83,10 +86,10 @@ def db():
     try:
         con.execute("PRAGMA journal_mode=WAL")
         con.execute("PRAGMA foreign_keys=ON")
-        con.executescript(SCHEMA)
-        if str(config.DB) not in _fts_checked:
+        if str(config.DB) not in _ready:
+            con.executescript(SCHEMA)
             _upgrade_fts(con)
-            _fts_checked.add(str(config.DB))
+            _ready.add(str(config.DB))
         with con:
             yield con
     finally:
@@ -247,8 +250,9 @@ def search(q: str, since: str = "", until: str = "", limit: int = 300) -> tuple[
     if handles:
         # the account that posted, or the account a repost is of
         marks = ",".join("?" * len(handles))
-        where.append(f"(p.handle COLLATE NOCASE IN ({marks}) OR "
-                     f"json_extract(p.doc, '$.retweet_of.handle') COLLATE NOCASE IN ({marks}))")
+        # each half through its own index (an OR here walks every post)
+        where.append(f"p.id IN (SELECT id FROM posts WHERE handle COLLATE NOCASE IN ({marks}) UNION "
+                     f"SELECT id FROM posts WHERE json_extract(doc, '$.retweet_of.handle') COLLATE NOCASE IN ({marks}))")
         args += handles + handles
     if lo:
         where.append("p.created_ms >= ?")
@@ -256,9 +260,12 @@ def search(q: str, since: str = "", until: str = "", limit: int = 300) -> tuple[
     if hi:
         where.append("p.created_ms <= ?")
         args.append(hi)
-    sql = (f"SELECT p.doc, (SELECT r.name FROM run_posts rp JOIN runs r ON r.id = rp.run_id WHERE rp.post_id = p.id "
-           f"ORDER BY r.started_ms LIMIT 1) AS run FROM posts p WHERE {' AND '.join(where)} "
-           f"ORDER BY p.created_ms DESC LIMIT ?")
+    # the matching ids are cut to `limit` first, and only those posts' records read: a record can hold a whole transcript
+    sql = (f"WITH hit AS (SELECT p.id, p.created_ms FROM posts p WHERE {' AND '.join(where)} "
+           f"ORDER BY p.created_ms DESC, p.id DESC LIMIT ?) "
+           f"SELECT p.doc, (SELECT r.name FROM run_posts rp JOIN runs r ON r.id = rp.run_id WHERE rp.post_id = p.id "
+           f"ORDER BY r.started_ms LIMIT 1) AS run FROM hit JOIN posts p ON p.id = hit.id "
+           f"ORDER BY hit.created_ms DESC, hit.id DESC")
     with db() as con:
         rows = con.execute(sql, args + [limit + 1]).fetchall()
     out = [(Post.from_dict(json.loads(r["doc"])), r["run"]) for r in rows[:limit]]

@@ -23,7 +23,6 @@ import subprocess
 import time
 from typing import Any
 
-from . import config
 
 BRAVE_APP = os.environ.get("XBRIEF_BRAVE_APP", "/Applications/Brave Browser.app")
 FLAGS = [

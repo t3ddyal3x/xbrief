@@ -10,6 +10,7 @@ retried. What was read is saved raw, one file a run, and the brief says how the 
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import math
 import pathlib
@@ -55,7 +56,6 @@ class Result:
     pages: list[dict] = field(default_factory=list)
     build: str = ""  # "legacy" (x.com/i/api) or "xweb" (api.x.com), read off the feed request the page made
     ranked: bool = False  # the Following tab is sorted by Popular (enableRanking), not Recent
-    reread_site: bool = False
     articles: dict[str, list[dict]] = field(default_factory=dict)  # post id → what its own page fetched
     articles_read: int = 0  # Articles read whole
     articles_left: int = 0  # Articles past config.MAX_ARTICLES, left at their opening
@@ -76,16 +76,11 @@ class Stop(Exception):
 
 
 def load_state() -> dict:
-    try:
-        return json.loads(config.STATE.read_text())
-    except (OSError, ValueError):
-        return {}
+    return config.read_json(config.STATE)
 
 
 def save_state(state: dict) -> None:
-    tmp = config.STATE.with_suffix(".part")
-    tmp.write_text(json.dumps(state, indent=1, sort_keys=True))
-    tmp.replace(config.STATE)
+    config.write_json(config.STATE, state, indent=1, sort_keys=True)
 
 
 # ── pacing ──────────────────────────────────────────────────────────────────────────────────────────
@@ -161,26 +156,15 @@ class Feed:
         elif p.get("requestId") in self.art_tracked:
             await self._article_event(m, p)
         elif m == "Network.responseReceived" and p.get("requestId") in self.tracked:
-            status = (p.get("response") or {}).get("status", 0)
-            if status != 200:
-                self.problem = f"X answered the feed request with HTTP {status}" + (" (rate limited)" if status == 429 else "")
+            self._status(p, "the feed request")
         elif m == "Network.loadingFinished" and p.get("requestId") in self.tracked:
             rid = p["requestId"]
             url = self.tracked.pop(rid)
-            body = await self.b.send("Network.getResponseBody", {"requestId": rid})
-            text = body.get("body") or ""
-            if body.get("base64Encoded"):
-                import base64
-
-                text = base64.b64decode(text).decode("utf-8", "replace")
-            try:
-                page = json.loads(text)
-            except ValueError:
-                self.problem = "X answered the feed request with something other than JSON"
+            page = await self._json_body(rid, "the feed request")
+            if page is None:
                 return
             if not parse.timeline(page):
-                errs = "; ".join(str(e.get("message", e)) for e in (page.get("errors") or []))[:300]
-                self.problem = f"X answered without a feed ({errs or 'no errors given'})"
+                self.problem = f"X answered without a feed ({_errors(page)})"
                 return
             self.pages.append(page)
             self.urls.append(url)
@@ -203,30 +187,36 @@ class Feed:
     async def _article_event(self, m: str, p: dict) -> None:
         """A post's own page, open to read its Article: X pushing back here ends the run like on the feed."""
         if m == "Network.responseReceived":
-            status = (p.get("response") or {}).get("status", 0)
-            if status != 200:
-                self.problem = f"X answered a post's page with HTTP {status}" + (" (rate limited)" if status == 429 else "")
+            self._status(p, "a post's page")
         elif m == "Network.loadingFinished":
             pid = self.art_tracked.pop(p["requestId"])
-            body = await self.b.send("Network.getResponseBody", {"requestId": p["requestId"]})
-            text = body.get("body") or ""
-            if body.get("base64Encoded"):
-                import base64
-
-                text = base64.b64decode(text).decode("utf-8", "replace")
-            try:
-                page = json.loads(text)
-            except ValueError:
-                self.problem = "X answered a post's page with something other than JSON"
+            page = await self._json_body(p["requestId"], "a post's page")
+            if page is None:
                 return
             if not page.get("data"):
-                errs = "; ".join(str(e.get("message", e)) for e in (page.get("errors") or []))[:300]
-                self.problem = f"X answered a post's page without the post ({errs or 'no errors given'})"
+                self.problem = f"X answered a post's page without the post ({_errors(page)})"
                 return
             self.article_pages.setdefault(pid, []).append(page)
         elif m == "Network.loadingFailed":
             self.art_tracked.pop(p["requestId"], None)
             self.problem = f"a post's page failed to load ({p.get('errorText', 'no reason given')})"
+
+    def _status(self, p: dict, what: str) -> None:
+        status = (p.get("response") or {}).get("status", 0)
+        if status != 200:
+            self.problem = f"X answered {what} with HTTP {status}" + (" (rate limited)" if status == 429 else "")
+
+    async def _json_body(self, rid: str, what: str) -> dict | None:
+        """The JSON a finished request got back; None, with the run's problem said, if it was not JSON."""
+        body = await self.b.send("Network.getResponseBody", {"requestId": rid})
+        text = body.get("body") or ""
+        if body.get("base64Encoded"):
+            text = base64.b64decode(text).decode("utf-8", "replace")
+        try:
+            return json.loads(text)
+        except ValueError:
+            self.problem = f"X answered {what} with something other than JSON"
+            return None
 
     def _at(self, url: str) -> None:
         self.main_url = url
@@ -237,6 +227,10 @@ class Feed:
     @property
     def upsell(self) -> bool:
         return bool(self.main_url) and bool(UPSELL.search(path_of(self.main_url)))
+
+
+def _errors(page: dict) -> str:
+    return "; ".join(str(e.get("message", e)) for e in (page.get("errors") or []))[:300] or "no errors given"
 
 
 def ranking_of(request: dict) -> bool:
@@ -354,37 +348,44 @@ def _check(feed: Feed) -> None:
         raise Stop(feed.problem)
 
 
-async def _click_following(browser, feed: Feed, rng: random.Random) -> None:
-    for xpath in FOLLOWING_TAB:
+async def _find_any(browser, xpaths) -> tuple | None:
+    """The box of the first of `xpaths` on the page."""
+    for xpath in xpaths:
         box = await browser.find_box(xpath)
         if box:
-            await browser.click(box[0] + rng.uniform(-8, 8), box[1] + rng.uniform(-3, 3))
-            return
-    raise Stop("could not find the Following tab on x.com/home")
+            return box
+    return None
 
 
-async def _choose_recent(browser, feed: Feed, rng: random.Random) -> bool:
+async def _rest(feed: Feed, pause: float, sleep) -> None:
+    if sleep is asyncio.sleep:
+        await feed.pump(pause)
+    else:  # tests: time passes in the fake sleep, events are handled at once
+        await sleep(pause)
+        await feed.pump(0)
+
+
+async def _click_following(browser, feed: Feed, rng: random.Random) -> None:
+    box = await _find_any(browser, FOLLOWING_TAB)
+    if not box:
+        raise Stop("could not find the Following tab on x.com/home")
+    await browser.click(box[0] + rng.uniform(-8, 8), box[1] + rng.uniform(-3, 3))
+
+
+async def _choose_recent(browser, feed: Feed, rng: random.Random) -> None:
     """The operator reads Recent. If the job's profile shows Popular, choose Recent in the tab's own menu, as a
     person would, and keep only what the feed shows after that. If the menu is not there, carry on in Popular order
     (the reader handles it and the brief says so)."""
-    tab = None
-    for xpath in FOLLOWING_TAB:
-        tab = await browser.find_box(xpath)
-        if tab:
-            break
+    tab = await _find_any(browser, FOLLOWING_TAB)
     if not tab:
-        return False
+        return
     await browser.click(tab[0] + rng.uniform(-6, 6), tab[1] + rng.uniform(-2, 2))
     await feed.pump(1.2 + rng.uniform(0, 0.8))
-    item = None
-    for xpath in RECENT_ITEM:
-        item = await browser.find_box(xpath)
-        if item:
-            break
+    item = await _find_any(browser, RECENT_ITEM)
     if not item:
         await browser.key("Escape")
         await feed.pump(0.5)
-        return False
+        return
     before = len(feed.pages)
     feed.ranked = None
     await browser.click(item[0] + rng.uniform(-10, 10), item[1] + rng.uniform(-2, 2))
@@ -395,7 +396,6 @@ async def _choose_recent(browser, feed: Feed, rng: random.Random) -> bool:
     if len(feed.pages) == before:
         raise Stop("the Following tab did not reload after choosing Recent")
     del feed.pages[:before], feed.urls[:before]  # the Popular pages read before the switch
-    return True
 
 
 async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Random, sleep) -> None:
@@ -425,12 +425,7 @@ async def _read(browser, feed: Feed, res: Result, first: bool, rng: random.Rando
             raise Stop(f"stopped at the cap of {config.MAX_MINUTES} minutes", gap=True)
         await browser.wheel(wheel_delta(rng))
         stalled = stalled + 1 if await browser.at_bottom() else 0
-        pause = wheel_pause(rng)
-        if sleep is asyncio.sleep:
-            await feed.pump(pause)
-        else:  # tests: time passes in the fake sleep, events are handled at once
-            await sleep(pause)
-            await feed.pump(0)
+        await _rest(feed, wheel_pause(rng), sleep)
 
 
 def wanted(pages: list[dict], after_id: int) -> list[parse.Post]:
@@ -467,12 +462,7 @@ async def read_articles(browser, feed: Feed, res: Result, posts: list[parse.Post
             if post.id not in parse.articles_in(feed.article_pages.get(post.id) or []):
                 raise Stop(f"@{post.handle}'s Article did not load")
             res.articles_read += 1
-            pause = rng.uniform(4, 12)  # a person reads a while before the next one
-            if sleep is asyncio.sleep:
-                await feed.pump(pause)
-            else:
-                await sleep(pause)
-                await feed.pump(0)
+            await _rest(feed, rng.uniform(4, 12), sleep)  # a person reads a while before the next one
             _check(feed)
     except Stop as s:
         res.stop, res.normal = f"{res.stop}; then, reading Articles: {s.why}", False

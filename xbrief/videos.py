@@ -38,15 +38,12 @@ import tempfile
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 import unicodedata
-import urllib.request
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from urllib.parse import urlencode, urljoin
 
-from . import brief, config, parse
+from . import config, parse, sites
 
-UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36"
-TIMEOUT_S = 30
 MAX_BYTES = 60_000_000  # a caption file, a stream index or a podcast's feed; the audio goes through ffmpeg and yt-dlp
 TEXT_LIMIT = 300_000  # characters of a transcript given to the summariser: about three hours of talk
 KEY = re.compile(r"^(?:x|yt|sp|ap)-[A-Za-z0-9_-]{1,40}$")
@@ -119,12 +116,7 @@ def wanted(posts: dict[str, parse.Post]) -> list[dict]:
 
 
 def http_get(url: str) -> str:
-    req = urllib.request.Request(url, headers={"User-Agent": UA})
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
-        body = r.read(MAX_BYTES + 1)
-    if len(body) > MAX_BYTES:
-        raise ValueError(f"over {MAX_BYTES // 1_000_000} MB")
-    return body.decode("utf-8", "replace")
+    return sites.fetch(url, MAX_BYTES, accept=None, page_charset=False)
 
 
 def _media_lines(master: str, kind: str) -> list[str]:
@@ -173,14 +165,11 @@ def x_audio(stream: str, out: Path, get=http_get, run=subprocess.run) -> Path:
     master = get(stream)
     tracks = [u for u in (_uri(ln) for ln in _media_lines(master, "AUDIO")) if u]
     src = next((u for u in tracks if "/64000/" in u), tracks[0] if tracks else None)
-    args = ["-vn", "-c:a", "copy"]
     if not src:  # an older video with sound and picture in one stream: its smallest, the picture dropped
         src = next((ln.strip() for ln in master.splitlines() if ln.strip() and not ln.startswith("#")), None)
         if not src:
             raise ValueError("the stream index lists no audio")
-    run([config.FFMPEG, "-nostdin", "-loglevel", "error", "-y", "-i", urljoin(stream, src), *args, str(out)],
-        check=True, capture_output=True, timeout=1800)
-    return out
+    return feed_audio(urljoin(stream, src), out, run)
 
 
 def yt_info(url: str, run=subprocess.run) -> dict:
@@ -293,7 +282,7 @@ def show_transcript(transcripts: list[dict], get=http_get) -> str | None:
 
 
 def feed_audio(url: str, out: Path, run=subprocess.run) -> Path:
-    """An episode's audio from its feed, copied as it is (Matroska holds any codec)."""
+    """The audio track alone of a stream or an episode's feed, copied as it is (Matroska holds any codec)."""
     run([config.FFMPEG, "-nostdin", "-loglevel", "error", "-y", "-i", url, "-vn", "-c:a", "copy", str(out)],
         check=True, capture_output=True, timeout=1800)
     return out
@@ -322,10 +311,7 @@ def _path(key: str) -> Path:
 
 def _save(doc: dict) -> None:
     config.VIDEOS.mkdir(parents=True, exist_ok=True)
-    p = _path(doc["key"])
-    tmp = p.with_suffix(".part")
-    tmp.write_text(json.dumps(doc, ensure_ascii=False))
-    tmp.replace(p)
+    config.write_json(_path(doc["key"]), doc, ensure_ascii=False)
 
 
 def kept(key: str) -> dict | None:
@@ -389,13 +375,9 @@ def _transcribe(doc: dict, get, run) -> None:
 
 
 def summarise(doc: dict, ask=None) -> dict:
-    from . import sites
-
-    ask = ask or (lambda t: brief.ask_claude(t, timeout=1800, model=config.SITE_MODEL))
     head = {"posted by": f"@{doc.get('by', '')}", "show": doc.get("show"), "title": doc.get("title") or None,
             "length": f"{round((doc.get('duration_s') or 0) / 60)} minutes", "transcript from": doc.get("source")}
-    return sites.parse_summary(ask(PROMPT + json.dumps(head, ensure_ascii=False) + "\n\n"
-                                   + doc["transcript"][:TEXT_LIMIT] + "\n"))
+    return sites.ask_summary(PROMPT, head, doc["transcript"][:TEXT_LIMIT], 1800, ask)
 
 
 def read(item: dict, get=http_get, run=subprocess.run, ask=None) -> dict:

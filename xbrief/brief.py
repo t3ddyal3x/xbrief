@@ -241,38 +241,46 @@ def ask_claude(text: str, timeout: int = 1800, model: str | None = None) -> str:
     return r.stdout
 
 
-def _trim_words(text: str, limit: int) -> str:
-    words = text.split()
-    return text if len(words) <= limit else " ".join(words[:limit]) + " …"
+def words(v, limit: int) -> str:
+    """`v` as one line of words, cut at `limit` words with an ellipsis."""
+    w = str(v or "").split()
+    return " ".join(w) if len(w) <= limit else " ".join(w[:limit]) + " …"
 
 
-def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
+def json_in(answer: str):
+    """The JSON value Claude's answer holds, from its first brace."""
     start = answer.find("{")
     if start < 0:
         raise ValueError("no JSON in the answer")
-    obj, _ = json.JSONDecoder().raw_decode(answer, start)
+    return json.JSONDecoder().raw_decode(answer, start)[0]
+
+
+def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
+    obj = json_in(answer)
     placed: set[str] = set()
     b = Brief()
 
+    def free(ids) -> list[str]:
+        return [str(i) for i in ids or [] if str(i) in posts and str(i) not in placed]
+
     def take(ids) -> list[str]:
-        out = [str(i) for i in ids or [] if str(i) in posts and str(i) not in placed]
-        out = list(dict.fromkeys(out))
+        out = list(dict.fromkeys(free(ids)))
         placed.update(out)
         return out
 
-    def words(v, key: str) -> str:
-        return _trim_words(" ".join(str(v or "").split()), THESIS_WORDS[key])
+    def thesis_words(v, key: str) -> str:
+        return words(v, THESIS_WORDS[key])
 
     for t in obj.get("theses") or []:
         if not isinstance(t, dict):
             continue
-        claim = words(t.get("claim"), "claim")
-        free = [str(i) for i in t.get("posts") or [] if str(i) in posts and str(i) not in placed]
-        if not (claim and free):
+        claim = thesis_words(t.get("claim"), "claim")
+        ids = free(t.get("posts"))
+        if not (claim and ids):
             continue
-        steps = [words(x, "step") for x in (t.get("steps") or [])[:MAX_STEPS] if isinstance(x, str) and x.strip()]
-        b.theses.append(Thesis(take(free), claim, steps, words(t.get("if_it_holds"), "if_it_holds"),
-                               words(t.get("weak_spots"), "weak_spots"), words(t.get("wrong_if"), "wrong_if"),
+        steps = [thesis_words(x, "step") for x in (t.get("steps") or [])[:MAX_STEPS] if isinstance(x, str) and x.strip()]
+        b.theses.append(Thesis(take(ids), claim, steps, thesis_words(t.get("if_it_holds"), "if_it_holds"),
+                               thesis_words(t.get("weak_spots"), "weak_spots"), thesis_words(t.get("wrong_if"), "wrong_if"),
                                t.get("focus") is True))
     b.theses.sort(key=lambda t: (not any(_article(posts[i]) or _videos(posts[i]) for i in t.posts),  # Articles and
                                  # videos first, then long form first
@@ -280,11 +288,11 @@ def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
     def story(t, focus: bool) -> None:
         if not isinstance(t, dict):
             return
-        ids = [str(i) for i in t.get("posts") or [] if str(i) in posts and str(i) not in placed]
-        key = [str(i) for i in t.get("key") or [] if str(i) in posts and str(i) not in placed][:MAX_KEY]
+        ids = free(t.get("posts"))
+        key = free(t.get("key"))[:MAX_KEY]
         ids = list(dict.fromkeys(key + ids))
         headline = " ".join(str(t.get("headline") or "").split())[:HEADLINE_CHARS]
-        gist = _trim_words(" ".join(str(t.get("gist") or "").split()), GIST_WORDS)
+        gist = words(t.get("gist"), GIST_WORDS)
         if ids and (headline or gist):
             b.topics.append(Topic(headline or "Untitled", gist, ids, key, focus))
             placed.update(ids)
@@ -293,7 +301,7 @@ def parse_answer(answer: str, posts: dict[str, Post]) -> Brief:
         story(t, True)
     for t in obj.get("stories") or []:
         story(t, False)
-    other = [str(i) for i in obj.get("other") or [] if str(i) in posts and str(i) not in placed]
+    other = free(obj.get("other"))
     placed.update(other)
     b.other = other + [pid for pid in posts if pid not in placed]  # nothing is dropped
     return b

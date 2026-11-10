@@ -14,15 +14,8 @@ import time
 
 from . import brief, collect, config, page, parse, runner, store, videos
 
-LABELS = {"am": "morning", "pm": "evening"}
-
-
-def log(msg: str) -> None:
-    line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}"
-    print(line, flush=True)
-    config.LOGS.mkdir(parents=True, exist_ok=True)
-    with open(config.LOGS / "run.log", "a") as f:
-        f.write(line + "\n")
+LABELS = page.LABELS
+log = runner.log
 
 
 def jitter_seconds(label: str, now: dt.datetime, rng: random.Random) -> float:
@@ -52,8 +45,7 @@ def threads_of(entries: list[parse.Entry], posts: dict) -> list[list[str]]:
 # reads only what came after, and writes the morning's one brief again over both reads (operator, 2026-10-20:
 # docs/plans/2026-10-20_early-run.md). The brief keeps the early run's name; its meta lists each read (`reads`).
 
-READ_KEYS = ("started_ms", "finished_ms", "stop", "normal", "gap", "boundary_id", "newest_id", "page_count", "build",
-             "ranked", "reread_site", "articles_read", "articles_left")
+READ_KEYS = tuple(collect.Result(0).meta())  # what a read's meta holds
 
 
 def reads_of(meta: dict, label: str) -> list[dict]:
@@ -79,7 +71,6 @@ def combine(reads: list[dict]) -> tuple[list[dict], dict, dict]:
     meta = {**{k: last.get(k) for k in READ_KEYS}, "started_ms": first.get("started_ms"),
             "boundary_id": first.get("boundary_id"), "normal": not early, "stop": "; ".join(early) or last.get("stop"),
             "gap": any(r.get("gap") for r in reads), "ranked": any(r.get("ranked") for r in reads),
-            "reread_site": any(r.get("reread_site") for r in reads),
             **{k: sum(r.get(k) or 0 for r in reads) for k in ("page_count", "articles_read", "articles_left")},
             "reads": reads}
     return pages, articles, meta

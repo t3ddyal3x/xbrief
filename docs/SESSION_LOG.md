@@ -1,5 +1,21 @@
 # xbrief — session log
 
+## 2026-11-10 — a cleanup pass for speed and one copy of each thing
+Operator: "run that cleanup command on xbrief to make sure it's performant and efficient". Measured on a copy of
+the real db: a brief page ~12 ms, History ~2 ms, Sites ~5 ms; only Search was worth speeding up.
+- Search: matching ids are cut to 300 before any post's record is read (a record can hold a whole transcript), and
+  "@account" looks up the poster and the reposted account through an index each (`posts_rt_handle`; an OR walked
+  every post). "the" 52→17 ms, "@saylor" 32→4 ms, "@zerohedge" 29→0.6 ms; same posts, same order, ties by id.
+- `runs_started` index; the schema script runs once per process per db (`store._ready`), not on every connection.
+- One copy each: the public GET (`sites.fetch`, videos calls it with 60 MB, no Accept, UTF-8), the summariser call
+  (`sites.ask_summary`, Opus, used by Sites and videos), the detached start (`runner.spawn`), the timestamped log
+  (`runner.log`), the write-then-swap JSON file (`config.write_json`/`read_json`), Claude's JSON (`brief.json_in`),
+  word trimming (`brief.words`), X's response check on the feed and a post's page (`Feed._status`, `_json_body`),
+  `LABELS`, `SPAWN_GRACE_MS`, the ffmpeg audio copy. `Result.reread_site` was never set: gone.
+- Left as they are: dropping transcripts from `posts.doc` (17 of 34 MB) and a contentless search index (27 MB):
+  both change stored data and want a rebuild; the operator's call. Running video lookups and site summaries in
+  parallel: seconds, in background jobs.
+
 ## 2026-11-10 — a simpler masthead, the Sites tab sites only
 Operator: "simplify this" (the brief's header), then "remove it" (the strip), "when it was pulled, updated at what
 time (not range) and i don't need to know how many people", "a sunrise graphic or icon". The header is now the day,

@@ -314,7 +314,7 @@ def test_the_first_builds_word_index_is_rebuilt_once():
         con.execute("DROP TABLE posts_fts")
         con.execute("CREATE VIRTUAL TABLE posts_fts USING fts5 (post_id UNINDEXED, body, who)")
         con.execute("INSERT INTO posts_fts (post_id, body, who) SELECT id, 'stale', handle FROM posts")
-    store._fts_checked.clear()  # a new process
+    store._ready.clear()  # a new process
     assert [p.text for p, _ in store.search("rates")[0]] == ["Rates were cut"]
     assert store.search("stale")[0] == []
     with store.db() as con:

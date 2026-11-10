@@ -1,5 +1,6 @@
 """Paths, caps and run windows. One home for each setting."""
 
+import json
 import os
 import pathlib
 
@@ -78,6 +79,21 @@ FIRST_RUN_HOURS = 24  # with no earlier run, read back this far (operator, 2026-
 # Each scheduled run starts at a random minute inside its window, the laptop's own time. These are the
 # defaults: the operator sets the windows, and turns the schedule on or off, on the page (store.settings).
 WINDOWS = {"am": ("05:30", "07:30"), "pm": ("17:00", "20:00")}
+
+
+def write_json(path: pathlib.Path, obj, **dumps_kw) -> None:
+    """`obj` as JSON at `path`, whole or not at all: written beside it, then swapped in."""
+    tmp = path.with_suffix(".part")
+    tmp.write_text(json.dumps(obj, **dumps_kw))
+    tmp.replace(path)
+
+
+def read_json(path: pathlib.Path) -> dict:
+    """The JSON at `path`; {} if it is missing or unreadable."""
+    try:
+        return json.loads(path.read_text())
+    except (OSError, ValueError):
+        return {}
 
 
 def ensure_dirs() -> None:

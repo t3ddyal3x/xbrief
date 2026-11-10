@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import datetime as dt
 import fcntl
-import json
 import os
 import random
 import subprocess
@@ -79,16 +78,11 @@ def write_progress(**kw) -> None:
     cur = read_progress() if not kw.get("fresh") else {}
     kw.pop("fresh", None)
     cur.update(kw, updated_ms=int(time.time() * 1000))
-    tmp = config.PROGRESS.with_suffix(".part")
-    tmp.write_text(json.dumps(cur))
-    tmp.replace(config.PROGRESS)
+    config.write_json(config.PROGRESS, cur)
 
 
 def read_progress() -> dict:
-    try:
-        return json.loads(config.PROGRESS.read_text())
-    except (OSError, ValueError):
-        return {}
+    return config.read_json(config.PROGRESS)
 
 
 # ── starting a run ──────────────────────────────────────────────────────────────────────────────────
@@ -114,12 +108,27 @@ def start(label: str | None = None, hours: float | None = None, by: str = "page"
         label = label or label_now()
         write_progress(fresh=True, phase="starting", label=label, hours=hours, by=by,
                        started_ms=int(time.time() * 1000), done=False)
-        config.LOGS.mkdir(parents=True, exist_ok=True)
-        env = {**os.environ, "PYTHONPATH": str(REPO), "PYTHONUNBUFFERED": "1"}
-        with open(config.LOGS / "runs.log", "a") as log:
-            subprocess.Popen(run_cmd(label, hours), cwd=REPO, env=env, stdin=subprocess.DEVNULL, stdout=log,
-                             stderr=subprocess.STDOUT, start_new_session=True)
+        spawn(run_cmd(label, hours), "runs.log")
         return True
+
+
+def spawn(cmd: list[str], log_name: str) -> None:
+    """`cmd` as a process of its own (own session), so restarting the app never cuts it off; its output to
+    logs/`log_name`."""
+    config.LOGS.mkdir(parents=True, exist_ok=True)
+    env = {**os.environ, "PYTHONPATH": str(REPO), "PYTHONUNBUFFERED": "1"}
+    with open(config.LOGS / log_name, "a") as out:
+        subprocess.Popen(cmd, cwd=REPO, env=env, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.STDOUT,
+                         start_new_session=True)
+
+
+def log(msg: str, file: str = "run.log") -> None:
+    """A timestamped line, printed and added to logs/`file`."""
+    line = f"{time.strftime('%Y-%m-%d %H:%M:%S')} {msg}"
+    print(line, flush=True)
+    config.LOGS.mkdir(parents=True, exist_ok=True)
+    with open(config.LOGS / file, "a") as f:
+        f.write(line + "\n")
 
 
 # ── the schedule ────────────────────────────────────────────────────────────────────────────────────
